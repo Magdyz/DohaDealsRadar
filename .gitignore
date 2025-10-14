@@ -1,26 +1,131 @@
-# Android/IntelliJ
+# ------------------------------
+# Android / IntelliJ Specific
+# ------------------------------
+
 *.iml
+.idea/
 .gradle/
-build/
 local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
 
-# Log files
-*.log
+# Android Studio Navigation Editor temp files
+.navigation/
 
-# Android Studio captures
-captures/
+# Android Studio Profiling files
+*.hprof
 
-# Keystore files
-*.jks
-
+# ------------------------------
 # Gradle
+# ------------------------------
 .gradle/
 */build/
+!gradle/wrapper/gradle-wrapper.jar
 
-# Misc
+# Gradle local properties (contains signing keys, etc.)
+local.properties
+
+# ------------------------------
+# Kotlin / Java build
+# ------------------------------
+*.class
+*.dex
+*.apk
+*.ap_
+*.jar
+*.war
+*.ear
+*.class
+*.aar
+
+# ------------------------------
+# Generated files
+# ------------------------------
+gen/
+bin/
+out/
+logs/
+
+# ------------------------------
+# Signing / Secrets
+# ------------------------------
+*.jks
+*.keystore
+signing.properties
+keys.properties
+app/google-services.json
+app/src/**/google-services.json
+*.pem
+*.p12
+*.key
+*.csr
+*.crt
+
+# ------------------------------
+# OS files
+# ------------------------------
 .DS_Store
+Thumbs.db
+
+# ------------------------------
+# Editor / Tool configs
+# ------------------------------
+.vscode/
+*.swp
+*.swo
+
+# ------------------------------
+# Jetpack Compose Previews / Build Caches
+# ------------------------------
+**/compose-cache/
+**/build-cache/
+**/intermediates/
+
+# ------------------------------
+# Crashlytics / Firebase
+# ------------------------------
+crashlytics-build.properties
+
+# ------------------------------
+# Supabase / Backend credentials
+# ------------------------------
+supabase.env
+.env
+.env.local
+*.env.*
+
+# ------------------------------
+# Lint / Reports
+# ------------------------------
+lint/
+lint-report.html
+lint-results.*
+/app/reports/
+
+# ------------------------------
+# Test / Coverage files
+# ------------------------------
+/test-results/
+**/test-output/
+**/test-results/
+**/coverage/
+
+# ------------------------------
+# Android Studio Specific Cache
+# ------------------------------
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/httpRequests
+
+# ------------------------------
+# Misc
+# ------------------------------
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
