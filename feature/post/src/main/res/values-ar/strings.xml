@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="post_title_en">نشر عرض (تجربة)</string>
+    <string name="post_button_submit_test_deal_en">إرسال عرض تجريبي</string>
+    <string name="post_status_idle_en">اضغط الزر لإرسال عرض تجريبي.</string>
+    <string name="post_status_loading_en">جارٍ الإرسال…</string>
+    <string name="post_status_success_en">تم بنجاح: تم إرسال العرض.</string>
+    <string name="post_status_error_en">خطأ: %1$s</string>
+</resources>

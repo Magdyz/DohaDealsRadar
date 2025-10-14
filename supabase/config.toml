@@ -1,0 +1,12 @@
+[functions.upload_image]
+verify_jwt = false
+
+[functions.submit_deal]
+verify_jwt = false
+
+[functions.cast_vote_once]
+verify_jwt = false
+
+[functions.create_report]
+verify_jwt = false
+

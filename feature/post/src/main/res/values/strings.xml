@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="post_title_en">Post a Deal (Test)</string>
+    <string name="post_button_submit_test_deal_en">Submit Test Deal</string>
+    <string name="post_status_idle_en">Press the button to submit a test deal.</string>
+    <string name="post_status_loading_en">Submitting…</string>
+    <string name="post_status_success_en">Success: deal submitted.</string>
+    <string name="post_status_error_en">Error: %1$s</string>
+</resources>
+

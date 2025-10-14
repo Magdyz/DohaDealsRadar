@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DohaDealsRadar" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- This is only used before Compose is drawn -->
+    </style>
+</resources>

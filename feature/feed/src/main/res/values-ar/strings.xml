@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_hot">الأكثر سخونة</string>
+    <string name="tab_newest">الأحدث</string>
+    <string name="hot_placeholder">🔥 قائمة العروض الساخنة (ستظهر العروض مرتبة)</string>
+    <string name="newest_placeholder">🆕 قائمة الأحدث (أحدث العروض المعتمدة)</string>
+</resources>

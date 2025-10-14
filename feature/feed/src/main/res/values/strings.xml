@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_hot">Top Hot</string>
+    <string name="tab_newest">Newest</string>
+    <string name="hot_placeholder">🔥 Hot feed placeholder (will show ranked deals)</string>
+    <string name="newest_placeholder">🆕 Newest feed placeholder (latest approved deals)</string>
+</resources>
