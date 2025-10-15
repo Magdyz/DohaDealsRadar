@@ -29,10 +29,12 @@ import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.placeholder.PlaceholderHighlight
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-
+import com.google.accompanist.placeholder.material.placeholder
+import com.google.accompanist.placeholder.material.shimmer
 /**
  * Post Screen - Clean, modern form design
  */
@@ -131,13 +133,23 @@ fun PostScreen(
                         .aspectRatio(16f / 9f)
                         .clip(MaterialTheme.shapes.medium)
                 ) {
+                    val painter = rememberAsyncImagePainter(state.selectedImageUri)
+                    val isLoading = painter.state is coil.compose.AsyncImagePainter.State.Loading
+
                     Image(
-                        painter = rememberAsyncImagePainter(state.selectedImageUri),
+                        painter = painter,
                         contentDescription = "Selected image",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .placeholder(
+                                visible = isLoading,
+                                color = Color.LightGray,
+                                highlight = PlaceholderHighlight.shimmer(),
+                                shape = MaterialTheme.shapes.medium
+                            ),
                         contentScale = ContentScale.Crop
                     )
-                    // Remove button
+                    // Remove button follows...
                     IconButton(
                         onClick = { viewModel.clearImage() },
                         modifier = Modifier
@@ -170,6 +182,7 @@ fun PostScreen(
                                 cameraPermission.launchPermissionRequest()
                             }
                         },
+                        enabled = !state.loading,
                         modifier = Modifier
                             .weight(1f)
                             .height(52.dp),
@@ -208,6 +221,7 @@ fun PostScreen(
                 OutlinedTextField(
                     value = state.imageUrl,
                     onValueChange = { viewModel.updateImageUrl(it) },
+                    enabled = !state.loading,
                     label = { Text("Image URL") },
                     placeholder = { Text("https://example.com/image.jpg") },
                     modifier = Modifier.fillMaxWidth(),
@@ -246,7 +260,8 @@ fun PostScreen(
                         .selectable(
                             selected = state.dealType == DealType.ONLINE,
                             onClick = { viewModel.setDealType(DealType.ONLINE) },
-                            role = Role.RadioButton
+                            role = Role.RadioButton,
+                            enabled = !state.loading
                         )
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -278,7 +293,8 @@ fun PostScreen(
                         .selectable(
                             selected = state.dealType == DealType.PHYSICAL,
                             onClick = { viewModel.setDealType(DealType.PHYSICAL) },
-                            role = Role.RadioButton
+                            role = Role.RadioButton,
+                            enabled = !state.loading
                         )
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -308,6 +324,7 @@ fun PostScreen(
             OutlinedTextField(
                 value = state.title,
                 onValueChange = { viewModel.updateTitle(it) },
+                enabled = !state.loading,
                 label = { Text("Title *") },
                 placeholder = { Text("e.g., iPhone 15 Pro - 50% Off") },
                 modifier = Modifier.fillMaxWidth(),
@@ -320,6 +337,7 @@ fun PostScreen(
             OutlinedTextField(
                 value = state.description,
                 onValueChange = { viewModel.updateDescription(it) },
+                enabled = !state.loading,
                 label = { Text("Description (optional)") },
                 placeholder = { Text("Add more details...") },
                 modifier = Modifier
@@ -336,6 +354,7 @@ fun PostScreen(
                 OutlinedTextField(
                     value = state.link,
                     onValueChange = { viewModel.updateLink(it) },
+                    enabled = !state.loading,
                     label = { Text("Deal Link *") },
                     placeholder = { Text("https://example.com/deal") },
                     modifier = Modifier.fillMaxWidth(),
@@ -347,6 +366,7 @@ fun PostScreen(
                 OutlinedTextField(
                     value = state.location,
                     onValueChange = { viewModel.updateLocation(it) },
+                    enabled = !state.loading,
                     label = { Text("Location *") },
                     placeholder = { Text("e.g., Qatar Mall, Carrefour") },
                     modifier = Modifier.fillMaxWidth(),

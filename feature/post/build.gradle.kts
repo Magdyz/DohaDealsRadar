@@ -54,5 +54,5 @@ dependencies {
     implementation(project(":core:design"))
     implementation("androidx.exifinterface:exifinterface:1.3.3")
     implementation(libs.androidx.compose.ui.graphics)
-// Or latest version
+    implementation("com.google.accompanist:accompanist-placeholder-material:0.32.0")
 }

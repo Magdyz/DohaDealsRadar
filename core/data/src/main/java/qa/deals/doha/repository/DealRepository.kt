@@ -62,7 +62,6 @@ class DealRepository {
         link: String?,
         imageUrl: String,
         location: String? = null
-
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         val request = SubmitDealRequest(
             title = title,
@@ -73,6 +72,30 @@ class DealRepository {
         )
         api.submitDeal(request)
     }
+
+    // ========================================
+    // ✅ NEW FUNCTION: Add after submitDeal()
+    // ========================================
+    /**
+     * Update deal image URL (for two-stage upload)
+     * Used to upgrade thumbnail to full resolution image
+     */
+    suspend fun updateDealImage(
+        dealId: String,
+        newImageUrl: String
+    ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
+        Log.d("Repository", "🖼️ Updating image for deal $dealId")
+
+        val request = UpdateImageRequest(
+            deal_id = dealId,
+            image_url = newImageUrl
+        )
+
+        api.updateDealImage(request)
+    }
+    // ========================================
+    // ✅ END OF NEW FUNCTION
+    // ========================================
 
     /**
      * Cast a vote on a deal

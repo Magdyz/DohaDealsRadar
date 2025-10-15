@@ -33,6 +33,11 @@ interface SupabaseApiService {
         @Body deal: SubmitDealRequest
     ): ApiEnvelope<List<DealDto>>
 
+    @POST("update-deal-image")
+    suspend fun updateDealImage(
+        @Body request: UpdateImageRequest
+    ): ApiEnvelope<DealDto>
+
     /**
      * Cast a vote on a deal
      */

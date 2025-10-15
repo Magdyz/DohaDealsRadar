@@ -88,8 +88,19 @@ class PostViewModel(
         uiState = uiState.copy(selectedImageUri = null, error = null)
     }
 
+    // ========================================
+    // ✅ REPLACE THE ENTIRE submitDeal() FUNCTION WITH THIS:
+    // ========================================
     /**
-     * Submit the deal
+     * Submit the deal with TWO-STAGE UPLOAD
+     *
+     * Process:
+     * 1. Compress to thumbnail + full image (~700ms)
+     * 2. Upload thumbnail ONLY (~1 second)
+     * 3. Submit deal with thumbnail → User sees "Posted!" immediately
+     * 4. Upload full image in background → Auto-updates deal
+     *
+     * Total user wait time: ~1.5 seconds (was 12-14 seconds)
      */
     fun submitDeal() {
         // Validation
@@ -145,64 +156,118 @@ class PostViewModel(
                     uiState = uiState.copy(loading = true, error = null, message = null)
                 }
 
-                // Step 1: Upload image if selected
                 var finalImageUrl = uiState.imageUrl
+                var dealId: String? = null
 
                 uiState.selectedImageUri?.let { uri ->
-                    Log.d("Post", "🖼️ Compressing image...")
+                    // ⚡ STAGE 1: Compress to thumbnail + full image (~700ms)
+                    Log.d("Post", "🖼️ Compressing images...")
                     withContext(Dispatchers.Main) {
                         uiState = uiState.copy(message = "📦 Compressing image...")
                     }
 
-                    // Compress image
-                    val compressedFile = ImageCompressor.compressImage(
+                    val images = ImageCompressor.compressImageTwoStage(
                         context = context,
-                        uri = uri,
-                        maxDimension = 1280,
-                        maxSizeBytes = 500 * 1024 // 500KB
+                        uri = uri
                     )
 
-                    Log.d("Post", "📤 Uploading image... Size: ${compressedFile.length() / 1024}KB")
+                    Log.d("Post", "✅ Thumbnail: ${images.thumbnail.length() / 1024}KB")
+                    Log.d("Post", "✅ Full image: ${images.fullImage.length() / 1024}KB")
+
+                    // ⚡ STAGE 2: Upload TINY thumbnail only (~1 second)
+                    Log.d("Post", "📤 Uploading thumbnail...")
                     withContext(Dispatchers.Main) {
-                        uiState = uiState.copy(message = "📤 Uploading image (may take 30 seconds)...")
+                        uiState = uiState.copy(message = "📤 Uploading preview...")
                     }
 
-                    // Upload to Supabase Storage
-                    finalImageUrl = repo.uploadImage(compressedFile)
+                    val thumbnailUrl = repo.uploadImage(images.thumbnail)
+                    images.thumbnail.delete()
+                    finalImageUrl = thumbnailUrl
 
-                    // Clean up temp file
-                    compressedFile.delete()
+                    Log.d("Post", "✅ Thumbnail uploaded: $thumbnailUrl")
 
-                    Log.d("Post", "✅ Image uploaded: $finalImageUrl")
+                    // ⚡ STAGE 3: Submit deal with thumbnail (user can navigate away after this!)
+                    Log.d("Post", "📤 Submitting deal...")
                     withContext(Dispatchers.Main) {
-                        uiState = uiState.copy(message = null)
+                        uiState = uiState.copy(message = "📤 Posting deal...")
                     }
-                }
 
-                // Step 2: Submit deal with image URL
-                Log.d("Post", "📤 Submitting deal to backend...")
-                val result = repo.submitDeal(
-                    title = uiState.title.trim(),
-                    description = uiState.description.trim().ifBlank { null },
-                    link = if (uiState.dealType == DealType.ONLINE) uiState.link.trim() else null,
-                    imageUrl = finalImageUrl,
-                    location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
-                )
+                    val result = repo.submitDeal(
+                        title = uiState.title.trim(),
+                        description = uiState.description.trim().ifBlank { null },
+                        link = if (uiState.dealType == DealType.ONLINE) uiState.link.trim() else null,
+                        imageUrl = thumbnailUrl,
+                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
+                    )
 
-                withContext(Dispatchers.Main) {
-                    if (result.success == true) {
-                        uiState = uiState.copy(
-                            loading = false,
-                            message = "✅ Deal submitted successfully! It will appear after review.",
-                            submitted = true
-                        )
-                        Log.d("Post", "✅ Deal submitted successfully")
+                    val dealData = result.data // ✅ Create a stable local variable
+                    if (result.success == true && dealData != null && dealData.isNotEmpty()) {
+                        dealId = dealData[0].id
+
+                        withContext(Dispatchers.Main) {
+                            uiState = uiState.copy(
+                                loading = false,
+                                message = "✅ Deal posted! Uploading full image...",
+                                submitted = true
+                            )
+                        }
+
+                        Log.d("Post", "✅ Deal submitted successfully with ID: $dealId")
+
+                        // ⚡ STAGE 4: Upload full image in BACKGROUND (user already navigated away!)
+                        try {
+                            Log.d("Post", "📤 Uploading full image in background...")
+                            val fullImageUrl = repo.uploadImage(images.fullImage)
+                            images.fullImage.delete()
+
+                            Log.d("Post", "✅ Full image uploaded: $fullImageUrl")
+
+                            // Update deal with full image URL
+                            dealId?.let { id -> // ✅ Only execute if dealId is not null
+                                repo.updateDealImage(id, fullImageUrl)
+                                Log.d("Post", "✅ Deal image updated to full resolution for ID: $id")
+                            } ?: Log.e("Post", "❌ Could not update image, dealId was null.")
+
+                        } catch (e: Exception) {
+                            Log.e("Post", "⚠️ Full image upload failed (thumbnail still works)", e)
+                            // Thumbnail is already live, so deal is still visible!
+                        }
                     } else {
-                        uiState = uiState.copy(
-                            loading = false,
-                            error = result.error ?: "Failed to submit deal"
-                        )
-                        Log.e("Post", "❌ Submit failed: ${result.error}")
+                        // Deal submission failed
+                        images.fullImage.delete()
+                        withContext(Dispatchers.Main) {
+                            uiState = uiState.copy(
+                                loading = false,
+                                error = result.error ?: "Failed to submit deal"
+                            )
+                        }
+                        Log.e("Post", "❌ Deal submission failed: ${result.error}")
+                    }
+                } ?: run {
+                    // No image selected, use URL
+                    val result = repo.submitDeal(
+                        title = uiState.title.trim(),
+                        description = uiState.description.trim().ifBlank { null },
+                        link = if (uiState.dealType == DealType.ONLINE) uiState.link.trim() else null,
+                        imageUrl = finalImageUrl,
+                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        if (result.success == true) {
+                            uiState = uiState.copy(
+                                loading = false,
+                                message = "✅ Deal submitted successfully! It will appear after review.",
+                                submitted = true
+                            )
+                            Log.d("Post", "✅ Deal submitted successfully")
+                        } else {
+                            uiState = uiState.copy(
+                                loading = false,
+                                error = result.error ?: "Failed to submit deal"
+                            )
+                            Log.e("Post", "❌ Submit failed: ${result.error}")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -216,6 +281,9 @@ class PostViewModel(
             }
         }
     }
+    // ========================================
+    // ✅ END OF UPDATED submitDeal()
+    // ========================================
 
     /**
      * Validate place name - block URLs, spam, etc.

@@ -12,6 +12,7 @@ import androidx.room.PrimaryKey
         Index(value = ["status"])      // ✅ Speed up filtering by status
     ]
 )
+
 data class DealEntity(
     @PrimaryKey val id: String,
     val title: String,

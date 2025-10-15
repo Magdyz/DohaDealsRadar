@@ -1,19 +1,22 @@
 package qa.deals.doha.navigation
 
-import qa.deals.doha.feature.report.ReportScreen
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import qa.deals.doha.feature.details.DetailsScreen
 import qa.deals.doha.feature.feed.FeedScreen
 import qa.deals.doha.feature.post.PostScreen
-import qa.deals.doha.feature.details.DetailsScreen
+import qa.deals.doha.feature.report.ReportScreen
 
 /**
  * Main navigation host for the app.
  * Manages navigation between all screens.
+ * ✅ OPTIMIZED: Instant navigation, no animation delay
  */
 @Composable
 fun AppNavHost(
@@ -21,9 +24,18 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.FEED
+        startDestination = Routes.FEED,
+        // ========================================
+        // ✅ INSTANT NAVIGATION: No animation delay
+        // ========================================
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
+        // ========================================
         // Feed Screen - Home screen showing list of deals
+        // ========================================
         composable(Routes.FEED) {
             FeedScreen(
                 onDealClick = { dealId ->
@@ -35,7 +47,9 @@ fun AppNavHost(
             )
         }
 
+        // ========================================
         // Post Screen - Submit a new deal
+        // ========================================
         composable(Routes.POST) {
             PostScreen(
                 onBackClick = { navController.popBackStack() },
@@ -43,7 +57,9 @@ fun AppNavHost(
             )
         }
 
+        // ========================================
         // Details Screen - Full deal details
+        // ========================================
         composable(
             route = Routes.DETAILS,
             arguments = listOf(
@@ -55,12 +71,14 @@ fun AppNavHost(
                 dealId = dealId,
                 onBackClick = { navController.popBackStack() },
                 onReportClick = {
-                    navController.navigate(Routes.report(dealId))  // ✅ FIX: Navigate to report
+                    navController.navigate(Routes.report(dealId))
                 }
             )
         }
 
+        // ========================================
         // Report Screen - Report inappropriate content
+        // ========================================
         composable(
             route = Routes.REPORT,
             arguments = listOf(

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
@@ -17,10 +18,10 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.Color
 
-
 /**
  * Feed Screen - Grid layout with 2 columns
  * Vinted-inspired: clean, minimal, image-focused
+ * ✅ OPTIMIZED: Keys, animations, derivedState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,13 +33,19 @@ fun FeedScreen(
     val deals by viewModel.deals.collectAsState()
     val state = viewModel.uiState
 
+    // ✅ NEW: Remember grid state for scroll position
+    val gridState = rememberLazyGridState()
+
+    // ✅ NEW: Optimize search query collection
+    val searchQuery by viewModel.searchQuery.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    // ✅ REPLACED: Search field instead of title
+                    // Search field
                     TextField(
-                        value = viewModel.searchQuery.collectAsState().value,
+                        value = searchQuery,  // ✅ Use cached value
                         onValueChange = { viewModel.onSearchQueryChange(it) },
                         placeholder = { Text("Search deals...") },
                         modifier = Modifier.fillMaxWidth(),
@@ -144,13 +151,14 @@ fun FeedScreen(
                 // Success - Grid layout
                 else -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2), // 2 columns
+                        columns = GridCells.Fixed(2),
+                        state = gridState,  // ✅ NEW: Add state
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 8.dp,
                             end = 8.dp,
                             top = 8.dp,
-                            bottom = 88.dp // Space for FAB
+                            bottom = 88.dp
                         ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -172,11 +180,15 @@ fun FeedScreen(
                             }
                         }
 
-                        // Deal cards
-                        items(deals, key = { it.id }) { deal ->
+                        // ✅ Deal cards with animation
+                        items(
+                            items = deals,
+                            key = { it.id }  // ✅ Already present!
+                        ) { deal ->
                             DealCard(
                                 deal = deal,
-                                onClick = { onDealClick(deal.id) }
+                                onClick = { onDealClick(deal.id) },
+                                modifier = Modifier.animateItem()  // ✅ NEW: Smooth animations!
                             )
                         }
                     }
