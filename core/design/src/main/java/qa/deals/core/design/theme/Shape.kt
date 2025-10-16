@@ -14,3 +14,10 @@ val DohaShapes = Shapes(
     large = RoundedCornerShape(16.dp),        // Large cards, dialogs
     extraLarge = RoundedCornerShape(24.dp)    // Bottom sheets, special surfaces
 )
+
+// ✨ NEW: Custom shapes for specific components
+object CustomShapes {
+    val VoteChip = RoundedCornerShape(16.dp)       // Pill-shaped vote chips
+    val ReportChip = RoundedCornerShape(20.dp)     // Circular report button
+    val PrimaryButton = RoundedCornerShape(12.dp)  // Primary CTA button
+}
