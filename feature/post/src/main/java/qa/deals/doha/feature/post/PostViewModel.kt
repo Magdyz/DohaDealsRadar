@@ -43,6 +43,7 @@ data class PostUiState(
 
 /**
  * ViewModel for Post Screen
+ * ✅ ENHANCED: Comprehensive logging for two-stage upload debugging
  */
 class PostViewModel(
     private val context: Context,
@@ -88,11 +89,8 @@ class PostViewModel(
         uiState = uiState.copy(selectedImageUri = null, error = null)
     }
 
-    // ========================================
-    // ✅ REPLACE THE ENTIRE submitDeal() FUNCTION WITH THIS:
-    // ========================================
     /**
-     * Submit the deal with TWO-STAGE UPLOAD
+     * ✅ ENHANCED: Submit deal with TWO-STAGE UPLOAD + comprehensive logging
      *
      * Process:
      * 1. Compress to thumbnail + full image (~700ms)
@@ -151,7 +149,14 @@ class PostViewModel(
         // ✅ Use SupervisorJob + Dispatchers.IO to prevent cancellation
         viewModelScope.launch(Dispatchers.IO + SupervisorJob()) {
             try {
-                Log.d("Post", "📤 Submitting deal: ${uiState.title}")
+                Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("Post", "🚀 TWO-STAGE UPLOAD STARTED")
+                Log.d("Post", "   Deal: ${uiState.title}")
+                Log.d("Post", "   Type: ${uiState.dealType}")
+                Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                val startTime = System.currentTimeMillis()
+
                 withContext(Dispatchers.Main) {
                     uiState = uiState.copy(loading = true, error = null, message = null)
                 }
@@ -160,8 +165,13 @@ class PostViewModel(
                 var dealId: String? = null
 
                 uiState.selectedImageUri?.let { uri ->
-                    // ⚡ STAGE 1: Compress to thumbnail + full image (~700ms)
-                    Log.d("Post", "🖼️ Compressing images...")
+                    // ========================================
+                    // ⚡ STAGE 1: Compress to thumbnail + full image
+                    // ========================================
+                    val stage1Start = System.currentTimeMillis()
+                    Log.d("Post", "📦 STAGE 1: Starting image compression...")
+                    Log.d("Post", "   Input URI: $uri")
+
                     withContext(Dispatchers.Main) {
                         uiState = uiState.copy(message = "📦 Compressing image...")
                     }
@@ -171,11 +181,23 @@ class PostViewModel(
                         uri = uri
                     )
 
-                    Log.d("Post", "✅ Thumbnail: ${images.thumbnail.length() / 1024}KB")
-                    Log.d("Post", "✅ Full image: ${images.fullImage.length() / 1024}KB")
+                    val stage1Time = System.currentTimeMillis() - stage1Start
+                    Log.d("Post", "✅ STAGE 1 COMPLETE (${stage1Time}ms)")
+                    Log.d("Post", "   → Thumbnail: ${images.thumbnail.length() / 1024}KB")
+                    Log.d("Post", "      File: ${images.thumbnail.name}")
+                    Log.d("Post", "      Path: ${images.thumbnail.absolutePath}")
+                    Log.d("Post", "   → Full image: ${images.fullImage.length() / 1024}KB")
+                    Log.d("Post", "      File: ${images.fullImage.name}")
+                    Log.d("Post", "      Path: ${images.fullImage.absolutePath}")
+                    Log.d("Post", "   → Size ratio: ${String.format("%.1f", images.fullImage.length().toFloat() / images.thumbnail.length().toFloat())}x")
 
-                    // ⚡ STAGE 2: Upload TINY thumbnail only (~1 second)
-                    Log.d("Post", "📤 Uploading thumbnail...")
+                    // ========================================
+                    // ⚡ STAGE 2: Upload TINY thumbnail only
+                    // ========================================
+                    val stage2Start = System.currentTimeMillis()
+                    Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    Log.d("Post", "📤 STAGE 2: Uploading thumbnail (${images.thumbnail.length() / 1024}KB)...")
+
                     withContext(Dispatchers.Main) {
                         uiState = uiState.copy(message = "📤 Uploading preview...")
                     }
@@ -184,10 +206,21 @@ class PostViewModel(
                     images.thumbnail.delete()
                     finalImageUrl = thumbnailUrl
 
-                    Log.d("Post", "✅ Thumbnail uploaded: $thumbnailUrl")
+                    val stage2Time = System.currentTimeMillis() - stage2Start
+                    Log.d("Post", "✅ STAGE 2 COMPLETE (${stage2Time}ms)")
+                    Log.d("Post", "   → Thumbnail uploaded successfully")
+                    Log.d("Post", "   → URL: $thumbnailUrl")
+                    Log.d("Post", "   → Thumbnail file deleted from cache")
 
-                    // ⚡ STAGE 3: Submit deal with thumbnail (user can navigate away after this!)
-                    Log.d("Post", "📤 Submitting deal...")
+                    // ========================================
+                    // ⚡ STAGE 3: Submit deal with thumbnail
+                    // ========================================
+                    val stage3Start = System.currentTimeMillis()
+                    Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    Log.d("Post", "📤 STAGE 3: Submitting deal with THUMBNAIL...")
+                    Log.d("Post", "   Title: ${uiState.title.trim()}")
+                    Log.d("Post", "   Image URL: $thumbnailUrl")
+
                     withContext(Dispatchers.Main) {
                         uiState = uiState.copy(message = "📤 Posting deal...")
                     }
@@ -200,9 +233,19 @@ class PostViewModel(
                         location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
                     )
 
-                    val dealData = result.data // ✅ Create a stable local variable
+                    val dealData = result.data
                     if (result.success == true && dealData != null && dealData.isNotEmpty()) {
                         dealId = dealData[0].id
+                        val stage3Time = System.currentTimeMillis() - stage3Start
+                        val userWaitTime = System.currentTimeMillis() - startTime
+
+                        Log.d("Post", "✅ STAGE 3 COMPLETE (${stage3Time}ms)")
+                        Log.d("Post", "   → Deal ID: $dealId")
+                        Log.d("Post", "   → Deal created with THUMBNAIL URL in database")
+                        Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        Log.d("Post", "⏱️  USER WAIT TIME: ${userWaitTime}ms (~${userWaitTime/1000}s)")
+                        Log.d("Post", "🎉 USER SEES 'POSTED!' - Navigating away now...")
+                        Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
                         withContext(Dispatchers.Main) {
                             uiState = uiState.copy(
@@ -212,39 +255,110 @@ class PostViewModel(
                             )
                         }
 
-                        Log.d("Post", "✅ Deal submitted successfully with ID: $dealId")
+                        // ========================================
+                        // ⚡ STAGE 4: Upload full image in BACKGROUND
+                        // (User has already navigated away!)
+                        // ========================================
+                        Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        Log.d("Post", "🔄 STAGE 4: Background full image upload...")
+                        Log.d("Post", "   (User already left screen)")
+                        Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-                        // ⚡ STAGE 4: Upload full image in BACKGROUND (user already navigated away!)
                         try {
-                            Log.d("Post", "📤 Uploading full image in background...")
-                            val fullImageUrl = repo.uploadImage(images.fullImage)
-                            images.fullImage.delete()
+                            val stage4Start = System.currentTimeMillis()
 
-                            Log.d("Post", "✅ Full image uploaded: $fullImageUrl")
+                            Log.d("Post", "📤 Uploading full image (${images.fullImage.length() / 1024}KB)...")
+                            val fullImageUrl = repo.uploadImage(images.fullImage)
+
+                            val uploadTime = System.currentTimeMillis() - stage4Start
+                            Log.d("Post", "✅ Full image uploaded (${uploadTime}ms)")
+                            Log.d("Post", "   → URL: $fullImageUrl")
+
+                            images.fullImage.delete()
+                            Log.d("Post", "   → Full image file deleted from cache")
 
                             // Update deal with full image URL
-                            dealId?.let { id -> // ✅ Only execute if dealId is not null
+                            dealId?.let { id ->
+                                val updateStart = System.currentTimeMillis()
+
+                                Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                Log.d("Post", "🔄 Updating database with FULL IMAGE...")
+                                Log.d("Post", "   Deal ID: $id")
+                                Log.d("Post", "   Old URL (thumbnail): $thumbnailUrl")
+                                Log.d("Post", "   New URL (full): $fullImageUrl")
+
                                 repo.updateDealImage(id, fullImageUrl)
-                                Log.d("Post", "✅ Deal image updated to full resolution for ID: $id")
-                            } ?: Log.e("Post", "❌ Could not update image, dealId was null.")
+
+                                val updateTime = System.currentTimeMillis() - updateStart
+                                Log.d("Post", "✅ Database updated (${updateTime}ms)")
+                                Log.d("Post", "   → Deal $id now has FULL IMAGE in Supabase")
+
+                                // ✅ Force cache refresh
+                                val cacheStart = System.currentTimeMillis()
+                                Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                Log.d("Post", "🔄 Refreshing local Room cache from backend...")
+
+                                repo.refreshDeals()
+
+                                val cacheTime = System.currentTimeMillis() - cacheStart
+                                Log.d("Post", "✅ Cache refreshed (${cacheTime}ms)")
+                                Log.d("Post", "   → Feed should now display FULL IMAGE for deal $id")
+
+                                val totalBackgroundTime = System.currentTimeMillis() - stage4Start
+                                Log.d("Post", "✅ STAGE 4 COMPLETE (${totalBackgroundTime}ms)")
+                                Log.d("Post", "   Upload: ${uploadTime}ms")
+                                Log.d("Post", "   DB update: ${updateTime}ms")
+                                Log.d("Post", "   Cache refresh: ${cacheTime}ms")
+
+                            } ?: run {
+                                Log.e("Post", "❌ ERROR: dealId was null, cannot update image!")
+                            }
+
+                            val totalTime = System.currentTimeMillis() - startTime
+                            Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            Log.d("Post", "🎉 TWO-STAGE UPLOAD COMPLETE")
+                            Log.d("Post", "   Total time: ${totalTime}ms (~${totalTime/1000}s)")
+                            Log.d("Post", "   User waited: ${userWaitTime}ms (~${userWaitTime/1000}s)")
+                            Log.d("Post", "   Background: ${totalTime - userWaitTime}ms")
+                            Log.d("Post", "   Compression: ${stage1Time}ms")
+                            Log.d("Post", "   Thumbnail upload: ${stage2Time}ms")
+                            Log.d("Post", "   Deal submit: ${stage3Time}ms")
+                            Log.d("Post", "   Full upload: ${totalTime - userWaitTime}ms")
+                            Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
                         } catch (e: Exception) {
-                            Log.e("Post", "⚠️ Full image upload failed (thumbnail still works)", e)
-                            // Thumbnail is already live, so deal is still visible!
+                            Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            Log.e("Post", "💥 STAGE 4 FAILED - Background upload error")
+                            Log.e("Post", "   Error type: ${e.javaClass.simpleName}")
+                            Log.e("Post", "   Error message: ${e.message}")
+                            Log.e("Post", "   Deal $dealId will keep THUMBNAIL URL")
+                            Log.e("Post", "   (Deal still visible with lower quality image)")
+                            Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", e)
                         }
                     } else {
                         // Deal submission failed
                         images.fullImage.delete()
+                        Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        Log.e("Post", "❌ STAGE 3 FAILED - Deal submission error")
+                        Log.e("Post", "   API success: ${result.success}")
+                        Log.e("Post", "   API error: ${result.error}")
+                        Log.e("Post", "   Data: $dealData")
+                        Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
                         withContext(Dispatchers.Main) {
                             uiState = uiState.copy(
                                 loading = false,
                                 error = result.error ?: "Failed to submit deal"
                             )
                         }
-                        Log.e("Post", "❌ Deal submission failed: ${result.error}")
                     }
                 } ?: run {
-                    // No image selected, use URL
+                    // ========================================
+                    // No image selected, use URL directly
+                    // ========================================
+                    Log.d("Post", "📤 Submitting deal with IMAGE URL (no compression)...")
+                    Log.d("Post", "   Image URL: $finalImageUrl")
+
                     val result = repo.submitDeal(
                         title = uiState.title.trim(),
                         description = uiState.description.trim().ifBlank { null },
@@ -255,23 +369,32 @@ class PostViewModel(
 
                     withContext(Dispatchers.Main) {
                         if (result.success == true) {
+                            val totalTime = System.currentTimeMillis() - startTime
+                            Log.d("Post", "✅ Deal submitted successfully (${totalTime}ms)")
+                            Log.d("Post", "   No image compression needed (using URL)")
+
                             uiState = uiState.copy(
                                 loading = false,
                                 message = "✅ Deal submitted successfully! It will appear after review.",
                                 submitted = true
                             )
-                            Log.d("Post", "✅ Deal submitted successfully")
                         } else {
+                            Log.e("Post", "❌ Deal submission failed: ${result.error}")
                             uiState = uiState.copy(
                                 loading = false,
                                 error = result.error ?: "Failed to submit deal"
                             )
-                            Log.e("Post", "❌ Submit failed: ${result.error}")
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("Post", "💥 Error submitting deal", e)
+                Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.e("Post", "💥 FATAL ERROR - Submit deal crashed")
+                Log.e("Post", "   Error type: ${e.javaClass.simpleName}")
+                Log.e("Post", "   Error message: ${e.message}")
+                Log.e("Post", "   Stack trace:", e)
+                Log.e("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
                 withContext(Dispatchers.Main) {
                     uiState = uiState.copy(
                         loading = false,
@@ -281,9 +404,6 @@ class PostViewModel(
             }
         }
     }
-    // ========================================
-    // ✅ END OF UPDATED submitDeal()
-    // ========================================
 
     /**
      * Validate place name - block URLs, spam, etc.

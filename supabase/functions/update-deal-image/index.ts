@@ -1,113 +1,73 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-'Access-Control-Allow-Origin': '*',
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+"Access-Control-Allow-Origin": "*",
+"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // Create Supabase client with service role
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+    const { deal_id, image_url } = await req.json();
 
-    // Parse request body
-    const { deal_id, image_url } = await req.json()
+    console.log("🖼️  UPDATE IMAGE REQUEST:");
+    console.log("  Deal ID:", deal_id);
+    console.log("  New URL:", image_url);
 
-    // Validate required fields
+    // Validate input
     if (!deal_id || !image_url) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Missing required fields: deal_id, image_url'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-)
-}
+      throw new Error("Missing required fields: deal_id, image_url");
+    }
 
-// Update deal image URL
-const { data, error } = await supabase
-.from('deals')
-      .update({ image_url })
-      .eq('id', deal_id)
+    // Update the deal's image_url in the database
+    const { data, error } = await supabase
+      .from("deals")
+      .update({ image_url: image_url })
+      .eq("id", deal_id)
       .select()
-      .single()
+      .single();
 
     if (error) {
-      console.error('Database error:', error)
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to update image',
-          details: error.message
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-)
-}
+      console.error("❌ Database update failed:", error);
+      throw error;
+    }
 
-// Return success response
-return new Response(
+    console.log("✅ Image URL updated successfully");
+    console.log("  Deal:", data.id);
+    console.log("  New image:", data.image_url);
+
+    return new Response(
       JSON.stringify({
         success: true,
-        message: '✅ Image updated',
-        data
+        data: data,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
-)
-
-} catch (error) {
-console.error('Error:', error)
+    );
+  } catch (error) {
+    console.error("💥 Error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Server error',
-        details: error.message
+        error: error.message,
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
-)
-}
-})
-```
-
----
-
-## 📊 Expected Performance
-
-### **Before (Current):**
-```
-Compression: 6-7 seconds
-Upload: 6-7 seconds
-TOTAL: 12-14 seconds ❌
-```
-
-### **After (Two-Stage):**
-```
-Stage 1: Compress both (~700ms)
-Stage 2: Upload thumbnail (~1 second)
-Stage 3: Submit deal (~300ms)
-USER SEES "POSTED!": 2 seconds ✅
-Stage 4: Full image uploads in background (user already left screen)
+    );
+  }
+});

@@ -12,7 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.material.icons.filled.Search
@@ -20,32 +23,38 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Feed Screen - Grid layout with 2 columns
- * Vinted-inspired: clean, minimal, image-focused
- * ✅ OPTIMIZED: Keys, animations, derivedState
+ * ✅ Proper ViewModel creation with Context
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
-    viewModel: FeedViewModel = viewModel(),
     onDealClick: (String) -> Unit = {},
     onPostClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+
+    // ✅ FIXED: Create ViewModel with Context using proper Factory
+    val viewModel: FeedViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return FeedViewModel(context) as T
+            }
+        }
+    )
+
     val deals by viewModel.deals.collectAsState()
     val state = viewModel.uiState
 
-    // ✅ NEW: Remember grid state for scroll position
     val gridState = rememberLazyGridState()
-
-    // ✅ NEW: Optimize search query collection
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    // Search field
                     TextField(
-                        value = searchQuery,  // ✅ Use cached value
+                        value = searchQuery,
                         onValueChange = { viewModel.onSearchQueryChange(it) },
                         placeholder = { Text("Search deals...") },
                         modifier = Modifier.fillMaxWidth(),
@@ -123,14 +132,8 @@ fun FeedScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "😞",
-                            style = MaterialTheme.typography.displayLarge
-                        )
-                        Text(
-                            text = "Error loading deals",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Text(text = "😞", style = MaterialTheme.typography.displayLarge)
+                        Text(text = "Error loading deals", style = MaterialTheme.typography.titleMedium)
                         Text(
                             text = state.error ?: "Unknown error",
                             style = MaterialTheme.typography.bodyMedium,
@@ -152,7 +155,7 @@ fun FeedScreen(
                 else -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        state = gridState,  // ✅ NEW: Add state
+                        state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 8.dp,
@@ -167,9 +170,7 @@ fun FeedScreen(
                         if (state.loading && deals.isNotEmpty()) {
                             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     CircularProgressIndicator(
@@ -180,15 +181,22 @@ fun FeedScreen(
                             }
                         }
 
-                        // ✅ Deal cards with animation
+                        // ✅ Deal cards with vote status
+                        // ✅ FIX 2: Pass optimistic counts to each card
                         items(
                             items = deals,
-                            key = { it.id }  // ✅ Already present!
+                            key = { it.id }
                         ) { deal ->
                             DealCard(
                                 deal = deal,
                                 onClick = { onDealClick(deal.id) },
-                                modifier = Modifier.animateItem()  // ✅ NEW: Smooth animations!
+                                onVoteHot = { viewModel.voteHot(deal.id) },
+                                onVoteCold = { viewModel.voteCold(deal.id) },
+                                hasVoted = viewModel.hasVoted(deal.id),
+                                userVoteType = viewModel.getVoteType(deal.id),
+                                optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),  // ✅ NEW
+                                optimisticColdCount = viewModel.getOptimisticColdCount(deal.id), // ✅ NEW
+                                modifier = Modifier.animateItem()
                             )
                         }
                     }
