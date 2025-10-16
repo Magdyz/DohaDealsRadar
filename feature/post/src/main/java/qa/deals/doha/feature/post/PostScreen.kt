@@ -1,5 +1,7 @@
 package qa.deals.doha.feature.post
 
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.Manifest
 import androidx.compose.runtime.getValue
 import android.net.Uri
@@ -51,6 +53,7 @@ import java.util.*
  * 6. Success checkmarks for valid fields
  * 7. Helper text explaining field requirements
  * 8. Missing fields list when form is invalid
+ * 9. ✅ FIXED: Proper camera permission handling (no crash)
  *
  * ✅ ALL EXISTING FUNCTIONALITY PRESERVED
  *
@@ -104,28 +107,67 @@ fun PostScreen(
     // Camera URI state
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Permission launcher
+    // ========================================
+    // ✅ NEW: Camera permission state tracking
+    // Prevents crash by waiting for permission before launching camera
+    // ========================================
+    var hasCameraPermission by remember { mutableStateOf(false) }
+    var shouldLaunchCamera by remember { mutableStateOf(false) }
+    var permissionDenied by remember { mutableStateOf(false) }
+
+    // ========================================
+    // ✅ FIXED: Permission launcher with proper callback
+    // Waits for user response before launching camera
+    // ========================================
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         if (isGranted) {
-            Log.d("PostScreen", "✅ Camera permission granted")
+            Log.d("PostScreen", "✅ Camera permission GRANTED")
+            hasCameraPermission = true
+            shouldLaunchCamera = true
+            permissionDenied = false
         } else {
-            Log.e("PostScreen", "❌ Camera permission denied")
+            Log.e("PostScreen", "❌ Camera permission DENIED")
+            hasCameraPermission = false
+            shouldLaunchCamera = false
+            permissionDenied = true
         }
+        Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
-    // Camera launcher
+    // ========================================
+    // ✅ FIXED: Camera launcher
+    // ========================================
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d("PostScreen", "📷 Camera result: success=$success")
         if (success && cameraImageUri != null) {
             viewModel.setSelectedImage(cameraImageUri!!)
-            Log.d("PostScreen", "✅ Camera image captured")
+            Log.d("PostScreen", "✅ Camera image captured and set")
+        } else {
+            Log.e("PostScreen", "❌ Camera capture failed or cancelled")
+        }
+        shouldLaunchCamera = false
+        Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    // ========================================
+    // ✅ NEW: Launch camera when permission is granted
+    // This effect runs after permission callback completes
+    // ========================================
+    LaunchedEffect(shouldLaunchCamera) {
+        if (shouldLaunchCamera && hasCameraPermission && cameraImageUri != null) {
+            Log.d("PostScreen", "🚀 Launching camera with URI: $cameraImageUri")
+            cameraLauncher.launch(cameraImageUri!!)
+            shouldLaunchCamera = false
         }
     }
 
-    // Gallery launcher
+    // Gallery launcher (unchanged)
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -370,9 +412,7 @@ fun PostScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("https://example.com/deal") },
-                        // ✨ FIXED: InsertLink icon instead of Link
                         leadingIcon = { Icon(Icons.Default.InsertLink, contentDescription = null) },
-                        // ✨ NEW: Visual validation state
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (linkTouched && !isLinkValid)
                                 MaterialTheme.colorScheme.error
@@ -382,7 +422,6 @@ fun PostScreen(
                             else MaterialTheme.colorScheme.outline
                         ),
                         isError = linkTouched && !isLinkValid,
-                        // ✨ NEW: Specific error messages
                         supportingText = if (linkTouched && !isLinkValid) {
                             {
                                 Text(
@@ -412,7 +451,6 @@ fun PostScreen(
                                 fontSize = 16.sp
                             )
                         )
-                        // ✨ NEW: Success indicator
                         if (isLocationValid && locationTouched) {
                             Icon(
                                 Icons.Default.CheckCircle,
@@ -477,7 +515,6 @@ fun PostScreen(
                             fontSize = 16.sp
                         )
                     )
-                    // ✨ NEW: Success indicator when image is selected
                     if (hasImage) {
                         Icon(
                             Icons.Default.CheckCircle,
@@ -498,7 +535,6 @@ fun PostScreen(
 
                 // Image preview or placeholder
                 if (state.selectedImageUri != null || state.imageUrl.isNotBlank()) {
-                    // ✨ Image Preview with Remove Button
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -510,7 +546,6 @@ fun PostScreen(
                             contentDescription = "Selected image",
                             modifier = Modifier.fillMaxSize()
                         )
-                        // Remove button
                         IconButton(
                             onClick = {
                                 viewModel.clearImage()
@@ -522,7 +557,6 @@ fun PostScreen(
                         }
                     }
                 } else {
-                    // ✨ NEW: Empty state with error border if form submitted
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -544,7 +578,6 @@ fun PostScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // ✨ FIXED: PhotoCamera icon instead of AddPhotoAlternate
                             Icon(
                                 Icons.Default.PhotoCamera,
                                 contentDescription = null,
@@ -560,25 +593,46 @@ fun PostScreen(
                     }
                 }
 
-                // Camera and Gallery Buttons
+                // ========================================
+                // ✅ FIXED: Camera and Gallery Buttons
+                // Camera now properly waits for permission
+                // ========================================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                            Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            Log.d("PostScreen", "📷 Camera button clicked")
+
+                            // ✅ Create URI FIRST
                             cameraImageUri = createImageFile()
-                            cameraLauncher.launch(cameraImageUri!!)
-                            Log.d("PostScreen", "📷 Camera launched")
+                            Log.d("PostScreen", "   Created URI: $cameraImageUri")
+
+                            // ✅ Check if we already have permission
+                            val hasPermission = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (hasPermission) {
+                                Log.d("PostScreen", "   ✅ Already have permission, launching camera")
+                                hasCameraPermission = true
+                                shouldLaunchCamera = true
+                            } else {
+                                Log.d("PostScreen", "   ⚠️ Need permission, requesting...")
+                                permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                            Log.d("PostScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        // ✨ FIXED: PhotoCamera icon instead of Camera
                         Icon(Icons.Default.PhotoCamera, contentDescription = null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Camera")
                     }
+
                     OutlinedButton(
                         onClick = {
                             galleryLauncher.launch("image/*")
@@ -586,11 +640,20 @@ fun PostScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        // ✨ FIXED: Collections icon instead of Image
                         Icon(Icons.Default.Collections, contentDescription = null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Gallery")
                     }
+                }
+
+                // ✅ NEW: Show error if permission denied
+                if (permissionDenied) {
+                    Text(
+                        "Camera permission is required to take photos. Please enable it in Settings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
@@ -610,7 +673,6 @@ fun PostScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // ✨ FIXED: Warning icon instead of Error
                         Icon(
                             Icons.Default.Warning,
                             contentDescription = null,
@@ -751,6 +813,15 @@ fun PostScreen(
             Spacer(Modifier.height(32.dp))
         }
     }
+
+    // ========================================
+    // ✨ NEW: Loading Overlay (blocks all interaction)
+    // Shows when form is being submitted
+    // ========================================
+    if (state.loading) {
+        UploadLoadingOverlay(message = state.message)
+    }
+
     // ========================================
     // ✨ NEW: Success Celebration Screen Overlay
     // Shows animated success screen when deal is posted
@@ -763,5 +834,4 @@ fun PostScreen(
             }
         )
     }
-
 }
