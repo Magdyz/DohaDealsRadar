@@ -48,12 +48,22 @@ fun DealCard(
     onClick: (() -> Unit)? = null,
     onVoteHot: (() -> Unit)? = null,
     onVoteCold: (() -> Unit)? = null,
-    hasVoted: Boolean = false,
-    userVoteType: String? = null,
+    hasVoted: Boolean = false,           // Keep for backwards compatibility
+    userVoteType: String? = null,        // Keep for backwards compatibility
     optimisticHotCount: Int? = null,
     optimisticColdCount: Int? = null
 ) {
     val TAG = "DealCard"
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // ✅ FIX: Check vote status directly from DeviceIdManager (source of truth)
+    val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
+    val actualHasVoted = remember(deal.id) { deviceIdManager.hasVoted(deal.id) }
+    val actualUserVoteType = remember(deal.id) { deviceIdManager.getVoteType(deal.id) }
+
+    // ✅ Use actual vote status (not the stale parameter)
+    val effectiveHasVoted = actualHasVoted
+    val effectiveUserVoteType = actualUserVoteType
 
     // ========================================
     // Vote count calculations
