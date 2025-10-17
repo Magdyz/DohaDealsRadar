@@ -254,8 +254,9 @@ fun DealCard(
                         .fillMaxWidth()
                         .height(44.dp), // Taller, not squashed
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDarkTheme) ActionPrimaryDark else ActionPrimary,
-                        contentColor = Color.White
+                        containerColor = Color(0xFF9046CF),
+                        contentColor = Color(0xFFF3F3F4)
+
                     ),
                     shape = MaterialTheme.shapes.medium, // Rounded edges
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),

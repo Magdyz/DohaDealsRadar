@@ -6,8 +6,8 @@ import androidx.compose.material3.lightColorScheme
 
 // 🎨 Vinted-inspired Purple Palette (Modern 2025)
 // Light Theme
-val PurplePrimary = Color(0xFF7C66FF)        // Soft vibrant purple
-val PurplePrimaryDark = Color(0xFF6852E8)    // Deeper purple for contrast
+val PurplePrimary = Color(0xFFC57AF7)        // Soft vibrant purple
+val PurplePrimaryDark = Color(0xFFC57AF7)    // Deeper purple for contrast
 val PurpleLight = Color(0xFFF5F3FF)          // Very light purple tint
 val PurpleContainer = Color(0xFFE9E4FF)      // Light purple container
 
@@ -38,8 +38,8 @@ val HotOrange = Color(0xFFFF6B35)
 val ColdBlue = Color(0xFF4A90E2)
 
 // ✨ NEW: Action Colors (High Contrast for Primary Actions)
-val ActionPrimary = Color(0xFF7C66FF)         // Vibrant purple for primary CTA
-val ActionPrimaryHover = Color(0xFF6852E8)    // Darker on hover
+val ActionPrimary = Color(0xFF9046CF)         // Vibrant purple for primary CTA
+val ActionPrimaryHover = Color(0xFF9046CF)    // Darker on hover
 val ActionSecondary = Color(0xFFF3F4F6)       // Light gray for secondary actions
 val ActionSecondaryBorder = Color(0xFFE8EAED) // Border for secondary chips
 
@@ -54,7 +54,7 @@ val ReportIconColor = Color(0xFF8B96A3)       // Subtle gray for report icon
 val ReportBgColor = Color(0xFFF3F4F6)         // Light background for report chip
 
 // ✨ NEW: Dark Theme Action Colors
-val ActionPrimaryDark = Color(0xFFA394FF)
+val ActionPrimaryDark = Color(0xFF9046CF)
 val ActionSecondaryDark = Color(0xFF2A2F36)
 val VoteHotBgDark = Color(0xFF2A1510)
 val VoteHotContentDark = Color(0xFFFF8B7C)

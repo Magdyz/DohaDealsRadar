@@ -560,8 +560,9 @@ private fun ReportFormContent(
                 .height(52.dp),
             enabled = !uiState.loading && uiState.selectedReason != null,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError
+    containerColor = Color(0xFF9046CF),
+    contentColor = Color(0xFFF3F3F4)
+
             ),
             shape = MaterialTheme.shapes.medium
         ) {
