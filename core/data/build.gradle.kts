@@ -43,5 +43,7 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")  // Now this will work
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("io.coil-kt:coil-compose:2.5.0")
+    // ✅ NEW: EXIF Interface for reading image orientation
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
 }

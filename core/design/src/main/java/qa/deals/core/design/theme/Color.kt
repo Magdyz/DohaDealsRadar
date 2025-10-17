@@ -37,6 +37,32 @@ val WarningOrange = Color(0xFFF59E0B)
 val HotOrange = Color(0xFFFF6B35)
 val ColdBlue = Color(0xFF4A90E2)
 
+// ✨ NEW: Action Colors (High Contrast for Primary Actions)
+val ActionPrimary = Color(0xFF7C66FF)         // Vibrant purple for primary CTA
+val ActionPrimaryHover = Color(0xFF6852E8)    // Darker on hover
+val ActionSecondary = Color(0xFFF3F4F6)       // Light gray for secondary actions
+val ActionSecondaryBorder = Color(0xFFE8EAED) // Border for secondary chips
+
+// ✨ NEW: Vote Chip Colors (Distinct from primary actions)
+val VoteHotBg = Color(0xFFFFF4ED)             // Light orange background
+val VoteHotContent = Color(0xFFFF6B35)        // Hot orange text/icon
+val VoteColdBg = Color(0xFFEFF6FF)            // Light blue background
+val VoteColdContent = Color(0xFF4A90E2)       // Cold blue text/icon
+
+// ✨ NEW: Report/Warning Colors
+val ReportIconColor = Color(0xFF8B96A3)       // Subtle gray for report icon
+val ReportBgColor = Color(0xFFF3F4F6)         // Light background for report chip
+
+// ✨ NEW: Dark Theme Action Colors
+val ActionPrimaryDark = Color(0xFFA394FF)
+val ActionSecondaryDark = Color(0xFF2A2F36)
+val VoteHotBgDark = Color(0xFF2A1510)
+val VoteHotContentDark = Color(0xFFFF8B7C)
+val VoteColdBgDark = Color(0xFF0A2540)
+val VoteColdContentDark = Color(0xFF60A5FA)
+val ReportIconColorDark = Color(0xFF8B96A3)
+val ReportBgColorDark = Color(0xFF2A2F36)
+
 val LightColors = lightColorScheme(
     primary = PurplePrimary,
     onPrimary = Color.White,
