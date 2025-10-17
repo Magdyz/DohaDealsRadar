@@ -33,6 +33,7 @@ data class PostUiState(
     val dealType: DealType = DealType.ONLINE,
     val link: String = "",
     val location: String = "",
+    val promoCode: String? = null, // ✅ NEW: Add promo code field
     val imageUrl: String = "",
     val selectedImageUri: Uri? = null,
     val loading: Boolean = false,
@@ -75,6 +76,10 @@ class PostViewModel(
 
     fun setDealType(type: DealType) {
         uiState = uiState.copy(dealType = type, error = null)
+    }
+    // ✅ NEW: Add promo code update function
+    fun updatePromoCode(promoCode: String) {
+        uiState = uiState.copy(promoCode = promoCode.trim().ifBlank { null }, error = null)
     }
 
     fun updateImageUrl(imageUrl: String) {

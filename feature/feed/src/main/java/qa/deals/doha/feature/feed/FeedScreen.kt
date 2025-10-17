@@ -98,8 +98,8 @@ fun FeedScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onPostClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = Color(0xFFFF9143),
+                contentColor = Color(0xFFF3F3F4)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
