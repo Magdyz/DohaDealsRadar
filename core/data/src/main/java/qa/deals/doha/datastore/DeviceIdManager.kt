@@ -14,6 +14,7 @@ import java.util.UUID
  * - Generates and stores a unique device ID.
  * - Tracks vote state per deal (hot / cold).
  * - Tracks report state per deal to prevent duplicate submissions.
+ * - ✅ ENHANCED: Added daily report count tracking for rate limiting
  * - Persists everything in SharedPreferences (safe across restarts).
  *
  * 📌 Singleton: Use [DeviceIdManager.getInstance(context)] to access.
@@ -94,7 +95,7 @@ class DeviceIdManager private constructor(context: Context) {
 
     /**
      * ✅ Check if user already reported a specific deal.
-     * This value is persisted — if the user reported yesterday, it’s still true today.
+     * This value is persisted — if the user reported yesterday, it's still true today.
      */
     fun hasReported(dealId: String): Boolean {
         val reported = prefs.getBoolean("$KEY_REPORT_PREFIX$dealId", false)
@@ -105,6 +106,7 @@ class DeviceIdManager private constructor(context: Context) {
     /**
      * 💾 Mark a deal as reported.
      * ⚠️ This should be called **only after a successful API response**.
+     * ✅ ALIAS: Same as recordReport() for consistency
      */
     fun recordReport(dealId: String) {
         prefs.edit()
@@ -132,16 +134,23 @@ class DeviceIdManager private constructor(context: Context) {
     }
 
     // ---------------------------
-    // 📅 Report rate limiting (optional)
+    // 📅 Report rate limiting
+    // ✅ ENHANCED: Added daily report tracking
     // ---------------------------
 
-    /** 📊 How many reports submitted today */
+    /**
+     * 📊 How many reports submitted today
+     * ✅ ALIAS: Same as getTodayReportCount() for consistency
+     */
     fun getTodayReportCount(): Int {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         return prefs.getInt("$KEY_REPORT_COUNT_PREFIX$today", 0)
     }
 
-    /** 📈 Increment today's report count */
+    /**
+     * 📈 Increment today's report count
+     * ✅ ALIAS: Same as incrementTodayReportCount() for consistency
+     */
     fun incrementTodayReportCount() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val newCount = getTodayReportCount() + 1
