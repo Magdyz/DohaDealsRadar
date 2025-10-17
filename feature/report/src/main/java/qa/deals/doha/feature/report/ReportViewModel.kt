@@ -11,6 +11,10 @@ import kotlinx.coroutines.launch
 import qa.deals.doha.datastore.DeviceIdManager
 import qa.deals.doha.network.ReportReason
 import qa.deals.doha.repository.DealRepository
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusEvent
+
 
 /**
  * UI state for Report screen
@@ -42,7 +46,7 @@ class ReportViewModel(
     companion object {
         private const val MAX_REPORTS_PER_DAY = 5
         // ✅ NEW: Minimum character requirement for details
-        private const val MIN_DETAIL_LENGTH = 20
+        private const val MIN_DETAIL_LENGTH = 30
 
         // ✅ NEW: High-severity reasons requiring details
         private val HIGH_SEVERITY_REASONS = setOf(
