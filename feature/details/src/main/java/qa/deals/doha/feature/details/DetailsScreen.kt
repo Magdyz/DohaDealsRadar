@@ -2,6 +2,7 @@ package qa.deals.doha.feature.details
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +56,48 @@ import qa.deals.doha.db.DealEntity
  * - Location copy
  * - Link opening
  */
+
+/**
+ * ✨ MODERN 2025: Convert timestamp to relative time
+ * Format: "Just now", "5m ago", "3h ago", "2d ago", "1w ago", "1mo ago", "1y ago"
+ */
+private fun getRelativeTimeString(createdAt: String?): String {
+    if (createdAt.isNullOrBlank()) return ""
+
+    try {
+        // Parse the timestamp (adjust format based on your backend)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = sdf.parse(createdAt) ?: return ""
+
+        val now = System.currentTimeMillis()
+        val then = date.time
+        val diffMs = now - then
+
+        val seconds = diffMs / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+        val weeks = days / 7
+        val months = days / 30
+        val years = days / 365
+
+        return when {
+            seconds < 60 -> "Just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            days == 1L -> "Yesterday"
+            days < 7 -> "${days}d ago"
+            weeks < 4 -> "${weeks}w ago"
+            months < 12 -> "${months}mo ago"
+            else -> "${years}y ago"
+        }
+    } catch (e: Exception) {
+        Log.e("DetailsScreen", "Error parsing date: $createdAt", e)
+        return ""
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailsScreen(
@@ -254,7 +296,7 @@ private fun DealDetailsContent(
             // ========================================
 // ✨ CLEAN DESIGN: Border-only vote indication
 // Not voted: Grey circle, colored emoji + number
-// Voted: Colored border around circle (orange for hot, purple for cold)
+// Voted: Colored border around circle (orange for hot, blue for cold)
 // ========================================
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -385,7 +427,18 @@ private fun DealDetailsContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+// ✨ NEW: Timestamp directly below voting buttons (LEFT aligned)
+            deal.createdAt?.let { createdAt ->
+                Text(
+                    text = "Posted ${getRelativeTimeString(createdAt)}", // ✅ Added "Posted"
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
             // ========================================
             // ✅ PRESERVED: Title (no status badge)
@@ -479,18 +532,6 @@ private fun DealDetailsContent(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-
-            // ========================================
-            // ✅ PRESERVED: Metadata (unchanged)
-            // ========================================
-            deal.createdAt?.let { createdAt ->
-                Text(
-                    text = "Posted: $createdAt",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-            }
         }
     }
 }
