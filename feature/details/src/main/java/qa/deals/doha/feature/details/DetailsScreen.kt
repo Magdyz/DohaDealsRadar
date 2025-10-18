@@ -3,7 +3,6 @@ package qa.deals.doha.feature.details
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import qa.deals.doha.db.DealEntity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 
 
 /**
@@ -432,7 +436,6 @@ private fun DealDetailsContent(
                 Text(
                     text = "Posted ${getRelativeTimeString(createdAt)}", // ✅ Added "Posted"
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -445,8 +448,9 @@ private fun DealDetailsContent(
             // ========================================
             Text(
                 text = deal.title,
-                style = MaterialTheme.typography.headlineMedium.copy(
+                style = MaterialTheme.typography.headlineMedium.copy(  // ✨ CHANGED: Bigger font
                     fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,  // ✨ CHANGED: Increased from default
                     lineHeight = 32.sp
                 ),
                 color = MaterialTheme.colorScheme.onSurface
@@ -458,8 +462,10 @@ private fun DealDetailsContent(
             if (!deal.description.isNullOrBlank()) {
                 Text(
                     text = deal.description!!,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        lineHeight = 24.sp
+                    style = MaterialTheme.typography.bodyMedium.copy(  // ✨ CHANGED: Smaller
+                        lineHeight = 24.sp,
+                        fontSize = 15.sp  // ✨ NEW: Explicit smaller size
+
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -514,7 +520,45 @@ private fun DealDetailsContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+// ========================================
+// ✨ NEW: Posted By Display (username attribution)
+// Updated: 2025-10-18 19:39:41 UTC by @Magdyz
+// ========================================
+            deal.postedBy?.let { username ->
+                if (username != "Anonymous") {
+                    // Spacer(modifier = Modifier.height(8.dp))
+
+                    // Username attribution badge
+                    Row(
+                        modifier = Modifier.wrapContentWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // User icon
+                        Text(
+                            text = "👤",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp)
+                        )
+
+                        // "Posted by" text
+                        Text(
+                            text = "Posted by",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+
+                        // Username (highlighted)
+                        Text(
+                            text = username,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
 
             // ========================================
             // ✅ PRESERVED: Location or Link Section (unchanged)
@@ -525,7 +569,81 @@ private fun DealDetailsContent(
                     location = deal.location!!,
                     context = context
                 )
+// ========================================
+// ✨ PROMO CODE CHIP (if exists for online deals)
+// ========================================
+                if (deal.link != null && !deal.description.isNullOrBlank()) {
+                    // Try to extract promo code from description
+                    val promoMatch = Regex("code[:=]?\\s*([A-Z0-9]+)", RegexOption.IGNORE_CASE)
+                        .find(deal.description!!)
+                    val promoCode = promoMatch?.groupValues?.getOrNull(1)
 
+                    if (promoCode != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.medium)  // ✅ Use MaterialTheme shapes instead
+                                .clickable {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Promo Code", promoCode)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "✅ Promo code copied!", Toast.LENGTH_SHORT).show()
+                                },
+                            shape = MaterialTheme.shapes.medium,  // ✅ Use MaterialTheme shapes
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        ) {
+                            // Add border using Box with border modifier
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = MaterialTheme.shapes.medium
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "🎟️ Promo Code",
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = promoCode,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 18.sp,
+                                                letterSpacing = 1.2.sp
+                                            ),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    // Copy icon using emoji (no ContentCopy import needed)
+                                    Text(
+                                        text = "📋",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+                
                 // Optional: Show link if both exist
                 if (deal.link.isNotBlank()) {
                     Spacer(modifier = Modifier.height(12.dp))

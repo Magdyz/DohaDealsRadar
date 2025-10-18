@@ -36,6 +36,8 @@ import coil.compose.AsyncImage
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import qa.deals.doha.feature.post.UsernameDialog
+import kotlinx.coroutines.delay
 
 /**
  * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)
@@ -583,6 +585,46 @@ fun PostScreen(
             }
         )
     }
+    // ========================================
+    // ✨ NEW: USERNAME DIALOG
+    // Shows when user has no username on first post
+    // ========================================
+
+    if (state.showUsernameDialog) {
+        Log.d("PostScreen", "👤 Showing username dialog")
+
+        UsernameDialog(
+            onDismiss = {
+                // Dialog cannot be dismissed - user must register
+                Log.d("PostScreen", "⚠️  Username dialog dismiss blocked (must register)")
+            },
+            onUsernameSelected = { username ->
+                Log.d("PostScreen", "✅ Username selected: $username")
+                viewModel.registerUsername(username)
+            },
+            onCheckAvailability = { username ->
+                Log.d("PostScreen", "🔍 Checking availability for: $username")
+                viewModel.checkUsernameAvailability(username)
+            },
+            isCheckingAvailability = state.isCheckingUsername,
+            availabilityResult = state.usernameAvailable,
+            availabilityError = state.usernameError
+        )
+    }
+
+    // ========================================
+    // ✨ EXISTING: Success navigation
+    // (Keep this existing code)
+    // ========================================
+
+    LaunchedEffect(state.submitted) {
+        if (state.submitted) {
+            Log.d("PostScreen", "✅ Deal submitted, navigating back...")
+            delay(1000)
+            onSuccess()  // ✅ Correct callback name (matches function parameter)
+        }
+    }
+
 }
 
 /**

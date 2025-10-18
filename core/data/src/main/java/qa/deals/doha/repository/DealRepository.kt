@@ -62,20 +62,38 @@ class DealRepository {
         link: String?,
         imageUrl: String,
         location: String? = null,
-        category: String = "other",  // ✨ NEW: Category parameter
-        promoCode: String? = null     // ✨ NEW: Promo code parameter
+        category: String = "other",
+        promoCode: String? = null,
+        postedBy: String = "Anonymous"  // ✨ NEW: Username parameter
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
+        Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d("Repository", "📤 Submitting deal to backend")
+        Log.d("Repository", "   Title: $title")
+        Log.d("Repository", "   Category: $category")
+        Log.d("Repository", "   Posted by: $postedBy")  // ✨ NEW: Log username
+        Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         val request = SubmitDealRequest(
             title = title,
             description = description,
             link = link,
-            image_url = imageUrl,
+            imageUrl = imageUrl,
             location = location,
-            category = category,        // ✨ NEW: Pass category to API
-            promo_code = promoCode      // ✨ NEW: Pass promo code to API
-
+            category = category,
+            promoCode = promoCode,
+            postedBy = postedBy  // ✨ NEW: Include username in request
         )
-        api.submitDeal(request)
+
+        val response = api.submitDeal(request)
+
+        if (response.success == true) {
+            Log.d("Repository", "✅ Deal submitted successfully")
+            Log.d("Repository", "   Deal ID: ${response.data?.firstOrNull()?.id}")
+        } else {
+            Log.e("Repository", "❌ Deal submission failed: ${response.error}")
+        }
+
+        response
     }
 
     // ========================================

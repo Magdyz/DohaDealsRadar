@@ -5,16 +5,32 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.compose.runtime.Stable
 
+/**
+ * ========================================
+ * ✨ DEAL ENTITY (Room Database)
+ * Local cache of deals from Supabase
+ * ========================================
+ *
+ * UPDATED: 2025-10-18
+ * - Added category field for deal categorization
+ * - Added postedBy field for username attribution
+ *
+ * Indices for performance:
+ * - title: Fast text search
+ * - createdAt: Fast date sorting
+ * - status: Fast filtering by status
+ * - category: Fast category filtering
+ */
 @Stable
 @Entity(
     tableName = "deals",
     indices = [
-        Index(value = ["title"]),      // ✅ Speed up title search
-        Index(value = ["createdAt"]),  // ✅ Speed up sorting by date
-        Index(value = ["status"])      // ✅ Speed up filtering by status
+        Index(value = ["title"]),
+        Index(value = ["createdAt"]),
+        Index(value = ["status"]),
+        Index(value = ["category"])
     ]
 )
-
 data class DealEntity(
     @PrimaryKey val id: String,
     val title: String,
@@ -26,7 +42,6 @@ data class DealEntity(
     val coldCount: Int?,
     val description: String? = null,
     val location: String? = null,
-    // ✨ NEW: Category field
-    val category: String = "other", // Default to "other"
-
+    val category: String = "other",
+    val postedBy: String = "Anonymous"  // ✨ NEW: Username attribution (default for old deals)
 )
