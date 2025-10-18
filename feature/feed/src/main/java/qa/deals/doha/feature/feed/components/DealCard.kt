@@ -133,7 +133,11 @@ fun DealCard(
                 ) {
                     // ✅ ENHANCED: Image painter with load state tracking
                     val painter = rememberAsyncImagePainter(
-                        model = imageUrl,
+                        model = coil.request.ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .size(400, 400) // ✅ Grid thumbnail size (prevents loading full 4K images)
+                            .crossfade(150) // ✅ Smooth fade-in animation
+                            .build(),
                         placeholder = null,
                         error = null
                     )

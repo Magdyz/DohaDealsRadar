@@ -35,4 +35,8 @@ dependencies {
     debugApi(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.activity.compose)
+
+    // ✨ PERFORMANCE 1.1: Coil for image loading configuration
+    api(libs.coil.compose)  // ← ADD THIS LINE (use 'api' so it's available to modules that depend on :core:design)
+
 }
