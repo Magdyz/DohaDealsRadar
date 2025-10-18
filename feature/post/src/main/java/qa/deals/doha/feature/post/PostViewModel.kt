@@ -15,6 +15,9 @@ import qa.deals.doha.util.ImageCompressor
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import qa.deals.doha.datastore.DeviceIdManager
+import qa.deals.doha.repository.UsernameRepository
+
 
 /**
  * Deal type enum
@@ -40,7 +43,14 @@ data class PostUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val message: String? = null,
-    val submitted: Boolean = false
+    val submitted: Boolean = false,
+    // ✨ NEW: Username management state
+    val username: String? = null,  // Current username (null if not set)
+    val showUsernameDialog: Boolean = false,  // Whether to show dialog
+    val isCheckingUsername: Boolean = false,  // Loading state for availability check
+    val usernameAvailable: Boolean? = null,  // true=available, false=taken, null=not checked
+    val usernameError: String? = null  // Error message from username operations
+
 )
 
 /**
@@ -55,9 +65,206 @@ class PostViewModel(
     var uiState by mutableStateOf(PostUiState())
         private set
 
+    // ✨ NEW: Repository for username operations
+    private val usernameRepo = UsernameRepository()
+
+    // ✨ NEW: Device ID manager for device identification
+    private val deviceIdManager = DeviceIdManager.getInstance(context)
+
     init {
-        Log.d("Post", "📝 PostViewModel created")
+        // ✨ NEW: Check if user has username on initialization
+        checkUserIdentity()
     }
+
+    // ========================================
+    // ✨ NEW: USERNAME MANAGEMENT
+    // ========================================
+
+    /**
+     * Check if user has username on screen load
+     * If not, will trigger username dialog on first post attempt
+     */
+    private fun checkUserIdentity() {
+        viewModelScope.launch {
+            try {
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("PostViewModel", "🔍 Checking user identity...")
+
+                val deviceId = deviceIdManager.getDeviceId()
+                Log.d("PostViewModel", "   Device ID: ${deviceId.take(8)}...${deviceId.takeLast(4)}")
+
+                // Check local cache first (fast)
+                val cachedUsername = deviceIdManager.getUsername()
+                if (cachedUsername != null) {
+                    Log.d("PostViewModel", "✅ Found cached username: $cachedUsername")
+                    uiState = uiState.copy(username = cachedUsername)
+                    Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    return@launch
+                }
+
+                // Check backend (authoritative)
+                Log.d("PostViewModel", "🌐 Checking backend for username...")
+                val result = usernameRepo.getUsernameForDevice(deviceId)
+
+                result.onSuccess { username ->
+                    if (username != null) {
+                        Log.d("PostViewModel", "✅ Found backend username: $username")
+                        // Cache it locally
+                        deviceIdManager.saveUsername(username)
+                        uiState = uiState.copy(username = username)
+                    } else {
+                        Log.d("PostViewModel", "ℹ️  No username found (first-time user)")
+                        uiState = uiState.copy(username = null)
+                    }
+                }.onFailure { error ->
+                    Log.e("PostViewModel", "❌ Error checking username: ${error.message}")
+                    // Don't block user, they can still post (will show dialog)
+                    uiState = uiState.copy(username = null)
+                }
+
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            } catch (e: Exception) {
+                Log.e("PostViewModel", "💥 Error in checkUserIdentity", e)
+                // Don't block user
+                uiState = uiState.copy(username = null)
+            }
+        }
+    }
+
+    /**
+     * ✨ Show username dialog
+     * Called when user tries to post without username
+     */
+    fun showUsernameDialog() {
+        Log.d("PostViewModel", "📋 Showing username dialog")
+        uiState = uiState.copy(
+            showUsernameDialog = true,
+            usernameAvailable = null,  // Reset availability
+            usernameError = null  // Reset errors
+        )
+    }
+
+    /**
+     * ✨ Hide username dialog
+     * Called after successful registration or cancel
+     */
+    fun hideUsernameDialog() {
+        Log.d("PostViewModel", "📋 Hiding username dialog")
+        uiState = uiState.copy(
+            showUsernameDialog = false,
+            usernameAvailable = null,
+            usernameError = null
+        )
+    }
+
+    /**
+     * ✨ Check username availability
+     * Called when user clicks "Check Availability" in dialog
+     */
+    fun checkUsernameAvailability(username: String) {
+        viewModelScope.launch {
+            try {
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("PostViewModel", "🔍 Checking availability: \"$username\"")
+
+                uiState = uiState.copy(
+                    isCheckingUsername = true,
+                    usernameAvailable = null,
+                    usernameError = null
+                )
+
+                val result = usernameRepo.checkUsernameAvailability(username)
+
+                result.onSuccess { available ->
+                    Log.d("PostViewModel", if (available) "✅ Available!" else "❌ Taken")
+                    uiState = uiState.copy(
+                        isCheckingUsername = false,
+                        usernameAvailable = available,
+                        usernameError = if (!available) "Username is already taken" else null
+                    )
+                }.onFailure { error ->
+                    Log.e("PostViewModel", "❌ Error: ${error.message}")
+                    uiState = uiState.copy(
+                        isCheckingUsername = false,
+                        usernameAvailable = false,
+                        usernameError = error.message ?: "Failed to check availability"
+                    )
+                }
+
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            } catch (e: Exception) {
+                Log.e("PostViewModel", "💥 Error checking availability", e)
+                uiState = uiState.copy(
+                    isCheckingUsername = false,
+                    usernameAvailable = false,
+                    usernameError = "Network error. Please try again."
+                )
+            }
+        }
+    }
+
+    /**
+     * ✨ Register username
+     * Called when user clicks "Continue" after availability confirmed
+     */
+    fun registerUsername(username: String) {
+        viewModelScope.launch {
+            try {
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("PostViewModel", "📝 Registering username: \"$username\"")
+
+                uiState = uiState.copy(isCheckingUsername = true)
+
+                val deviceId = deviceIdManager.getDeviceId()
+                val result = usernameRepo.registerUsername(deviceId, username)
+
+                result.onSuccess { registeredUsername ->
+                    Log.d("PostViewModel", "✅ Registration successful!")
+
+                    // Save to local cache
+                    deviceIdManager.saveUsername(registeredUsername)
+
+                    // Update UI state
+                    uiState = uiState.copy(
+                        username = registeredUsername,
+                        isCheckingUsername = false,
+                        showUsernameDialog = false,
+                        usernameAvailable = null,
+                        usernameError = null
+                    )
+
+                    Log.d("PostViewModel", "   Username saved: $registeredUsername")
+                    Log.d("PostViewModel", "   Proceeding with deal submission...")
+
+                    // Now submit the deal
+                    submitDealWithUsername()
+
+                }.onFailure { error ->
+                    Log.e("PostViewModel", "❌ Registration failed: ${error.message}")
+                    uiState = uiState.copy(
+                        isCheckingUsername = false,
+                        usernameError = error.message ?: "Failed to register username"
+                    )
+                }
+
+                Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            } catch (e: Exception) {
+                Log.e("PostViewModel", "💥 Error registering username", e)
+                uiState = uiState.copy(
+                    isCheckingUsername = false,
+                    usernameError = "Network error. Please try again."
+                )
+            }
+        }
+    }
+
+    // ========================================
+    // ✨ EXISTING: Update methods (keep all existing code)
+    // ========================================
+
 
     fun updateTitle(title: String) {
         uiState = uiState.copy(title = title, error = null)
@@ -105,6 +312,23 @@ class PostViewModel(
     }
 
     /**
+     * ✨ Submit deal with username
+     * Called after username is successfully registered
+     * This is the actual deal submission that happens after username dialog
+     */
+
+    private fun submitDealWithUsername() {
+        Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d("PostViewModel", "🚀 Proceeding with deal submission...")
+        Log.d("PostViewModel", "   Username: ${uiState.username}")
+        Log.d("PostViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Call the existing submitDeal() function
+        // This will handle all the image compression and upload logic
+        submitDeal()
+    }
+
+    /**
      * ✅ ENHANCED: Submit deal with TWO-STAGE UPLOAD + comprehensive logging
      *
      * Process:
@@ -116,6 +340,17 @@ class PostViewModel(
      * Total user wait time: ~1.5 seconds (was 12-14 seconds)
      */
     fun submitDeal() {
+        // ========================================
+        // ✨ STEP 0: Check for username FIRST
+        // ========================================
+        if (uiState.username == null) {
+            Log.d("PostViewModel", "⚠️  No username found - showing dialog")
+            showUsernameDialog()
+            return  // Stop here - will resume after username registered
+        }
+
+        Log.d("PostViewModel", "✅ Username confirmed: ${uiState.username}")
+
         // Validation
         if (uiState.title.isBlank()) {
             uiState = uiState.copy(error = "Please enter a title")
@@ -252,7 +487,8 @@ class PostViewModel(
                         imageUrl = thumbnailUrl,
                         location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null,
                         category = uiState.category.id, // ✨ CATEGORY CHANGE: Category added here
-                        promoCode = uiState.promoCode?.trim()?.ifBlank { null }
+                        promoCode = uiState.promoCode?.trim()?.ifBlank { null },
+                        postedBy = uiState.username ?: "Anonymous"  // ✨ NEW: Include username
                     )
 
                     Log.d("Post", "📥 API Response success: ${result.success}")
@@ -393,7 +629,8 @@ class PostViewModel(
                         imageUrl = finalImageUrl,
                         location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null,
                         category = uiState.category.id, // ✨ CATEGORY CHANGE: Category added here
-                        promoCode = uiState.promoCode?.trim()?.ifBlank { null }
+                        promoCode = uiState.promoCode?.trim()?.ifBlank { null },
+                        postedBy = uiState.username ?: "Anonymous"  // ✨ NEW: Include username
                     )
 
                     withContext(Dispatchers.Main) {

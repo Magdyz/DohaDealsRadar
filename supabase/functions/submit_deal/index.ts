@@ -32,7 +32,8 @@ serve(async (req) => {
       image_url,
       location,
       category = 'other',      // ✨ NEW: Category field with default fallback
-      promo_code = null        // ✨ NEW: Promo code field (optional)
+      promo_code = null,        // ✨ NEW: Promo code field (optional)
+  posted_by = 'Anonymous'  // ✨ NEW: Accept posted_by from request
     } = await req.json()
 
     // Validate required fields
@@ -78,11 +79,15 @@ const { data, error } = await supabase
         location: location || null,
         category: finalCategory,        // ✨ NEW: Include category in INSERT
         promo_code: promo_code || null, // ✨ NEW: Include promo_code in INSERT
+    posted_by: posted_by || 'Anonymous',  // ✨ NEW: Include posted_by
         status: 'pending',
         hot_count: 0,
         cold_count: 0
       })
       .select()
+
+console.log(`✅ Deal submitted with category: ${finalCategory}`)
+console.log(`👤 Posted by: ${posted_by}`)  // ✨ NEW: Log username
 
     if (error) {
       console.error('Database error:', error)

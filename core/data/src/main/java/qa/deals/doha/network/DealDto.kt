@@ -4,8 +4,15 @@ import com.google.gson.annotations.SerializedName
 import qa.deals.doha.db.DealEntity
 
 /**
- * Mirrors the JSON row returned from submit_deal (and future feeds).
- * ✨ UPDATED: Added category and promo_code fields
+ * ========================================
+ * ✨ DEAL DATA TRANSFER OBJECT
+ * Mirrors the JSON returned from Supabase API
+ * ========================================
+ *
+ * UPDATED: 2025-10-18
+ * - Added category field
+ * - Added promoCode field
+ * - Added postedBy field for username attribution
  */
 data class DealDto(
     val id: String?,
@@ -18,13 +25,19 @@ data class DealDto(
     @SerializedName("hot_count") val hotCount: Int?,
     @SerializedName("cold_count") val coldCount: Int?,
     val location: String? = null,
-    val category: String? = "other",        // ✨ CATEGORY CHANGE: Added category field
-    @SerializedName("promo_code") val promoCode: String? = null  // ✨ CATEGORY CHANGE: Added promo_code field
+    val category: String? = "other",
+    @SerializedName("promo_code") val promoCode: String? = null,
+    @SerializedName("posted_by") val postedBy: String? = "Anonymous"  // ✨ NEW: Username attribution
 )
 
 /**
- * ✅ Extension function to convert DealDto → DealEntity
- * ✨ UPDATED: Now includes category mapping
+ * ========================================
+ * ✨ EXTENSION: Convert DTO to Entity
+ * Maps API response to local database model
+ * ========================================
+ *
+ * UPDATED: 2025-10-18
+ * - Now includes postedBy mapping
  */
 fun DealDto.toEntity(): DealEntity {
     return DealEntity(
@@ -38,6 +51,7 @@ fun DealDto.toEntity(): DealEntity {
         coldCount = this.coldCount ?: 0,
         description = this.description,
         location = this.location,
-        category = this.category ?: "other"  // ✨ CATEGORY CHANGE: Map category to entity
+        category = this.category ?: "other",
+        postedBy = this.postedBy ?: "Anonymous"  // ✨ NEW: Map username to entity
     )
 }
