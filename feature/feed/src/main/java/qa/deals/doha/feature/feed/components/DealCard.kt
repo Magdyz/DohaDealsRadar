@@ -137,6 +137,9 @@ fun DealCard(
                             .data(imageUrl)
                             .size(400, 400) // ✅ Grid thumbnail size (prevents loading full 4K images)
                             .crossfade(150) // ✅ Smooth fade-in animation
+                            // ✅ Cache this specific size
+                            .memoryCacheKey("grid_$imageUrl")
+                            .diskCacheKey("grid_$imageUrl")
                             .build(),
                         placeholder = null,
                         error = null
