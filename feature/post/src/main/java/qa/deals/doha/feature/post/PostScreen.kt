@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -23,15 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Canvas
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -40,22 +38,27 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * ✨ REDESIGNED: Post a Deal Screen - Visual Design Update 2025
+ * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)
  *
- * VISUAL CHANGES:
+ * NEW CHANGES (Image Picker):
+ * 1. ✨ MOVED: Image picker to TOP of form (first section)
+ * 2. ✨ COMPACT: Horizontal grid layout (Vinted style)
+ * 3. ✨ CAMERA: Camera icon square (100x100dp)
+ * 4. ✨ GALLERY: Gallery icon square (100x100dp)
+ * 5. ✨ PREVIEW: Selected image thumbnail with remove button
+ * 6. ✨ SPACE SAVING: Removed large upload box, saves ~150dp vertical space
+ *
+ * VISUAL CHANGES (Previous):
  * 1. Removed helper text above title input (kept in placeholder)
  * 2. Red borders for validation (no error messages below)
- * 3. Modern segmented control for Deal Type (dark blue/white active, grey inactive)
- * 4. Removed helper text below Deal Link field
- * 5. NEW: Promo/Coupon Code field for online deals
- * 6. Enhanced image upload area: "Upload a photo or screenshot" + red + icon
- * 7. Dashed border (grey/red) for image upload area
- * 8. Removed "Please complete required fields" error box
- * 9. Increased spacing around key sections
- * 10. White/black Post Deal button (grey when disabled)
+ * 3. Modern segmented control for Deal Type (purple/grey)
+ * 4. Promo/Coupon Code field for online deals
+ * 5. White/purple Post Deal button (grey when disabled)
  *
  * ✅ ALL VALIDATION LOGIC PRESERVED
- * ✅ ALL FUNCTIONALITY PRESERVED
+ * ✅ ALL CAMERA PERMISSIONS PRESERVED
+ * ✅ ALL UPLOAD FUNCTIONALITY PRESERVED
+ * ✅ ALL LOGGING PRESERVED
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +89,7 @@ fun PostScreen(
     // Logging (unchanged)
     Log.d("PostScreen", "📝 Validation: Title=$isTitleValid Link=$isLinkValid Location=$isLocationValid Image=$hasImage Valid=$isFormValid")
 
-    // Camera setup (unchanged)
+    // ✅ PRESERVED: Camera setup (unchanged)
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
     var hasCameraPermission by remember { mutableStateOf(false) }
     var shouldLaunchCamera by remember { mutableStateOf(false) }
@@ -167,12 +170,100 @@ fun PostScreen(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp) // Increased from 16dp
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // ========================================
-            // ✨ REDESIGNED: Title Field
-            // - Removed helper text above
-            // - Red border validation only
+            // ✨ NEW: Vinted-Style Image Picker (TOP OF FORM)
+            // Compact horizontal grid: Camera + Gallery + Preview
+            // Saves ~150dp vertical space vs old upload box
+            // ========================================
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Section title with required indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Deal Photo",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    Text(
+                        "*",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                // ✨ COMPACT GRID: Camera + Gallery + Preview
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // ✨ CAMERA SQUARE (Always first)
+                    item {
+                        ImagePickerSquare(
+                            type = "camera",
+                            onClick = {
+                                cameraImageUri = createImageFile()
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (hasPermission) {
+                                    hasCameraPermission = true
+                                    shouldLaunchCamera = true
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
+                                Log.d("PostScreen", "📷 Camera square clicked")
+                            },
+                            isDisabled = hasImage,
+                            showError = !hasImage && (titleTouched || linkTouched || locationTouched)
+                        )
+                    }
+
+                    // ✨ GALLERY SQUARE (Always second)
+                    item {
+                        ImagePickerSquare(
+                            type = "gallery",
+                            onClick = {
+                                galleryLauncher.launch("image/*")
+                                Log.d("PostScreen", "🖼️ Gallery square clicked")
+                            },
+                            isDisabled = hasImage,
+                            showError = !hasImage && (titleTouched || linkTouched || locationTouched)
+                        )
+                    }
+
+                    // ✨ SELECTED IMAGE THUMBNAIL (Shows when image selected)
+                    if (state.selectedImageUri != null || state.imageUrl.isNotBlank()) {
+                        item {
+                            SelectedImageThumbnail(
+                                uri = state.selectedImageUri ?: Uri.parse(state.imageUrl),
+                                onRemove = {
+                                    viewModel.clearImage()
+                                    Log.d("PostScreen", "🗑️ Image removed from thumbnail")
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // ✅ PRESERVED: Permission denied message
+                if (permissionDenied) {
+                    Text(
+                        "⚠️ Camera permission required. Please enable it in Settings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            // ========================================
+            // ✅ PRESERVED: Title Field
             // ========================================
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -205,7 +296,7 @@ fun PostScreen(
             }
 
             // ========================================
-            // Description (Optional) - Unchanged
+            // ✅ PRESERVED: Description (Optional)
             // ========================================
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -226,12 +317,10 @@ fun PostScreen(
                 )
             }
 
-            Spacer(Modifier.height(4.dp)) // Extra spacing before Deal Type
+            Spacer(Modifier.height(4.dp))
 
             // ========================================
-            // ✨ REDESIGNED: Deal Type - Modern Segmented Control
-            // Dark blue (0xFF1E40AF) bg + white text when active
-            // Dark grey (0xFF374151) bg + light grey (0xFF9CA3AF) text when inactive
+            // ✅ PRESERVED: Deal Type Segmented Control
             // ========================================
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -260,9 +349,9 @@ fun PostScreen(
                             .fillMaxHeight()
                             .background(
                                 if (state.dealType == DealType.ONLINE)
-                                    Color(0xFF9046CF) // Purple when active
+                                    Color(0xFF9046CF)
                                 else
-                                    Color(0xFF374151) // Dark grey when inactive
+                                    Color(0xFF374151)
                             )
                             .clickable {
                                 viewModel.setDealType(DealType.ONLINE)
@@ -277,7 +366,7 @@ fun PostScreen(
                                 color = if (state.dealType == DealType.ONLINE)
                                     Color(0xFFF3F3F4)
                                 else
-                                    Color(0xFF9CA3AF) // Light grey
+                                    Color(0xFF9CA3AF)
                             )
                         )
                     }
@@ -289,9 +378,9 @@ fun PostScreen(
                             .fillMaxHeight()
                             .background(
                                 if (state.dealType == DealType.PHYSICAL)
-                                    Color(0xFF9046CF) // Dark blue when active
+                                    Color(0xFF9046CF)
                                 else
-                                    Color(0xFF374151) // Dark grey when inactive
+                                    Color(0xFF374151)
                             )
                             .clickable {
                                 viewModel.setDealType(DealType.PHYSICAL)
@@ -306,7 +395,7 @@ fun PostScreen(
                                 color = if (state.dealType == DealType.PHYSICAL)
                                     Color.White
                                 else
-                                    Color(0xFF9CA3AF) // Light grey
+                                    Color(0xFF9CA3AF)
                             )
                         )
                     }
@@ -314,9 +403,7 @@ fun PostScreen(
             }
 
             // ========================================
-            // ✨ CONDITIONAL: Online Deal Fields
-            // - Deal Link (removed helper text below)
-            // - NEW: Promo/Coupon Code field
+            // ✅ PRESERVED: Conditional Online Deal Fields
             // ========================================
             if (state.dealType == DealType.ONLINE) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -358,7 +445,7 @@ fun PostScreen(
                         )
                     }
 
-                    // ✨ NEW: Promo/Coupon Code Field
+                    // Promo/Coupon Code
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "Promo/Coupon Code (Optional)",
@@ -381,7 +468,7 @@ fun PostScreen(
             }
 
             // ========================================
-            // ✨ CONDITIONAL: Physical Store Field
+            // ✅ PRESERVED: Conditional Physical Store Field
             // ========================================
             if (state.dealType == DealType.PHYSICAL) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -422,204 +509,10 @@ fun PostScreen(
                 }
             }
 
-            Spacer(Modifier.height(4.dp)) // Extra spacing before image section
+            Spacer(Modifier.height(12.dp))
 
             // ========================================
-            // ✨ REDESIGNED: Deal Image Section
-            // - "Upload a photo or screenshot" text
-            // - Dashed border (grey/red)
-            // - Red circular + icon at bottom-right
-            // - Thumbnail preview when uploaded
-            // ========================================
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Deal Image",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-
-                // Image Preview or Upload Area
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
-                    if (state.selectedImageUri != null || state.imageUrl.isNotBlank()) {
-                        // ✨ Image thumbnail preview
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(Color(0xFF1F2937))
-                        ) {
-                            AsyncImage(
-                                model = state.selectedImageUri ?: state.imageUrl,
-                                contentDescription = "Deal image",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-
-                            // Remove button
-                            IconButton(
-                                onClick = {
-                                    viewModel.clearImage()
-                                    Log.d("PostScreen", "🗑️ Image removed")
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .background(
-                                        Color.Black.copy(alpha = 0.6f),
-                                        CircleShape
-                                    )
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    "Remove",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                    } else {
-                        // ✨ REDESIGNED: Upload area with dashed border
-                        androidx.compose.foundation.Canvas(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Color(0xFF1F2937).copy(alpha = 0.3f),
-                                    MaterialTheme.shapes.medium
-                                )
-                        ) {
-                            val borderColor = if (!hasImage && (titleTouched || linkTouched || locationTouched))
-                                androidx.compose.ui.graphics.Color(0xFFEF4444) // Red
-                            else
-                                androidx.compose.ui.graphics.Color(0xFF4B5563) // Grey
-
-                            drawRoundRect(
-                                color = borderColor,
-                                style = Stroke(
-                                    width = 2.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(
-                                        intervals = floatArrayOf(10f, 10f)
-                                    )
-                                ),
-                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
-                            )
-                        }
-
-                        // Content inside upload area
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            Column(
-                                modifier = Modifier.align(Alignment.Center),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.PhotoCamera,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = Color(0xFF9CA3AF)
-                                )
-                                Text(
-                                    "Upload a photo or screenshot",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF9CA3AF),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-
-                            // ✨ Red circular + icon at bottom-right
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(16.dp)
-                                    .size(48.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.error,
-                                        CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = "Add image",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Camera and Gallery Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            cameraImageUri = createImageFile()
-                            val hasPermission = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.CAMERA
-                            ) == PackageManager.PERMISSION_GRANTED
-
-                            if (hasPermission) {
-                                hasCameraPermission = true
-                                shouldLaunchCamera = true
-                            } else {
-                                permissionLauncher.launch(Manifest.permission.CAMERA)
-                            }
-                            Log.d("PostScreen", "📷 Camera button clicked")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Camera")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            galleryLauncher.launch("image/*")
-                            Log.d("PostScreen", "🖼️ Gallery launched")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            Icons.Default.Collections,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Gallery")
-                    }
-                }
-
-                // Permission denied message
-                if (permissionDenied) {
-                    Text(
-                        "Camera permission required. Please enable it in Settings.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            // ✨ REMOVED: "Please complete required fields" error box
-
-            Spacer(Modifier.height(12.dp)) // Extra spacing before button
-
-            // ========================================
-            // ✨ REDESIGNED: Post Deal Button
-            // - White bg + black text when enabled
-            // - Grey bg + light text when disabled
-            // - Increased spacing above
+            // ✅ PRESERVED: Post Deal Button
             // ========================================
             Button(
                 onClick = {
@@ -631,7 +524,7 @@ fun PostScreen(
                     .height(56.dp),
                 enabled = isFormValid && !state.loading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9046CF), // Purple
+                    containerColor = Color(0xFF9046CF),
                     contentColor = Color(0xFFF3F3F4),
                     disabledContainerColor = Color(0xFF4B5563),
                     disabledContentColor = Color(0xFF9CA3AF)
@@ -641,7 +534,7 @@ fun PostScreen(
                 if (state.loading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = Color.Black,
+                        color = Color.White,
                         strokeWidth = 2.dp
                     )
                     Spacer(Modifier.width(12.dp))
@@ -679,5 +572,137 @@ fun PostScreen(
                 onSuccess()
             }
         )
+    }
+}
+
+/**
+ * ✨ NEW COMPONENT: Image Picker Square (Vinted Style)
+ * 100x100dp square with icon, label, and validation states
+ *
+ * @param type "camera" or "gallery"
+ * @param onClick Action when clicked
+ * @param isDisabled Grey out when image already selected
+ * @param showError Show red border when validation fails
+ */
+@Composable
+private fun ImagePickerSquare(
+    type: String,
+    onClick: () -> Unit,
+    isDisabled: Boolean = false,
+    showError: Boolean = false
+) {
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(
+                when {
+                    isDisabled -> Color(0xFFE5E7EB) // Light grey when disabled
+                    else -> Color(0xFF374151) // Dark grey when active
+                }
+            )
+            .border(
+                width = 2.dp,
+                color = when {
+                    showError -> Color(0xFFEF4444) // Red when error
+                    isDisabled -> Color(0xFF9CA3AF) // Grey when disabled
+                    else -> Color(0xFF9046CF) // Purple when active
+                },
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(enabled = !isDisabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(8.dp)
+        ) {
+            Icon(
+                imageVector = if (type == "camera")
+                    Icons.Default.PhotoCamera
+                else
+                    Icons.Default.Collections,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFFD1D5DB)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = if (type == "camera") "Camera" else "Gallery",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp
+                ),
+                color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFFD1D5DB),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * ✨ NEW COMPONENT: Selected Image Thumbnail
+ * Shows uploaded image with remove button overlay
+ *
+ * @param uri Image URI to display
+ * @param onRemove Callback when remove button clicked
+ */
+@Composable
+private fun SelectedImageThumbnail(
+    uri: Uri,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(100.dp)
+    ) {
+        // Image
+        AsyncImage(
+            model = uri,
+            contentDescription = "Selected deal photo",
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(MaterialTheme.shapes.medium)
+                .border(
+                    width = 2.dp,
+                    color = Color(0xFF10B981), // Green border (success)
+                    shape = MaterialTheme.shapes.medium
+                ),
+            contentScale = ContentScale.Crop
+        )
+
+        // Remove button (top-right corner)
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(24.dp)
+                .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove photo",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        // Checkmark indicator (bottom-right)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(4.dp)
+                .size(20.dp)
+                .background(Color(0xFF10B981), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(12.dp)
+            )
+        }
     }
 }
