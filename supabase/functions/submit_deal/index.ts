@@ -24,8 +24,16 @@ serve(async (req) => {
       }
     })
 
-    // Parse request body
-    const { title, description, link, image_url, location } = await req.json()
+    // ✨ CATEGORY CHANGE 1: Parse request body including new fields
+    const {
+      title,
+      description,
+      link,
+      image_url,
+      location,
+      category = 'other',      // ✨ NEW: Category field with default fallback
+      promo_code = null        // ✨ NEW: Promo code field (optional)
+    } = await req.json()
 
     // Validate required fields
     if (!title || !image_url) {
@@ -55,7 +63,11 @@ if (!link && !location) {
 )
 }
 
-// Insert deal into database (bypasses RLS with service role)
+// ✨ CATEGORY CHANGE 2: Validate category value (optional but recommended)
+const validCategories = ['food_dining', 'shopping_fashion', 'entertainment', 'home_services', 'other']
+const finalCategory = validCategories.includes(category) ? category : 'other'
+
+// ✨ CATEGORY CHANGE 3: Insert deal with category and promo_code
 const { data, error } = await supabase
 .from('deals')
       .insert({
@@ -64,6 +76,8 @@ const { data, error } = await supabase
         link: link || null,
         image_url,
         location: location || null,
+        category: finalCategory,        // ✨ NEW: Include category in INSERT
+        promo_code: promo_code || null, // ✨ NEW: Include promo_code in INSERT
         status: 'pending',
         hot_count: 0,
         cold_count: 0
@@ -85,8 +99,11 @@ const { data, error } = await supabase
 )
 }
 
-// Return success response
-return new Response(
+// ✨ CATEGORY CHANGE 4: Log successful submission with category
+console.log(`✅ Deal submitted: "${title}" | Category: ${finalCategory}`)
+
+    // Return success response
+    return new Response(
       JSON.stringify({
         success: true,
         message: '✅ Deal submitted',

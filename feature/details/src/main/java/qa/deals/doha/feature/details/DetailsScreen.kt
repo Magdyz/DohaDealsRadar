@@ -465,6 +465,55 @@ private fun DealDetailsContent(
                 )
             }
 
+// ========================================
+// ✨ NEW: Category Display (right after description)
+// ========================================
+            deal.category?.let { categoryId ->
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Get category display info
+                val categoryInfo = when (categoryId) {
+                    "food_dining" -> "🍔" to "Food & Dining"
+                    "shopping_fashion" -> "🛍️" to "Shopping & Fashion"
+                    "entertainment" -> "🎮" to "Entertainment & Leisure"
+                    "home_services" -> "🏠" to "Home & Services"
+                    else -> "⭐" to "Other"
+                }
+
+                // Category chip/badge
+                Surface(
+                    modifier = Modifier.wrapContentWidth(),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Emoji
+                        Text(
+                            text = categoryInfo.first,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 18.sp
+                            )
+                        )
+                        // Category name
+                        Text(
+                            text = categoryInfo.second,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
             // ========================================

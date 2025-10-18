@@ -42,7 +42,6 @@ dependencies {
     // Android integration
     implementation("androidx.activity:activity-compose")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
-    implementation(libs.androidx.material3)
 
     // Debug tools
     debugImplementation("androidx.compose.ui:ui-tooling")

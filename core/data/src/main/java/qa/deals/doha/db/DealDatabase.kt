@@ -1,5 +1,6 @@
 package qa.deals.doha.db
 
+import android.util.Log
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
@@ -7,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DealEntity::class],
-    version = 4,  // ✅ Bumped from 3 to 4
+    version = 5,  //
     exportSchema = false
 )
 abstract class DealDatabase : RoomDatabase() {
@@ -23,5 +24,15 @@ abstract class DealDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS `index_deals_status` ON `deals` (`status`)")
             }
         }
+
+        // ✨ NEW: Migration 4 to 5 (add category column)
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add category column with default value
+                database.execSQL("ALTER TABLE deals ADD COLUMN category TEXT NOT NULL DEFAULT 'other'")
+                Log.d("DealDatabase", "✅ Migration 4→5: Added category column")
+            }
+        }
+
     }
 }

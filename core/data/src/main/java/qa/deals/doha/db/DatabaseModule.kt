@@ -14,7 +14,10 @@ object DatabaseModule {
                 DealDatabase::class.java,
                 "deals.db"
             )
-                .addMigrations(DealDatabase.MIGRATION_3_4)  // ✅ Add migration for indices
+                .addMigrations(
+                    DealDatabase.MIGRATION_3_4,  // ✅ Existing migration
+                    DealDatabase.MIGRATION_4_5   // ✨ NEW: Category migration
+                )
                 .fallbackToDestructiveMigration()  // Keep this as safety net
                 .build()
                 .also { INSTANCE = it }
