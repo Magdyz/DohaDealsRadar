@@ -33,7 +33,8 @@ data class PostUiState(
     val dealType: DealType = DealType.ONLINE,
     val link: String = "",
     val location: String = "",
-    val promoCode: String? = null, // ✅ NEW: Add promo code field
+    val promoCode: String? = null,
+    val category: DealCategory = DealCategory.FOOD_DINING, // ✨ CATEGORY CHANGE 1: Added category field
     val imageUrl: String = "",
     val selectedImageUri: Uri? = null,
     val loading: Boolean = false,
@@ -62,6 +63,15 @@ class PostViewModel(
         uiState = uiState.copy(title = title, error = null)
     }
 
+    // ✨ CATEGORY CHANGE 2: Added updateCategory function
+    /**
+     * ✨ NEW: Update selected category
+     */
+    fun updateCategory(category: DealCategory) {
+        uiState = uiState.copy(category = category)
+        Log.d("PostViewModel", "🏷️ Category updated: ${category.displayName}")
+    }
+
     fun updateDescription(description: String) {
         uiState = uiState.copy(description = description, error = null)
     }
@@ -77,7 +87,7 @@ class PostViewModel(
     fun setDealType(type: DealType) {
         uiState = uiState.copy(dealType = type, error = null)
     }
-    // ✅ NEW: Add promo code update function
+
     fun updatePromoCode(promoCode: String) {
         uiState = uiState.copy(promoCode = promoCode.trim().ifBlank { null }, error = null)
     }
@@ -158,6 +168,7 @@ class PostViewModel(
                 Log.d("Post", "🚀 TWO-STAGE UPLOAD STARTED")
                 Log.d("Post", "   Deal: ${uiState.title}")
                 Log.d("Post", "   Type: ${uiState.dealType}")
+                Log.d("Post", "   Category: ${uiState.category.displayName}") // ✨ CATEGORY CHANGE 3: Added category to log
                 Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
                 val startTime = System.currentTimeMillis()
@@ -224,19 +235,28 @@ class PostViewModel(
                     Log.d("Post", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     Log.d("Post", "📤 STAGE 3: Submitting deal with THUMBNAIL...")
                     Log.d("Post", "   Title: ${uiState.title.trim()}")
+                    Log.d("Post", "   Category: ${uiState.category.id}") // ✨ CATEGORY CHANGE 4: Added category to log
                     Log.d("Post", "   Image URL: $thumbnailUrl")
 
                     withContext(Dispatchers.Main) {
                         uiState = uiState.copy(message = "📤 Posting deal...")
                     }
+                    Log.d("Post", "📤 Submitting with category: ${uiState.category.id}")
+                    Log.d("Post", "   Category display name: ${uiState.category.displayName}")
 
+                    // ✨ CATEGORY CHANGE 5: Added category parameter to submitDeal call
                     val result = repo.submitDeal(
                         title = uiState.title.trim(),
                         description = uiState.description.trim().ifBlank { null },
                         link = if (uiState.dealType == DealType.ONLINE) uiState.link.trim() else null,
                         imageUrl = thumbnailUrl,
-                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
+                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null,
+                        category = uiState.category.id, // ✨ CATEGORY CHANGE: Category added here
+                        promoCode = uiState.promoCode?.trim()?.ifBlank { null }
                     )
+
+                    Log.d("Post", "📥 API Response success: ${result.success}")
+                    Log.d("Post", "   API Response data: ${result.data}")
 
                     val dealData = result.data
                     if (result.success == true && dealData != null && dealData.isNotEmpty()) {
@@ -363,13 +383,17 @@ class PostViewModel(
                     // ========================================
                     Log.d("Post", "📤 Submitting deal with IMAGE URL (no compression)...")
                     Log.d("Post", "   Image URL: $finalImageUrl")
+                    Log.d("Post", "   Category: ${uiState.category.id}") // ✨ CATEGORY CHANGE 6: Added category to log
 
+                    // ✨ CATEGORY CHANGE 7: Added category parameter to submitDeal call
                     val result = repo.submitDeal(
                         title = uiState.title.trim(),
                         description = uiState.description.trim().ifBlank { null },
                         link = if (uiState.dealType == DealType.ONLINE) uiState.link.trim() else null,
                         imageUrl = finalImageUrl,
-                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null
+                        location = if (uiState.dealType == DealType.PHYSICAL) uiState.location.trim() else null,
+                        category = uiState.category.id, // ✨ CATEGORY CHANGE: Category added here
+                        promoCode = uiState.promoCode?.trim()?.ifBlank { null }
                     )
 
                     withContext(Dispatchers.Main) {

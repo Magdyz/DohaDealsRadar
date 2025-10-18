@@ -61,14 +61,19 @@ class DealRepository {
         description: String? = null,
         link: String?,
         imageUrl: String,
-        location: String? = null
+        location: String? = null,
+        category: String = "other",  // ✨ NEW: Category parameter
+        promoCode: String? = null     // ✨ NEW: Promo code parameter
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         val request = SubmitDealRequest(
             title = title,
             description = description,
             link = link,
             image_url = imageUrl,
-            location = location
+            location = location,
+            category = category,        // ✨ NEW: Pass category to API
+            promo_code = promoCode      // ✨ NEW: Pass promo code to API
+
         )
         api.submitDeal(request)
     }

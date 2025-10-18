@@ -25,5 +25,8 @@ data class DealEntity(
     val hotCount: Int?,
     val coldCount: Int?,
     val description: String? = null,
-    val location: String? = null
+    val location: String? = null,
+    // ✨ NEW: Category field
+    val category: String = "other", // Default to "other"
+
 )

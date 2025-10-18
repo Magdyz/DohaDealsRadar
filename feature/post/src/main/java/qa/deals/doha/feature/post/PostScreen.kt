@@ -40,20 +40,13 @@ import java.util.*
 /**
  * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)
  *
- * NEW CHANGES (Image Picker):
- * 1. ✨ MOVED: Image picker to TOP of form (first section)
- * 2. ✨ COMPACT: Horizontal grid layout (Vinted style)
- * 3. ✨ CAMERA: Camera icon square (100x100dp)
- * 4. ✨ GALLERY: Gallery icon square (100x100dp)
- * 5. ✨ PREVIEW: Selected image thumbnail with remove button
- * 6. ✨ SPACE SAVING: Removed large upload box, saves ~150dp vertical space
- *
- * VISUAL CHANGES (Previous):
- * 1. Removed helper text above title input (kept in placeholder)
- * 2. Red borders for validation (no error messages below)
- * 3. Modern segmented control for Deal Type (purple/grey)
- * 4. Promo/Coupon Code field for online deals
- * 5. White/purple Post Deal button (grey when disabled)
+ * NEW CHANGES (Category + Image Picker):
+ * 1. ✨ CATEGORY: Required dropdown selector after Description
+ * 2. ✨ MOVED: Image picker to TOP of form (first section)
+ * 3. ✨ COMPACT: Horizontal grid layout (Vinted style)
+ * 4. ✨ CAMERA: Camera icon square (100x100dp)
+ * 5. ✨ GALLERY: Gallery icon square (100x100dp)
+ * 6. ✨ PREVIEW: Selected image thumbnail with remove button
  *
  * ✅ ALL VALIDATION LOGIC PRESERVED
  * ✅ ALL CAMERA PERMISSIONS PRESERVED
@@ -174,11 +167,8 @@ fun PostScreen(
         ) {
             // ========================================
             // ✨ NEW: Vinted-Style Image Picker (TOP OF FORM)
-            // Compact horizontal grid: Camera + Gallery + Preview
-            // Saves ~150dp vertical space vs old upload box
             // ========================================
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Section title with required indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -196,12 +186,10 @@ fun PostScreen(
                     )
                 }
 
-                // ✨ COMPACT GRID: Camera + Gallery + Preview
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // ✨ CAMERA SQUARE (Always first)
                     item {
                         ImagePickerSquare(
                             type = "camera",
@@ -225,7 +213,6 @@ fun PostScreen(
                         )
                     }
 
-                    // ✨ GALLERY SQUARE (Always second)
                     item {
                         ImagePickerSquare(
                             type = "gallery",
@@ -238,7 +225,6 @@ fun PostScreen(
                         )
                     }
 
-                    // ✨ SELECTED IMAGE THUMBNAIL (Shows when image selected)
                     if (state.selectedImageUri != null || state.imageUrl.isNotBlank()) {
                         item {
                             SelectedImageThumbnail(
@@ -252,7 +238,6 @@ fun PostScreen(
                     }
                 }
 
-                // ✅ PRESERVED: Permission denied message
                 if (permissionDenied) {
                     Text(
                         "⚠️ Camera permission required. Please enable it in Settings.",
@@ -296,7 +281,7 @@ fun PostScreen(
             }
 
             // ========================================
-            // ✅ PRESERVED: Description (Optional)
+            // ✅ PRESERVED: Description (Optional) - SINGLE INSTANCE
             // ========================================
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -314,6 +299,35 @@ fun PostScreen(
                     placeholder = { Text("Details, terms, restrictions...") },
                     minLines = 3,
                     maxLines = 5
+                )
+            }
+
+            // ========================================
+            // ✨ NEW: Category Selector (Required)
+            // ========================================
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Category",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    Text(
+                        "*",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                CategoryDropdown(
+                    selectedCategory = state.category,
+                    onCategorySelected = { category ->
+                        viewModel.updateCategory(category)
+                    }
                 )
             }
 
@@ -342,7 +356,6 @@ fun PostScreen(
                         .clip(MaterialTheme.shapes.medium),
                     horizontalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    // Online Segment
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -371,7 +384,6 @@ fun PostScreen(
                         )
                     }
 
-                    // Physical Store Segment
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -407,7 +419,6 @@ fun PostScreen(
             // ========================================
             if (state.dealType == DealType.ONLINE) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Deal Link
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "Deal Link",
@@ -445,7 +456,6 @@ fun PostScreen(
                         )
                     }
 
-                    // Promo/Coupon Code
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "Promo/Coupon Code (Optional)",
@@ -576,13 +586,88 @@ fun PostScreen(
 }
 
 /**
+ * ✨ NEW COMPONENT: Modern Category Dropdown (2025)
+ * MOVED OUTSIDE PostScreen function
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryDropdown(
+    selectedCategory: DealCategory,
+    onCategorySelected: (DealCategory) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = "${selectedCategory.emoji}  ${selectedCategory.displayName}",
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            enabled = false,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium
+            )
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DealCategory.values().forEach { category ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = category.emoji,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                text = category.displayName,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = if (category == selectedCategory)
+                                        FontWeight.Bold
+                                    else
+                                        FontWeight.Normal
+                                )
+                            )
+                        }
+                    },
+                    onClick = {
+                        onCategorySelected(category)
+                        expanded = false
+                        Log.d("CategoryDropdown", "🏷️ Selected: ${category.displayName}")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = MenuDefaults.itemColors(
+                        textColor = if (category == selectedCategory)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurface
+                    )
+                )
+            }
+        }
+    }
+}
+
+/**
  * ✨ NEW COMPONENT: Image Picker Square (Vinted Style)
- * 100x100dp square with icon, label, and validation states
- *
- * @param type "camera" or "gallery"
- * @param onClick Action when clicked
- * @param isDisabled Grey out when image already selected
- * @param showError Show red border when validation fails
  */
 @Composable
 private fun ImagePickerSquare(
@@ -597,16 +682,16 @@ private fun ImagePickerSquare(
             .clip(MaterialTheme.shapes.medium)
             .background(
                 when {
-                    isDisabled -> Color(0xFFE5E7EB) // Light grey when disabled
-                    else -> Color(0xFF374151) // Dark grey when active
+                    isDisabled -> Color(0xFFE5E7EB)
+                    else -> Color(0xFF374151)
                 }
             )
             .border(
                 width = 2.dp,
                 color = when {
-                    showError -> Color(0xFFEF4444) // Red when error
-                    isDisabled -> Color(0xFF9CA3AF) // Grey when disabled
-                    else -> Color(0xFF9046CF) // Purple when active
+                    showError -> Color(0xFFEF4444)
+                    isDisabled -> Color(0xFF9CA3AF)
+                    else -> Color(0xFF9046CF)
                 },
                 shape = MaterialTheme.shapes.medium
             )
@@ -643,10 +728,6 @@ private fun ImagePickerSquare(
 
 /**
  * ✨ NEW COMPONENT: Selected Image Thumbnail
- * Shows uploaded image with remove button overlay
- *
- * @param uri Image URI to display
- * @param onRemove Callback when remove button clicked
  */
 @Composable
 private fun SelectedImageThumbnail(
@@ -656,7 +737,6 @@ private fun SelectedImageThumbnail(
     Box(
         modifier = Modifier.size(100.dp)
     ) {
-        // Image
         AsyncImage(
             model = uri,
             contentDescription = "Selected deal photo",
@@ -665,13 +745,12 @@ private fun SelectedImageThumbnail(
                 .clip(MaterialTheme.shapes.medium)
                 .border(
                     width = 2.dp,
-                    color = Color(0xFF10B981), // Green border (success)
+                    color = Color(0xFF10B981),
                     shape = MaterialTheme.shapes.medium
                 ),
             contentScale = ContentScale.Crop
         )
 
-        // Remove button (top-right corner)
         IconButton(
             onClick = onRemove,
             modifier = Modifier
@@ -688,7 +767,6 @@ private fun SelectedImageThumbnail(
             )
         }
 
-        // Checkmark indicator (bottom-right)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
