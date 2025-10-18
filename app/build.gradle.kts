@@ -64,4 +64,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
+
+    // ✨ NEW:
+    implementation(libs.coil.compose)
 }
