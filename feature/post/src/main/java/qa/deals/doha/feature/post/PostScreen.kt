@@ -36,8 +36,8 @@ import coil.compose.AsyncImage
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import qa.deals.doha.feature.post.UsernameDialog
 import kotlinx.coroutines.delay
+import qa.deals.domain.DealCategory  // ✅ ADD THIS IMPORT
 
 /**
  * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)

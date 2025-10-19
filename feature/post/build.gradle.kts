@@ -57,5 +57,5 @@ dependencies {
     implementation("com.google.accompanist:accompanist-placeholder-material:0.32.0")
     // ✅ This one contains ALL Material Icons
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
-
+    implementation(projects.core.domain)  // ✅ Must be present
 }

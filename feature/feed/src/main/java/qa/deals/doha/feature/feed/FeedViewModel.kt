@@ -7,30 +7,41 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import qa.deals.doha.repository.DealRepository
-import qa.deals.doha.db.DealEntity
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import qa.deals.doha.datastore.DeviceIdManager
+import qa.deals.doha.db.DealEntity
+import qa.deals.domain.DealCategory  // ✅ CORRECTED: From actual package
+import qa.deals.doha.repository.DealRepository
 
 /**
- * UI state container for Feed screen
+ * ========================================
+ * ✨ UI STATE CONTAINER FOR FEED SCREEN
+ * ========================================
+ *
+ * Updated: 2025-10-19 19:58:11 UTC by @Magdyz
+ *
+ * Data class that holds all UI-related state for the feed screen.
  */
 data class FeedUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
-    val votedDeals: Map<String, String> = emptyMap(),           // dealId -> voteType
-    val optimisticCounts: Map<String, Pair<Int, Int>> = emptyMap() // ✅ NEW: dealId -> (hotCount, coldCount)
+    val votedDeals: Map<String, String> = emptyMap(),
+    val optimisticCounts: Map<String, Pair<Int, Int>> = emptyMap()
 )
 
 /**
- * ViewModel that exposes cached deals from Room and refreshes from network.
- * ✅ FIX 2: Added optimistic vote count updates
+ * ========================================
+ * ✨ FEED VIEW MODEL - 2025 UPDATED
+ * ========================================
+ *
+ * Updated: 2025-10-19 19:58:11 UTC by @Magdyz
  */
 class FeedViewModel(
     private val context: Context,
@@ -38,32 +49,58 @@ class FeedViewModel(
     private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context)
 ) : ViewModel() {
 
+    // ✅ PRESERVED: Search Query State
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    val deals: StateFlow<List<DealEntity>> = repo.getCachedDeals()
-        .combine(_searchQuery) { allDeals, query ->
-            if (query.isEmpty()) {
-                allDeals
-            } else {
-                val searchLower = query.lowercase().trim()
-                allDeals.filter { deal ->
-                    deal.title.lowercase().contains(searchLower) ||
-                            deal.description?.lowercase()?.contains(searchLower) == true
-                }
+    // ✨ NEW: Category Filter State (FIXED - explicit type)
+    private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
+    val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
+
+    // ✅ PRESERVED + ✨ UPDATED: Deals StateFlow with Search + Category Filtering
+    val deals: StateFlow<List<DealEntity>> = combine(
+        repo.getCachedDeals(),
+        _searchQuery,
+        _selectedCategory
+    ) { allDeals, query, category ->
+        var filteredDeals = allDeals
+
+        // Apply search filter
+        if (query.isNotEmpty()) {
+            val searchLower = query.lowercase().trim()
+            filteredDeals = filteredDeals.filter { deal ->
+                deal.title.lowercase().contains(searchLower) ||
+                        deal.description?.lowercase()?.contains(searchLower) == true
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+        // Apply category filter
+        if (category != null) {
+            filteredDeals = filteredDeals.filter { deal ->
+                deal.category == category.id
+            }
+        }
+
+        // Sort by hot votes (highest to lowest)
+        filteredDeals.sortedByDescending { it.hotCount ?: 0 }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // ✅ PRESERVED: UI State
     var uiState by mutableStateOf(FeedUiState())
         private set
 
+    // ✅ PRESERVED: Initialization
     init {
         Log.d("FeedViewModel", "📱 Initializing with DeviceIdManager")
         refreshDeals()
         loadVoteStatus()
     }
 
+    // ✅ PRESERVED: Load Vote Status
     private fun loadVoteStatus() {
         viewModelScope.launch {
             deals.collect { dealList ->
@@ -81,10 +118,20 @@ class FeedViewModel(
         }
     }
 
+    // ✅ PRESERVED: Search Query Update
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+        Log.d("FeedViewModel", "🔍 Search query updated: $query")
     }
 
+    // ✨ NEW: Category Filter Update
+    fun filterByCategory(category: DealCategory?) {
+        Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
+        _selectedCategory.value = category
+        refreshDeals()
+    }
+
+    // ✅ PRESERVED: Refresh Deals from Network
     fun refreshDeals() {
         viewModelScope.launch {
             uiState = uiState.copy(loading = true, error = null)
@@ -92,7 +139,12 @@ class FeedViewModel(
                 Log.d("Feed", "🔄 Refreshing deals from network...")
                 repo.refreshDeals()
                 uiState = uiState.copy(loading = false)
-                Log.d("Feed", "✅ Deals refreshed successfully")
+
+                val categoryInfo = _selectedCategory.value?.let {
+                    " (category: ${it.displayName})"
+                } ?: ""
+                Log.d("Feed", "✅ Deals refreshed successfully$categoryInfo")
+
             } catch (t: Throwable) {
                 Log.e("Feed", "💥 Failed to refresh deals", t)
                 uiState = uiState.copy(loading = false, error = t.message)
@@ -100,28 +152,27 @@ class FeedViewModel(
         }
     }
 
+    // ✅ PRESERVED: Vote Status Check
     fun hasVoted(dealId: String): Boolean {
         return uiState.votedDeals.containsKey(dealId)
     }
 
+    // ✅ PRESERVED: Get Vote Type
     fun getVoteType(dealId: String): String? {
         return uiState.votedDeals[dealId]
     }
 
-    // ========================================
-    // ✅ FIX 2: Get optimistic count for a deal
-    // ========================================
+    // ✅ PRESERVED: Get Optimistic Hot Count
     fun getOptimisticHotCount(dealId: String): Int? {
         return uiState.optimisticCounts[dealId]?.first
     }
 
+    // ✅ PRESERVED: Get Optimistic Cold Count
     fun getOptimisticColdCount(dealId: String): Int? {
         return uiState.optimisticCounts[dealId]?.second
     }
 
-    /**
-     * ✅ FIX 2: Vote HOT with optimistic count update
-     */
+    // ✅ PRESERVED: Vote HOT with Optimistic Update
     fun voteHot(dealId: String) {
         if (hasVoted(dealId)) {
             Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
@@ -132,9 +183,6 @@ class FeedViewModel(
             try {
                 Log.d("FeedVote", "🔥 Casting HOT vote for deal: $dealId")
 
-                // ========================================
-                // ✅ FIX 2: OPTIMISTIC UPDATE - Update count immediately
-                // ========================================
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val newHotCount = (currentDeal.hotCount ?: 0) + 1
@@ -147,13 +195,11 @@ class FeedViewModel(
                     Log.d("FeedVote", "⚡ Optimistic update: hot count = $newHotCount")
                 }
 
-                // Record vote locally
                 deviceIdManager.recordVote(dealId, "hot")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "hot"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
-                // Make API call
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "hot",
@@ -162,7 +208,6 @@ class FeedViewModel(
 
                 if (result.success == true) {
                     Log.d("FeedVote", "✅ HOT vote recorded successfully")
-                    // ✅ FIX 2: Clear optimistic count - real count from API will show
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
@@ -175,9 +220,7 @@ class FeedViewModel(
         }
     }
 
-    /**
-     * ✅ FIX 2: Vote COLD with optimistic count update
-     */
+    // ✅ PRESERVED: Vote COLD with Optimistic Update
     fun voteCold(dealId: String) {
         if (hasVoted(dealId)) {
             Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
@@ -188,9 +231,6 @@ class FeedViewModel(
             try {
                 Log.d("FeedVote", "❄️ Casting COLD vote for deal: $dealId")
 
-                // ========================================
-                // ✅ FIX 2: OPTIMISTIC UPDATE - Update count immediately
-                // ========================================
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val currentHotCount = currentDeal.hotCount ?: 0
@@ -203,13 +243,11 @@ class FeedViewModel(
                     Log.d("FeedVote", "⚡ Optimistic update: cold count = $newColdCount")
                 }
 
-                // Record vote locally
                 deviceIdManager.recordVote(dealId, "cold")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "cold"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
-                // Make API call
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
@@ -218,7 +256,6 @@ class FeedViewModel(
 
                 if (result.success == true) {
                     Log.d("FeedVote", "✅ COLD vote recorded successfully")
-                    // ✅ FIX 2: Clear optimistic count - real count from API will show
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
