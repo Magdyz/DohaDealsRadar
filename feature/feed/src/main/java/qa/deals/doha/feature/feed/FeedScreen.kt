@@ -1,13 +1,16 @@
 package qa.deals.doha.feature.feed
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.Color
+// Add this import
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import kotlinx.coroutines.launch
 
 /**
  * Feed Screen - Grid layout with 2 columns
@@ -49,6 +56,9 @@ fun FeedScreen(
     val gridState = rememberLazyGridState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
+    // ✨ NEW: Pull-to-refresh state
+    val pullToRefreshState = rememberPullToRefreshState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -76,70 +86,112 @@ fun FeedScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.refreshDeals() },
-                        enabled = !state.loading
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh deals",
-                            tint = if (state.loading) {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                    }
-                }
+                )
             )
         },
         floatingActionButton = {
+            // ✨ Animation state for press effect
+            var isPressed by remember { mutableStateOf(false) }
+
             FloatingActionButton(
-                onClick = onPostClick,
-                containerColor = Color(0xFFFF9143),
-                contentColor = Color(0xFFF3F3F4)
+                onClick = {
+                    isPressed = true
+                    onPostClick()
+                    // Reset animation after a short delay
+                    kotlinx.coroutines.GlobalScope.launch {
+                        kotlinx.coroutines.delay(150)
+                        isPressed = false
+                    }
+                },
+                containerColor = Color.Transparent,  // ✅ Transparent to show gradient
+                contentColor = Color.White,          // ✅ Icon color
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,         // ✅ Subtle shadow at rest
+                    pressedElevation = 10.dp,        // ✅ INCREASED: Stronger shadow when pressed (was 8dp)
+                    hoveredElevation = 8.dp          // ✅ INCREASED: Medium shadow on hover
+                ),
+                shape = CircleShape,                 // ✅ Perfect circle
+                modifier = Modifier
+                    .size(64.dp)                     // ✨ CHANGED: 64dp (was 56dp) - Modern large FAB
+                    .then(
+                        if (isPressed) {
+                            Modifier.size(60.dp)     // ✨ CHANGED: Shrink to 60dp when pressed (4dp reduction)
+                        } else {
+                            Modifier.size(64.dp)     // ✅ Normal size
+                        }
+                    )
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Post a deal"
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()               // ✅ Fill the FAB circle
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF9C27B0),  // ✅ Purple (Material Purple 500)
+                                    Color(0xFFE91E63)   // ✅ Pink (Material Pink 500)
+                                ),
+                                start = Offset(0f, Float.POSITIVE_INFINITY),
+                                end = Offset(Float.POSITIVE_INFINITY, 0f)
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Post a deal",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)  // ✨ INCREASED: 32dp icon (was 28dp) - Scales with larger FAB
+                    )
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(
+        // ✨ NEW: Wrap content with PullToRefreshBox for swipe-to-refresh
+        PullToRefreshBox(
+            isRefreshing = state.loading,  // ✅ Use existing loading state
+            onRefresh = {
+                viewModel.refreshDeals()  // ✅ Use existing refresh function
+            },
+            state = pullToRefreshState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // ✅ PRESERVED: All existing UI states maintained
             when {
-                // Loading state
+                // Loading state (initial load only)
                 state.loading && deals.isEmpty() -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 // Error state
                 state.error != null && deals.isEmpty() -> {
                     Column(
                         modifier = Modifier
-                            .align(Alignment.Center)
+                            .fillMaxSize()
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text(text = "😞", style = MaterialTheme.typography.displayLarge)
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(text = "Error loading deals", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = state.error ?: "Unknown error",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = { viewModel.refreshDeals() },
                             colors = ButtonDefaults.buttonColors(
@@ -153,6 +205,7 @@ fun FeedScreen(
 
                 // Success - Grid layout
                 else -> {
+                    // ✅ PRESERVED: LazyVerticalGrid completely unchanged
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = gridState,
@@ -166,23 +219,11 @@ fun FeedScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Loading indicator during refresh
-                        if (state.loading && deals.isNotEmpty()) {
-                            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
+                        // ✅ REMOVED: Loading indicator during refresh
+                        // Pull-to-refresh shows its own indicator at the top
+                        // This prevents duplicate loading indicators
 
-                        // ✅ Deal cards with vote status
-                        // ✅ FIX 2: Pass optimistic counts to each card
+                        // ✅ PRESERVED: Deal cards with all optimistic voting
                         items(
                             items = deals,
                             key = { it.id }
@@ -194,8 +235,8 @@ fun FeedScreen(
                                 onVoteCold = { viewModel.voteCold(deal.id) },
                                 hasVoted = viewModel.hasVoted(deal.id),
                                 userVoteType = viewModel.getVoteType(deal.id),
-                                optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),  // ✅ NEW
-                                optimisticColdCount = viewModel.getOptimisticColdCount(deal.id), // ✅ NEW
+                                optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
+                                optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
                                 modifier = Modifier.animateItem()
                             )
                         }
