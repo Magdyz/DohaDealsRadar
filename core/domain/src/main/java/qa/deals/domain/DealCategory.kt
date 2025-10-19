@@ -1,8 +1,21 @@
-package qa.deals.doha.feature.post
+package qa.deals.domain  // ✅ CORRECT
 
 /**
- * ✨ Deal Categories (2025)
- * Required field for all deals
+ * ========================================
+ * ✨ DEAL CATEGORIES - SHARED DOMAIN MODEL
+ * ========================================
+ *
+ * Created: 2025-10-19 20:00:15 UTC by @Magdyz
+ *
+ * Moved from feature/post to core/domain for shared access.
+ * Used by both feed filtering and deal posting.
+ *
+ * CATEGORIES:
+ * - Food & Dining (🍔)
+ * - Shopping & Fashion (🛍️)
+ * - Entertainment & Leisure (🎮)
+ * - Home & Services (🏠)
+ * - Other (⭐)
  */
 enum class DealCategory(
     val id: String,

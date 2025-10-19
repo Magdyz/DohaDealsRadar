@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import qa.deals.doha.datastore.DeviceIdManager
 import qa.deals.doha.repository.UsernameRepository
+import qa.deals.domain.DealCategory  // ✅ ADD THIS IMPORT
 
 
 /**

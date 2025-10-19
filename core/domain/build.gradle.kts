@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.doha.core.domain"
+    namespace = "qa.deals.domain"  // ✅ CORRECTED: Match actual package structure
     compileSdk = 36
 
     defaultConfig {
