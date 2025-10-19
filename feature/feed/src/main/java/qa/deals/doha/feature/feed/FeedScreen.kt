@@ -90,45 +90,44 @@ fun FeedScreen(
             )
         },
         floatingActionButton = {
-            // ✨ Animation state for press effect
+            // ✅ PRESERVED: Gradient FAB (no changes)
             var isPressed by remember { mutableStateOf(false) }
 
             FloatingActionButton(
                 onClick = {
                     isPressed = true
                     onPostClick()
-                    // Reset animation after a short delay
                     kotlinx.coroutines.GlobalScope.launch {
                         kotlinx.coroutines.delay(150)
                         isPressed = false
                     }
                 },
-                containerColor = Color.Transparent,  // ✅ Transparent to show gradient
-                contentColor = Color.White,          // ✅ Icon color
+                containerColor = Color.Transparent,
+                contentColor = Color.White,
                 elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,         // ✅ Subtle shadow at rest
-                    pressedElevation = 10.dp,        // ✅ INCREASED: Stronger shadow when pressed (was 8dp)
-                    hoveredElevation = 8.dp          // ✅ INCREASED: Medium shadow on hover
+                    defaultElevation = 6.dp,
+                    pressedElevation = 10.dp,
+                    hoveredElevation = 8.dp
                 ),
-                shape = CircleShape,                 // ✅ Perfect circle
+                shape = CircleShape,
                 modifier = Modifier
-                    .size(64.dp)                     // ✨ CHANGED: 64dp (was 56dp) - Modern large FAB
+                    .size(64.dp)
                     .then(
                         if (isPressed) {
-                            Modifier.size(60.dp)     // ✨ CHANGED: Shrink to 60dp when pressed (4dp reduction)
+                            Modifier.size(60.dp)
                         } else {
-                            Modifier.size(64.dp)     // ✅ Normal size
+                            Modifier.size(64.dp)
                         }
                     )
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()               // ✅ Fill the FAB circle
+                        .fillMaxSize()
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(
-                                    Color(0xFF9C27B0),  // ✅ Purple (Material Purple 500)
-                                    Color(0xFFE91E63)   // ✅ Pink (Material Pink 500)
+                                    Color(0xFF9C27B0),
+                                    Color(0xFFE91E63)
                                 ),
                                 start = Offset(0f, Float.POSITIVE_INFINITY),
                                 end = Offset(Float.POSITIVE_INFINITY, 0f)
@@ -141,57 +140,76 @@ fun FeedScreen(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Post a deal",
                         tint = Color.White,
-                        modifier = Modifier.size(32.dp)  // ✨ INCREASED: 32dp icon (was 28dp) - Scales with larger FAB
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        // ✨ NEW: Wrap content with PullToRefreshBox for swipe-to-refresh
-        PullToRefreshBox(
-            isRefreshing = state.loading,  // ✅ Use existing loading state
-            onRefresh = {
-                viewModel.refreshDeals()  // ✅ Use existing refresh function
-            },
-            state = pullToRefreshState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // ✅ PRESERVED: All existing UI states maintained
-            when {
-                // Loading state (initial load only)
-                state.loading && deals.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+
+        // ========================================
+        // ✨ FIX: Smart loading state management
+        // Prevents double spinners
+        // ========================================
+
+        when {
+            // ========================================
+            // 🎯 CASE 1: Initial Load (First Time)
+            // Show ONLY center spinner, NO pull-to-refresh
+            // ========================================
+            state.loading && deals.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // ✨ Modern 2025: Larger, more visible spinner
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(56.dp),  // ✨ LARGER: 56dp (was 40dp default)
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp  // ✨ THICKER: More visible
+                        )
+
+                        // ✨ Optional: Loading text (modern apps show this)
+                        Text(
+                            text = "Loading deals...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            }
 
-                // Error state
-                state.error != null && deals.isEmpty() -> {
+            // ========================================
+            // 🎯 CASE 2: Error State (Empty with Error)
+            // ========================================
+            state.error != null && deals.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .align(Alignment.Center)
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(text = "😞", style = MaterialTheme.typography.displayLarge)
-                        Spacer(modifier = Modifier.height(16.dp))
                         Text(text = "Error loading deals", style = MaterialTheme.typography.titleMedium)
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = state.error ?: "Unknown error",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = { viewModel.refreshDeals() },
                             colors = ButtonDefaults.buttonColors(
@@ -202,10 +220,23 @@ fun FeedScreen(
                         }
                     }
                 }
+            }
 
-                // Success - Grid layout
-                else -> {
-                    // ✅ PRESERVED: LazyVerticalGrid completely unchanged
+            // ========================================
+            // 🎯 CASE 3: Success State (Has Deals)
+            // Show pull-to-refresh wrapper ONLY here
+            // ========================================
+            else -> {
+                // ✨ FIX: Pull-to-refresh ONLY wraps content when deals exist
+                PullToRefreshBox(
+                    isRefreshing = state.loading,  // ✅ Now only shows top indicator during refresh
+                    onRefresh = { viewModel.refreshDeals() },
+                    state = pullToRefreshState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    // ✅ Grid with deals
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = gridState,
@@ -219,11 +250,6 @@ fun FeedScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // ✅ REMOVED: Loading indicator during refresh
-                        // Pull-to-refresh shows its own indicator at the top
-                        // This prevents duplicate loading indicators
-
-                        // ✅ PRESERVED: Deal cards with all optimistic voting
                         items(
                             items = deals,
                             key = { it.id }

@@ -3,6 +3,8 @@ package qa.deals.doha.feature.post
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -13,39 +15,41 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 /**
- * ✨ MODERN UPLOAD LOADING OVERLAY - 2025 Edition
+ * ========================================
+ * ✨ UPLOAD LOADING OVERLAY - 2025
+ * ========================================
  *
- * Full-screen overlay that locks the form during upload
+ * Updated: 2025-10-19 18:05:44 UTC by @Magdyz
+ *
+ * FIXES APPLIED:
+ * - ✅ Blocks ALL background touches (prevents double submission)
+ * - ✅ Cannot dismiss dialog
+ * - ✅ Full-screen modal overlay
+ * - ✅ Purple brand color for spinner
  *
  * FEATURES:
  * 1. 🔒 Prevents all user interaction with form
- * 2. 🎨 Glassmorphism design with blur effect
+ * 2. 🎨 Modern glassmorphism design
  * 3. 📊 Shows upload progress stages
  * 4. ✅ Animated stage completion
  * 5. 💫 Smooth fade transitions
- * 6. 🎭 Modern 2025 UI/UX
+ * 6. 🎭 Purple brand colors
  *
  * STAGES:
  * 1. 📦 Compressing image...
  * 2. ☁️ Uploading preview...
  * 3. 📤 Posting deal...
  * 4. 🖼️ Uploading full image...
- *
- * @param message Current upload status message
- * @author Magdyz
- * @date 2025-10-16
  */
 @Composable
 fun UploadLoadingOverlay(
@@ -63,21 +67,26 @@ fun UploadLoadingOverlay(
     }
 
     // ========================================
-    // ✨ Full-screen dialog overlay
-    // Non-dismissible, blocks all interaction
+    // ✨ FIX: Use Dialog to block ALL touches
     // ========================================
     Dialog(
-        onDismissRequest = { /* Cannot dismiss during upload */ },
+        onDismissRequest = { /* ✅ Cannot dismiss during upload */ },
         properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false
+            dismissOnBackPress = false,      // ✅ Blocks back button
+            dismissOnClickOutside = false,   // ✅ Blocks outside clicks
+            usePlatformDefaultWidth = false  // ✅ Full screen
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f)), // Dark semi-transparent overlay
+                .background(Color.Black.copy(alpha = 0.7f))  // ✅ Dark overlay
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    // ✅ Consume all clicks (do nothing)
+                },
             contentAlignment = Alignment.Center
         ) {
             // ========================================
@@ -92,18 +101,17 @@ fun UploadLoadingOverlay(
                 shadowElevation = 16.dp
             ) {
                 Column(
-                    modifier = Modifier
-                        .padding(32.dp),
+                    modifier = Modifier.padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     // ========================================
-                    // ✨ Main loading indicator
+                    // ✨ Main loading indicator (PURPLE)
                     // ========================================
                     CircularProgressIndicator(
                         modifier = Modifier.size(64.dp),
                         strokeWidth = 6.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFF9C27B0)  // ✅ PURPLE (brand color)
                     )
 
                     // ========================================
@@ -161,7 +169,7 @@ fun UploadLoadingOverlay(
                         Text(
                             text = message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = Color(0xFF9C27B0),  // ✅ PURPLE
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -235,14 +243,14 @@ private fun UploadStageItem(
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = "Completed",
-                tint = Color(0xFF10B981),
+                tint = Color(0xFF9C27B0),  // ✅ PURPLE (not green!)
                 modifier = Modifier.size(24.dp)
             )
         } else {
             Icon(
                 icon,
                 contentDescription = label,
-                tint = if (isActive) MaterialTheme.colorScheme.primary else Color.Gray,
+                tint = if (isActive) Color(0xFF9C27B0) else Color.Gray,  // ✅ PURPLE
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -254,20 +262,20 @@ private fun UploadStageItem(
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             ),
             color = when {
-                isCompleted -> Color(0xFF10B981)
-                isActive -> MaterialTheme.colorScheme.primary
+                isCompleted -> Color(0xFF9C27B0)  // ✅ PURPLE
+                isActive -> Color(0xFF9C27B0)     // ✅ PURPLE
                 else -> Color.Gray
             }
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // ✨ Loading indicator for active stage
+        // ✨ Loading indicator for active stage (PURPLE)
         if (isActive) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary
+                color = Color(0xFF9C27B0)  // ✅ PURPLE
             )
         }
     }

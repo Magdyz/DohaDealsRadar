@@ -3,10 +3,14 @@ package qa.deals.doha.feature.report
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.network.ReportReason
@@ -27,6 +32,7 @@ import qa.deals.doha.network.ReportReason
  * ✅ ENHANCED: Animated sending/sent graphics for better UX
  * ✅ FIXED: Keyboard handling with imePadding()
  * ✅ UPDATED: Increased minimum character requirement to 30
+ * ✅ UPDATED: Modern purple checkmark success screen (2025)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,64 +176,169 @@ private fun SendingContent() {
 }
 
 /**
- * ✅ ENHANCED: Success message with enter animation
- * Shows after report is successfully submitted
+ * ========================================
+ * ✨ SUCCESS SCREEN - 2025 MODERN UPDATE
+ * ========================================
+ *
+ * Updated: 2025-10-19 18:46:12 UTC by @Magdyz
+ *
+ * CHANGES:
+ * - ✅ Sharp vector checkmark (not emoji)
+ * - ✅ Purple brand color (not green)
+ * - ✅ Concentric circles design (matches post success)
+ * - ✅ Smooth bounce animation
+ * - ✅ FIXED: Removed problematic Shield icon (simplified design)
  */
 @Composable
 private fun SuccessContent() {
-    // Scale in animation
+    // ========================================
+    // ✨ Animation States
+    // ========================================
     var visible by remember { mutableStateOf(false) }
+    var checkmarkScale by remember { mutableStateOf(0f) }
 
+    // Launch animations
     LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
         visible = true
+        checkmarkScale = 1f
     }
+
+    // Animated scale with bounce
+    val scale by animateFloatAsState(
+        targetValue = checkmarkScale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "checkmark_scale"
+    )
 
     AnimatedVisibility(
         visible = visible,
-        enter = scaleIn(
-            initialScale = 0.8f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        ) + fadeIn()
+        enter = fadeIn(animationSpec = tween(300))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // Success checkmark
-            Text(
-                text = "✅",
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 80.sp
-            )
+            // ========================================
+            // ✨ MODERN PURPLE CHECKMARK
+            // Sharp vector icon, not emoji
+            // ========================================
+            Box(
+                modifier = Modifier
+                    .size(180.dp)
+                    .scale(scale),
+                contentAlignment = Alignment.Center
+            ) {
+                // Outer circle (light purple)
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .background(
+                            color = Color(0xFF9C27B0).copy(alpha = 0.15f),
+                            shape = CircleShape
+                        )
+                )
 
-            Text(
-                text = "Report Sent!",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
+                // Middle circle (medium purple)
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .background(
+                            color = Color(0xFF9C27B0).copy(alpha = 0.3f),
+                            shape = CircleShape
+                        )
+                )
 
-            Text(
-                text = "Thank you for helping keep\nour community safe.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+                // Inner solid circle
+                Surface(
+                    modifier = Modifier.size(100.dp),
+                    shape = CircleShape,
+                    color = Color(0xFF9C27B0),  // ✅ PURPLE (brand color)
+                    shadowElevation = 12.dp
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // ✨ SHARP VECTOR CHECKMARK
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Report sent",
+                            modifier = Modifier.size(70.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+
+            // ========================================
+            // ✨ Success Messages
+            // ========================================
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Main title
+                Text(
+                    text = "Report Sent! 🛡️",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                // Subtitle
+                Text(
+                    text = "Thank you for helping keep\nour community safe.",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 18.sp,
+                        lineHeight = 26.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ✨ Info box with purple background
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = Color(0xFF9C27B0).copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "Our team will review this report shortly",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Progress indicator showing auto-close
+            // ✨ Auto-close message
             Text(
                 text = "Closing automatically...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 14.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -560,9 +671,8 @@ private fun ReportFormContent(
                 .height(52.dp),
             enabled = !uiState.loading && uiState.selectedReason != null,
             colors = ButtonDefaults.buttonColors(
-    containerColor = Color(0xFF9046CF),
-    contentColor = Color(0xFFF3F3F4)
-
+                containerColor = Color(0xFF9046CF),
+                contentColor = Color(0xFFF3F3F4)
             ),
             shape = MaterialTheme.shapes.medium
         ) {

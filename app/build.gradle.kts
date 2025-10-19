@@ -67,4 +67,5 @@ dependencies {
 
     // ✨ NEW:
     implementation(libs.coil.compose)
+
 }
