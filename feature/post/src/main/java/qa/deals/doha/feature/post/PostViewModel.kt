@@ -675,6 +675,10 @@ class PostViewModel(
     /**
      * Validate place name - block URLs, spam, etc.
      */
+    /**
+     * Validate place name - block URLs, spam, etc.
+     * ✅ UPDATED: Now supports English, Arabic, and international characters (ö, é, etc.)
+     */
     private fun isValidPlaceName(place: String): Boolean {
         val trimmed = place.trim()
 
@@ -694,8 +698,12 @@ class PostViewModel(
         // Block numbers only
         if (trimmed.matches(Regex("^[0-9]+$"))) return false
 
-        // Allow only letters, numbers, spaces, and basic punctuation
-        if (!trimmed.matches(Regex("^[a-zA-Z0-9\\s.,''&-]+$"))) return false
+        // ✅ FIXED: Allow Unicode letters (Arabic, English, accented characters)
+        // Allow: letters (any language), numbers, spaces, and common punctuation
+        // Arabic range: \u0600-\u06FF
+        // Latin with diacritics: \u00C0-\u017F (includes ö, é, ñ, etc.)
+        // Basic Latin: a-zA-Z
+        if (!trimmed.matches(Regex("^[\\p{L}\\p{N}\\s.,''&()\\-/]+$"))) return false
 
         return true
     }
