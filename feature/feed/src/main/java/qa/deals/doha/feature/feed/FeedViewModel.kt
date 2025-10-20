@@ -95,7 +95,7 @@ class FeedViewModel(
 
     // ✅ PRESERVED: Initialization
     init {
-        Log.d("FeedViewModel", "📱 Initializing with DeviceIdManager")
+    //    Log.d("FeedViewModel", "📱 Initializing with DeviceIdManager")
         refreshDeals()
         loadVoteStatus()
     }
@@ -113,7 +113,7 @@ class FeedViewModel(
                     }
                 }
                 uiState = uiState.copy(votedDeals = votedDeals)
-                Log.d("FeedViewModel", "✅ Loaded vote status: ${votedDeals.size} deals voted")
+            //    Log.d("FeedViewModel", "✅ Loaded vote status: ${votedDeals.size} deals voted")
             }
         }
     }
@@ -121,12 +121,12 @@ class FeedViewModel(
     // ✅ PRESERVED: Search Query Update
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
-        Log.d("FeedViewModel", "🔍 Search query updated: $query")
+    //    Log.d("FeedViewModel", "🔍 Search query updated: $query")
     }
 
     // ✨ NEW: Category Filter Update
     fun filterByCategory(category: DealCategory?) {
-        Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
+    //    Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
         _selectedCategory.value = category
         refreshDeals()
     }
@@ -136,14 +136,14 @@ class FeedViewModel(
         viewModelScope.launch {
             uiState = uiState.copy(loading = true, error = null)
             try {
-                Log.d("Feed", "🔄 Refreshing deals from network...")
+        //        Log.d("Feed", "🔄 Refreshing deals from network...")
                 repo.refreshDeals()
                 uiState = uiState.copy(loading = false)
 
                 val categoryInfo = _selectedCategory.value?.let {
                     " (category: ${it.displayName})"
                 } ?: ""
-                Log.d("Feed", "✅ Deals refreshed successfully$categoryInfo")
+        //        Log.d("Feed", "✅ Deals refreshed successfully$categoryInfo")
 
             } catch (t: Throwable) {
                 Log.e("Feed", "💥 Failed to refresh deals", t)
@@ -175,13 +175,13 @@ class FeedViewModel(
     // ✅ PRESERVED: Vote HOT with Optimistic Update
     fun voteHot(dealId: String) {
         if (hasVoted(dealId)) {
-            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+    //        Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
             return
         }
 
         viewModelScope.launch {
             try {
-                Log.d("FeedVote", "🔥 Casting HOT vote for deal: $dealId")
+    //            Log.d("FeedVote", "🔥 Casting HOT vote for deal: $dealId")
 
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
@@ -192,7 +192,7 @@ class FeedViewModel(
                     updatedCounts[dealId] = Pair(newHotCount, currentColdCount)
 
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
-                    Log.d("FeedVote", "⚡ Optimistic update: hot count = $newHotCount")
+    //                Log.d("FeedVote", "⚡ Optimistic update: hot count = $newHotCount")
                 }
 
                 deviceIdManager.recordVote(dealId, "hot")
@@ -207,7 +207,7 @@ class FeedViewModel(
                 )
 
                 if (result.success == true) {
-                    Log.d("FeedVote", "✅ HOT vote recorded successfully")
+    //                Log.d("FeedVote", "✅ HOT vote recorded successfully")
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
@@ -223,13 +223,13 @@ class FeedViewModel(
     // ✅ PRESERVED: Vote COLD with Optimistic Update
     fun voteCold(dealId: String) {
         if (hasVoted(dealId)) {
-            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+    //        Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
             return
         }
 
         viewModelScope.launch {
             try {
-                Log.d("FeedVote", "❄️ Casting COLD vote for deal: $dealId")
+    //            Log.d("FeedVote", "❄️ Casting COLD vote for deal: $dealId")
 
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
@@ -240,7 +240,7 @@ class FeedViewModel(
                     updatedCounts[dealId] = Pair(currentHotCount, newColdCount)
 
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
-                    Log.d("FeedVote", "⚡ Optimistic update: cold count = $newColdCount")
+    //                Log.d("FeedVote", "⚡ Optimistic update: cold count = $newColdCount")
                 }
 
                 deviceIdManager.recordVote(dealId, "cold")
@@ -255,7 +255,7 @@ class FeedViewModel(
                 )
 
                 if (result.success == true) {
-                    Log.d("FeedVote", "✅ COLD vote recorded successfully")
+    //                Log.d("FeedVote", "✅ COLD vote recorded successfully")
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)

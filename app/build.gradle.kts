@@ -13,11 +13,44 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
 
+    // ✅ FIXED: buildFeatures - only for enabling features
     buildFeatures {
         compose = true
+        buildConfig = true  // Enable BuildConfig for production
+    }
+
+    // ✅ FIXED: buildTypes - for ProGuard and optimization
+    buildTypes {
+        release {
+            isMinifyEnabled = true           // Enable ProGuard
+            isShrinkResources = true         // Remove unused resources
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
+            // Production-specific settings
+            isDebuggable = false
+
+            // ✅ TODO: Add signing config when keystore is ready
+            // signingConfig = signingConfigs.getByName("release")
+        }
+
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-DEBUG"
+        }
     }
 
     kotlinOptions {
@@ -27,6 +60,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
@@ -50,6 +89,7 @@ dependencies {
     // Your modules
     implementation(project(":core:design"))
     implementation(project(":core:data"))
+    implementation(project(":core:domain"))
     implementation(project(":feature:feed"))
     implementation(project(":feature:post"))
     implementation(project(":feature:details"))
@@ -65,7 +105,6 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
 
-    // ✨ NEW:
+    // Image loading
     implementation(libs.coil.compose)
-
 }

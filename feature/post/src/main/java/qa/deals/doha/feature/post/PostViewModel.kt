@@ -358,6 +358,18 @@ class PostViewModel(
             return
         }
 
+// ✅ NEW: Validate title format
+        if (!isValidTitle(uiState.title)) {
+            uiState = uiState.copy(error = "Title contains invalid characters or URLs")
+            return
+        }
+
+// ✅ NEW: Validate description if provided
+        if (uiState.description.isNotBlank() && !isValidDescription(uiState.description)) {
+            uiState = uiState.copy(error = "Description is too long (max 2000 characters)")
+            return
+        }
+
         // Validate based on deal type
         when (uiState.dealType) {
             DealType.ONLINE -> {
@@ -675,6 +687,10 @@ class PostViewModel(
     /**
      * Validate place name - block URLs, spam, etc.
      */
+    /**
+     * Validate place name - block URLs, spam, etc.
+     * ✅ UPDATED: Now supports English, Arabic, and international characters (ö, é, etc.)
+     */
     private fun isValidPlaceName(place: String): Boolean {
         val trimmed = place.trim()
 
@@ -694,10 +710,44 @@ class PostViewModel(
         // Block numbers only
         if (trimmed.matches(Regex("^[0-9]+$"))) return false
 
-        // Allow only letters, numbers, spaces, and basic punctuation
-        if (!trimmed.matches(Regex("^[a-zA-Z0-9\\s.,''&-]+$"))) return false
+        // ✅ FIXED: Allow Unicode letters (Arabic, English, accented characters)
+        // Allow: letters (any language), numbers, spaces, and common punctuation
+        // Arabic range: \u0600-\u06FF
+        // Latin with diacritics: \u00C0-\u017F (includes ö, é, ñ, etc.)
+        // Basic Latin: a-zA-Z
+        if (!trimmed.matches(Regex("^[\\p{L}\\p{N}\\s.,''&()\\-/]+$"))) return false
 
         return true
+    }
+    /**
+     * Validate title - allow multilingual input
+     */
+    private fun isValidTitle(title: String): Boolean {
+        val trimmed = title.trim()
+
+        // Length check (3-200 characters)
+        if (trimmed.length < 3 || trimmed.length > 200) return false
+
+        // Block URLs in title
+        val urlPatterns = listOf("http://", "https://", "www.")
+        if (urlPatterns.any { trimmed.lowercase().contains(it) }) return false
+
+        // Allow Unicode letters, numbers, spaces, and common punctuation
+        // More permissive than location (allows %, emojis for deal titles)
+        return trimmed.matches(Regex("^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$"))
+    }
+
+    /**
+     * Validate description - most permissive (multiline, emojis, etc.)
+     */
+    private fun isValidDescription(description: String): Boolean {
+        val trimmed = description.trim()
+
+        // Length check (0-2000 characters, optional field)
+        if (trimmed.length > 2000) return false
+
+        // Allow almost anything (Unicode letters, numbers, punctuation, symbols, whitespace)
+        return true  // Descriptions can be very free-form
     }
 }
 
