@@ -3,7 +3,9 @@ package qa.deals.doha.feature.details
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import androidx.compose.foundation.Image
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
 import qa.deals.doha.db.DealEntity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -36,16 +37,12 @@ import androidx.compose.foundation.BorderStroke
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import coil.size.Scale
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.imePadding
 
 /**
  * Details Screen - Modern 2025 Design
@@ -310,6 +307,17 @@ private fun ImageSkeleton() {
  * - Share works the same
  * - Location copy unchanged
  */
+
+/**
+ * ✅ UPDATED: Main content with expandable description & floating button
+ *
+ * NEW FEATURES (2025):
+ * - Expandable description with "See more" link
+ * - Floating "View Deal" button for online deals
+ * - Location card stays inline (no floating button)
+ *
+ * Updated: 2025-01-20 09:55:00 UTC by @Magdyz
+ */
 @Composable
 private fun DealDetailsContent(
     deal: DealEntity,
@@ -320,485 +328,447 @@ private fun DealDetailsContent(
 ) {
     val context = LocalContext.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        // ========================================
-        // ✅ PRESERVED: Hero Image (unchanged)
-        // ========================================
+    // ✨ NEW: Description expansion state
+    var isDescriptionExpanded by remember { mutableStateOf(false) }
+    val descriptionMaxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3
 
-        // ✨ NEW: 2025 optimized image loading with skeleton
-        deal.imageUrl?.let { imageUrl ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(MaterialTheme.shapes.medium)  // ✅ Optional: rounded corners
-            ) {
-                SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageUrl)
-                        // ✨ PERFORMANCE: Aggressive caching strategy
-                        .memoryCacheKey(imageUrl)
-                        .diskCacheKey(imageUrl)
-                        // ✨ QUALITY: Scale to fit container
-                        .scale(Scale.FILL)
-                        // ✨ UX: Crossfade transition (300ms)
-                        .crossfade(300)
-                        // ✨ PERFORMANCE: Placeholder from cache while loading
-                        .placeholderMemoryCacheKey(imageUrl)
-                        .build(),
-                    contentDescription = deal.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+    // ✨ NEW: Check if deal has a link (online deal)
+    val hasLink = !deal.link.isNullOrBlank()
 
-                    // ✨ NEW: Loading state with skeleton
-                    loading = {
-                        ImageSkeleton()  // ✅ Shows shimmer skeleton
-                    },
-
-                    // ✨ NEW: Error state with retry
-                    error = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.errorContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "📷",
-                                    style = MaterialTheme.typography.displayMedium
-                                )
-                                Text(
-                                    text = "Image failed to load",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                        }
-                    }
-                )
-            }
-        }
-
-        // ========================================
-        // Content Section
-        // ========================================
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .fillMaxSize()
+                .imePadding()  // ✨ Automatically adjusts for keyboard
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = if (hasLink) 88.dp else 0.dp)  // ✅ Extra padding if floating button
         ) {
             // ========================================
-// ✨ CLEAN DESIGN: Border-only vote indication
-// Not voted: Grey circle, colored emoji + number
-// Voted: Colored border around circle (orange for hot, blue for cold)
-// ========================================
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // LEFT: Voting buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // ✨ HOT VOTE BUTTON - Clean border indication
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF374151)) // Same grey as report button
-                            // ✨ ADD BORDER: Orange when voted hot
-                            .then(
-                                if (uiState.hasVoted && uiState.userVoteType == "hot")
-                                    Modifier.border(3.dp, Color(0xFFFF9143), CircleShape)
-                                else
-                                    Modifier
-                            )
-                            .clickable(
-                                enabled = !uiState.hasVoted,
-                                onClick = { if (!uiState.hasVoted) onVote("hot") }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            // Emoji
-                            Text(
-                                text = "🔥",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 20.sp
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(2.dp))
-
-                            // Count (with smart formatting to prevent overflow)
-                            Text(
-                                text = formatVoteCount(deal.hotCount ?: 0),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = if (uiState.hasVoted && uiState.userVoteType == "hot")
-                                        Color(0xFFF3F3F4) // ✅ WHITE in all states
-                                    else if (uiState.hasVoted)
-                                        Color(0xFF6B7280) // Muted grey when other vote
-                                    else
-                                        Color(0xFFFF6B35) // Normal orange
-                                )
-                            )
-                        }
-                    }
-
-                    // ✨ COLD VOTE BUTTON - Clean border indication
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF374151)) // Same grey as report button
-                            // ✨ ADD BORDER: blue when voted cold
-                            .then(
-                                if (uiState.hasVoted && uiState.userVoteType == "cold")
-                                    Modifier.border(3.dp, Color(0xFF4A90E2), CircleShape)
-                                else
-                                    Modifier
-                            )
-                            .clickable(
-                                enabled = !uiState.hasVoted,
-                                onClick = { if (!uiState.hasVoted) onVote("cold") }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            // Emoji
-                            Text(
-                                text = "❄️",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 20.sp
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(2.dp))
-
-                            // Count (with smart formatting to prevent overflow)
-                            Text(
-                                text = formatVoteCount(deal.coldCount ?: 0),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = if (uiState.hasVoted && uiState.userVoteType == "cold")
-                                        Color(0xFFF3F3F4) // ✅ WHITE in all states
-                                    else if (uiState.hasVoted)
-                                        Color(0xFF6B7280) // Muted grey when other vote
-                                    else
-                                        Color(0xFF4A90E2) // Normal blue
-                                )
-                            )
-                        }
-                    }
-                }
-
-                // ✨ RIGHT: Report Flag Button (unchanged)
+            // ✅ Hero Image (unchanged)
+            // ========================================
+            deal.imageUrl?.let { imageUrl ->
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF374151)) // Same grey
-                        .clickable(onClick = onReport),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(MaterialTheme.shapes.medium)
                 ) {
-                    Text(
-                        text = "🚩",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 20.sp
-                        )
-                    )
-                }
-            }
-
-// ✨ NEW: Timestamp directly below voting buttons (LEFT aligned)
-            deal.createdAt?.let { createdAt ->
-                Text(
-                    text = "Posted ${getRelativeTimeString(createdAt)}", // ✅ Added "Posted"
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 13.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            // ========================================
-            // ✅ PRESERVED: Title (no status badge)
-            // ========================================
-            Text(
-                text = deal.title,
-                style = MaterialTheme.typography.headlineMedium.copy(  // ✨ CHANGED: Bigger font
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,  // ✨ CHANGED: Increased from default
-                    lineHeight = 32.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // ========================================
-            // ✅ PRESERVED: Description (unchanged)
-            // ========================================
-            if (!deal.description.isNullOrBlank()) {
-                Text(
-                    text = deal.description!!,
-                    style = MaterialTheme.typography.bodyMedium.copy(  // ✨ CHANGED: Smaller
-                        lineHeight = 24.sp,
-                        fontSize = 15.sp  // ✨ NEW: Explicit smaller size
-
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-// ========================================
-// ✨ NEW: Category Display (right after description)
-// ========================================
-            deal.category?.let { categoryId ->
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Get category display info
-                val categoryInfo = when (categoryId) {
-                    "food_dining" -> "🍔" to "Food & Dining"
-                    "shopping_fashion" -> "🛍️" to "Shopping & Fashion"
-                    "entertainment" -> "🎮" to "Entertainment & Leisure"
-                    "home_services" -> "🏠" to "Home & Services"
-                    else -> "⭐" to "Other"
-                }
-
-                // Category chip/badge
-                Surface(
-                    modifier = Modifier.wrapContentWidth(),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Emoji
-                        Text(
-                            text = categoryInfo.first,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontSize = 18.sp
-                            )
-                        )
-                        // Category name
-                        Text(
-                            text = categoryInfo.second,
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-// ========================================
-// ✨ NEW: Posted By Display (username attribution)
-// Updated: 2025-10-18 19:39:41 UTC by @Magdyz
-// ========================================
-            deal.postedBy?.let { username ->
-                if (username != "Anonymous") {
-                    // Spacer(modifier = Modifier.height(8.dp))
-
-                    // Username attribution badge
-                    Row(
-                        modifier = Modifier.wrapContentWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // User icon
-                        Text(
-                            text = "👤",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp)
-                        )
-
-                        // "Posted by" text
-                        Text(
-                            text = "Posted by",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-
-                        // Username (highlighted)
-                        Text(
-                            text = username,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-
-            // ========================================
-            // ✅ PRESERVED: Location or Link Section (unchanged)
-            // ========================================
-            if (!deal.location.isNullOrBlank()) {
-                // Physical Location - Show with copy button
-                LocationCard(
-                    location = deal.location!!,
-                    context = context
-                )
-// ========================================
-// ✨ PROMO CODE CHIP (if exists for online deals)
-// ========================================
-                if (deal.link != null && !deal.description.isNullOrBlank()) {
-                    // Try to extract promo code from description
-                    val promoMatch = Regex("code[:=]?\\s*([A-Z0-9]+)", RegexOption.IGNORE_CASE)
-                        .find(deal.description!!)
-                    val promoCode = promoMatch?.groupValues?.getOrNull(1)
-
-                    if (promoCode != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)  // ✅ Use MaterialTheme shapes instead
-                                .clickable {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Promo Code", promoCode)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "✅ Promo code copied!", Toast.LENGTH_SHORT).show()
-                                },
-                            shape = MaterialTheme.shapes.medium,  // ✅ Use MaterialTheme shapes
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        ) {
-                            // Add border using Box with border modifier
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .memoryCacheKey(imageUrl)
+                            .diskCacheKey(imageUrl)
+                            .scale(Scale.FILL)
+                            .crossfade(300)
+                            .placeholderMemoryCacheKey(imageUrl)
+                            .build(),
+                        contentDescription = deal.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = { ImageSkeleton() },
+                        error = {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(
-                                        width = 1.5.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = MaterialTheme.shapes.medium
-                                    )
-                                    .padding(16.dp)
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.errorContainer),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "🎟️ Promo Code",
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Medium
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = promoCode,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 18.sp,
-                                                letterSpacing = 1.2.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-
-                                    // Copy icon using emoji (no ContentCopy import needed)
+                                    Text(text = "📷", style = MaterialTheme.typography.displayMedium)
                                     Text(
-                                        text = "📋",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp)
+                                        text = "Image failed to load",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
                                     )
                                 }
                             }
                         }
+                    )
+                }
+            }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+            // ========================================
+            // Content Section
+            // ========================================
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // ========================================
+                // Voting & Report Buttons (unchanged)
+                // ========================================
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Hot Vote Button
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF374151))
+                                .then(
+                                    if (uiState.hasVoted && uiState.userVoteType == "hot")
+                                        Modifier.border(3.dp, Color(0xFFFF9143), CircleShape)
+                                    else Modifier
+                                )
+                                .clickable(
+                                    enabled = !uiState.hasVoted,
+                                    onClick = { if (!uiState.hasVoted) onVote("hot") }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(text = "🔥", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = formatVoteCount(deal.hotCount ?: 0),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = if (uiState.hasVoted && uiState.userVoteType == "hot")
+                                            Color(0xFFF3F3F4)
+                                        else if (uiState.hasVoted)
+                                            Color(0xFF6B7280)
+                                        else
+                                            Color(0xFFFF6B35)
+                                    )
+                                )
+                            }
+                        }
+
+                        // Cold Vote Button
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF374151))
+                                .then(
+                                    if (uiState.hasVoted && uiState.userVoteType == "cold")
+                                        Modifier.border(3.dp, Color(0xFF4A90E2), CircleShape)
+                                    else Modifier
+                                )
+                                .clickable(
+                                    enabled = !uiState.hasVoted,
+                                    onClick = { if (!uiState.hasVoted) onVote("cold") }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(text = "❄️", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = formatVoteCount(deal.coldCount ?: 0),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = if (uiState.hasVoted && uiState.userVoteType == "cold")
+                                            Color(0xFFF3F3F4)
+                                        else if (uiState.hasVoted)
+                                            Color(0xFF6B7280)
+                                        else
+                                            Color(0xFF4A90E2)
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Report Button
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF374151))
+                            .clickable(onClick = onReport),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🚩", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
                     }
                 }
-                
-                // Optional: Show link if both exist
-                if (deal.link.isNotBlank()) {
+
+                // Timestamp
+                deal.createdAt?.let { createdAt ->
+                    Text(
+                        text = "Posted ${getRelativeTimeString(createdAt)}",
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                // ========================================
+                // Title (unchanged)
+                // ========================================
+                Text(
+                    text = deal.title,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        lineHeight = 32.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // ========================================
+                // ✨ UPDATED: Expandable Description
+                // ========================================
+                if (!deal.description.isNullOrBlank()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = deal.description!!,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                lineHeight = 24.sp,
+                                fontSize = 15.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = descriptionMaxLines,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // ✨ "See more" / "See less" button
+                        if (deal.description!!.length > 150) {  // Only show if description is long
+                            Text(
+                                text = if (isDescriptionExpanded) "See less" else "See more",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color(0xFF8B7BA8),  // App primary color (purple)
+                                modifier = Modifier.clickable {
+                                    isDescriptionExpanded = !isDescriptionExpanded
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // ========================================
+                // Category Display (unchanged)
+                // ========================================
+                deal.category?.let { categoryId ->
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { onOpenLink(deal.link) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = MaterialTheme.shapes.medium
+                    val categoryInfo = when (categoryId) {
+                        "food_dining" -> "🍔" to "Food & Dining"
+                        "shopping_fashion" -> "🛍️" to "Shopping & Fashion"
+                        "entertainment" -> "🎮" to "Entertainment & Leisure"
+                        "home_services" -> "🏠" to "Home & Services"
+                        else -> "⭐" to "Other"
+                    }
+
+                    Surface(
+                        modifier = Modifier.wrapContentWidth(),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = categoryInfo.first, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+                            Text(
+                                text = categoryInfo.second,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // ========================================
+                // Posted By (unchanged)
+                // ========================================
+                deal.postedBy?.let { username ->
+                    if (username != "Anonymous") {
+                        Row(
+                            modifier = Modifier.wrapContentWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "👤", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp))
+                            Text(
+                                text = "Posted by",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = username,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                // ========================================
+                // ✅ Location Card (stays inline - NO floating button)
+                // ========================================
+                if (!deal.location.isNullOrBlank()) {
+                    LocationCard(location = deal.location!!, context = context)
+
+                    // Promo code extraction (unchanged)
+                    if (deal.link != null && !deal.description.isNullOrBlank()) {
+                        val promoMatch = Regex("code[:=]?\\s*([A-Z0-9]+)", RegexOption.IGNORE_CASE)
+                            .find(deal.description!!)
+                        val promoCode = promoMatch?.groupValues?.getOrNull(1)
+
+                        if (promoCode != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .clickable {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("Promo Code", promoCode)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "✅ Promo code copied!", Toast.LENGTH_SHORT).show()
+                                    },
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(
+                                            width = 1.5.dp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = MaterialTheme.shapes.medium
+                                        )
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(
+                                                text = "🎟️ Promo Code",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = promoCode,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 18.sp,
+                                                    letterSpacing = 1.2.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Text(text = "📋", style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp))
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+
+                    // ✅ Show inline link button if both location and link exist
+                    if (deal.link.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = { onOpenLink(deal.link) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Text("🔗 View Online", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
+                // ✅ NOTE: Online deals (no location) get floating button below
+
+                // Vote Error Display (unchanged)
+                uiState.voteError?.let { error ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Text(
-                            "🔗 View Online",
-                            style = MaterialTheme.typography.labelLarge
+                            text = error,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
-            } else {
-                // Online Deal - Show link button
-                Button(
-                    onClick = { onOpenLink(deal.link) },
+
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+
+        // ========================================
+        // ✨ FLOATING "VIEW DEAL" BUTTON
+        // Only for online deals (has link, no location)
+        // ========================================
+        if (hasLink && deal.location.isNullOrBlank()) {
+            Button(
+                onClick = { onOpenLink(deal.link) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
+                    .width(280.dp)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 8.dp,
+                    pressedElevation = 12.dp
+                ),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFC57AF7) // Updated purple color
-                    ),
-                    shape = MaterialTheme.shapes.medium
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFE91E63),  // Pink
+                                    Color(0xFF9C27B0)   // Purple
+                                )
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "View Deal",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
                         )
                     )
                 }
             }
-
-            // ========================================
-            // ✅ PRESERVED: Vote Error Display (unchanged)
-            // ========================================
-            uiState.voteError?.let { error ->
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = error,
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
