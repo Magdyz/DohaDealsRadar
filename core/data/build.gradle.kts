@@ -13,11 +13,17 @@ android {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        // ✅ ADD THIS - BuildConfig fields
+        buildConfigField("String", "SUPABASE_URL", "\"https://nzchbnshkrkdqpcawohu.functions.supabase.co/\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Y2hibnNoa3JrZHFwY2F3b2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxODE3ODMsImV4cCI6MjA3NTc1Nzc4M30.rBl_9k6kd3ICQCD0Th8ysUu6YGozYGC12Pjl_Ra01l0\"")
+
     }
 
     buildFeatures {
-        buildConfig = false
         compose = false // no UI here
+        buildConfig = true
+
     }
 
     compileOptions {

@@ -5,12 +5,13 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import qa.deals.doha.core.data.BuildConfig // ✅ THIS IS THE FIX
 
 object NetworkModule {
 
     // TODO: Move to BuildConfig or gradle.properties for security
-    private const val SUPABASE_URL = "https://nzchbnshkrkdqpcawohu.functions.supabase.co/"
-    internal const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Y2hibnNoa3JrZHFwY2F3b2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxODE3ODMsImV4cCI6MjA3NTc1Nzc4M30.rBl_9k6kd3ICQCD0Th8ysUu6YGozYGC12Pjl_Ra01l0"
+    private const val SUPABASE_URL = BuildConfig.SUPABASE_URL
+    internal const val SUPABASE_ANON_KEY = BuildConfig.SUPABASE_ANON_KEY
 
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request().newBuilder()
@@ -21,7 +22,14 @@ object NetworkModule {
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+      //  level = HttpLoggingInterceptor.Level.BODY
+        // ✅ PRODUCTION: Only log in debug builds
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
+
     }
 
     private val okHttpClient = OkHttpClient.Builder()
