@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +35,7 @@ import qa.deals.doha.network.ReportReason
  * ✅ FIXED: Keyboard handling with imePadding()
  * ✅ UPDATED: Increased minimum character requirement to 30
  * ✅ UPDATED: Modern purple checkmark success screen (2025)
+ * ✅ UPDATED: Floating button matches PostScreen and DetailsScreen (2025-01-20)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,32 +82,99 @@ fun ReportScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding() // ✅ Keyboard handling
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            when {
-                // ✅ NEW: Show animated sending screen while loading
-                uiState.loading -> SendingContent()
-                // ✅ Enhanced: Animated success screen
-                uiState.success -> SuccessContent()
-                // ✅ Unchanged: Already reported screen
-                uiState.alreadyReported -> AlreadyReportedContent(onClose)
-                // ✅ Unchanged: Daily limit screen
-                uiState.dailyLimitReached -> DailyLimitContent(onClose)
-                // ✅ Enhanced: Form with validation
-                else -> ReportFormContent(
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    onReasonSelected = { viewModel.selectReason(it) },
-                    onNoteChanged = { viewModel.updateNote(it) },
-                    onSubmit = { viewModel.submitReport() }
-                )
+        // ✅ CHANGE 1: Wrap in Box to enable floating button overlay
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding() // ✅ Keyboard handling
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
+                    .padding(bottom = 88.dp), // ✅ CHANGE 2: Extra padding for floating button
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                when {
+                    // ✅ NEW: Show animated sending screen while loading
+                    uiState.loading -> SendingContent()
+                    // ✅ Enhanced: Animated success screen
+                    uiState.success -> SuccessContent()
+                    // ✅ Unchanged: Already reported screen
+                    uiState.alreadyReported -> AlreadyReportedContent(onClose)
+                    // ✅ Unchanged: Daily limit screen
+                    uiState.dailyLimitReached -> DailyLimitContent(onClose)
+                    // ✅ Enhanced: Form with validation (without inline button)
+                    else -> ReportFormContent(
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        onReasonSelected = { viewModel.selectReason(it) },
+                        onNoteChanged = { viewModel.updateNote(it) },
+                        onSubmit = { viewModel.submitReport() }
+                    )
+                }
+            }
+
+            // ========================================
+            // ✅ CHANGE 3: FLOATING SUBMIT BUTTON
+            // Matches PostScreen and DetailsScreen exactly
+            // Only shown when form is visible (not loading/success/error states)
+            // ========================================
+            if (!uiState.loading && !uiState.success && !uiState.alreadyReported && !uiState.dailyLimitReached) {
+                Button(
+                    onClick = { viewModel.submitReport() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)  // ✅ Center at bottom
+                        .padding(bottom = 24.dp)         // ✅ 16dp from edge (matches others)
+                        .width(280.dp)                   // ✅ Fixed width (matches others)
+                        .height(56.dp),                  // ✅ 56dp height (matches others)
+                    enabled = !uiState.loading && uiState.selectedReason != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF4B5563),
+                        disabledContentColor = Color(0xFF9CA3AF)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 8.dp,
+                        pressedElevation = 12.dp,
+                        disabledElevation = 0.dp
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = if (!uiState.loading && uiState.selectedReason != null) {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFFE91E63),  // ✅ Pink (matches others)
+                                            Color(0xFF9C27B0)   // ✅ Purple (matches others)
+                                        )
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF4B5563),  // Disabled state
+                                            Color(0xFF4B5563)
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Submit Report",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -443,8 +513,8 @@ private fun DailyLimitContent(onClose: () -> Unit) {
 }
 
 /**
- * ✅ UNCHANGED: Report form with validation
- * (Keeping all your existing form code exactly as is)
+ * ✅ CHANGE 4: Report form WITHOUT inline button
+ * Button removed - now shown as floating button in main ReportScreen
  */
 @Composable
 private fun ReportFormContent(
@@ -664,25 +734,15 @@ private fun ReportFormContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Button(
-            onClick = onSubmit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            enabled = !uiState.loading && uiState.selectedReason != null,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF9046CF),
-                contentColor = Color(0xFFF3F3F4)
-            ),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Text(
-                "Submit Report",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.SemiBold
-                )
-            )
-        }
+        // ✅ CHANGE 5: REMOVED inline button - now shown as floating button in main ReportScreen
+        // Old code removed:
+        // Button(
+        //     onClick = onSubmit,
+        //     modifier = Modifier
+        //         .fillMaxWidth()
+        //         .height(52.dp),
+        //     ...
+        // )
 
         Text(
             text = "* Required field",
