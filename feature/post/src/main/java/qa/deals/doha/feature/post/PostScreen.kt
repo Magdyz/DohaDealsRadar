@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -44,15 +45,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.focus.FocusDirection
-
 
 /**
  * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)
@@ -182,16 +180,10 @@ fun PostScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imePadding()  // ✨ Automatically adjusts for keyboard
-                    .pointerInput(Unit) {  // ✨ Tap outside to dismiss keyboard
-                        detectTapGestures(onTap = {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                        })
-                    }
-                    .verticalScroll(rememberScrollState())
+                    .imePadding()  // ✅ UNCHANGED: Keyboard still adjusts layout
+                    .verticalScroll(rememberScrollState())  // ✅ UNCHANGED: Scrolling still works
                     .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .padding(bottom = 88.dp),  // ✅ Extra padding so content doesn't hide under button
+                    .padding(bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // ========================================
@@ -292,13 +284,15 @@ fun PostScreen(
                             viewModel.updateTitle(it)
                             titleTouched = true
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),  // ✅ SIMPLE: No manual scroll needed
                         placeholder = { Text("e.g., 50% off smartphones at Carrefour") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(  // ✨ ADD THIS
-                            imeAction = ImeAction.Next
+                        singleLine = true,  // ✅ This enables built-in auto-scroll
+                        maxLines = 1,  // ✅ ADD: Enforce single line strictly
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Next,
+                            autoCorrect = true  // ✅ ADD: Modern autocorrect
                         ),
-                        keyboardActions = KeyboardActions(  // ✨ ADD THIS
+                        keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -325,15 +319,18 @@ fun PostScreen(
                         onValueChange = {
                             viewModel.updateDescription(it)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp, max = 200.dp),  // ✅ KEEP: Fixed height with internal scroll
                         placeholder = { Text("Details, terms, restrictions...") },
                         minLines = 3,
-                        maxLines = 5,
-                        keyboardOptions = KeyboardOptions(  // ✨ ADD THIS
+                        maxLines = Int.MAX_VALUE,  // ✅ KEEP: Unlimited lines with scroll
+                        keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Done,
-                            capitalization = KeyboardCapitalization.Sentences
+                            capitalization = KeyboardCapitalization.Sentences,
+                            autoCorrect = true  // ✅ ADD: Modern autocorrect
                         ),
-                        keyboardActions = KeyboardActions(  // ✨ ADD THIS
+                        keyboardActions = KeyboardActions(
                             onDone = {
                                 keyboardController?.hide()
                                 focusManager.clearFocus()
@@ -468,7 +465,7 @@ fun PostScreen(
                                     viewModel.updateLink(it)
                                     linkTouched = true
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),  // ✅ Simple, no manual scroll
                                 placeholder = { Text("https://example.com/deal") },
                                 leadingIcon = {
                                     Icon(
@@ -477,12 +474,14 @@ fun PostScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(  // ✨ ADD THIS
+                                singleLine = true,  // ✅ Native auto-scroll
+                                maxLines = 1,  // ✅ ADD: Strict enforcement
+                                keyboardOptions = KeyboardOptions(
                                     imeAction = ImeAction.Done,
-                                    keyboardType = KeyboardType.Uri
+                                    keyboardType = KeyboardType.Uri,  // ✅ URL keyboard
+                                    autoCorrect = false  // ✅ ADD: No autocorrect for URLs
                                 ),
-                                keyboardActions = KeyboardActions(  // ✨ ADD THIS
+                                keyboardActions = KeyboardActions(
                                     onDone = {
                                         keyboardController?.hide()
                                         focusManager.clearFocus()
@@ -512,15 +511,17 @@ fun PostScreen(
                                 onValueChange = {
                                     viewModel.updatePromoCode(it)
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),  // ✅ Simple
                                 placeholder = { Text("Enter code here") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(  // ✨ ADD THIS
+                                singleLine = true,  // ✅ Native auto-scroll
+                                maxLines = 1,  // ✅ ADD: Strict enforcement
+                                keyboardOptions = KeyboardOptions(
                                     imeAction = ImeAction.Done,
                                     keyboardType = KeyboardType.Text,
-                                    capitalization = KeyboardCapitalization.Characters
+                                    capitalization = KeyboardCapitalization.Characters,
+                                    autoCorrect = false  // ✅ ADD: No autocorrect for codes
                                 ),
-                                keyboardActions = KeyboardActions(  // ✨ ADD THIS
+                                keyboardActions = KeyboardActions(
                                     onDone = {
                                         keyboardController?.hide()
                                         focusManager.clearFocus()
@@ -547,7 +548,7 @@ fun PostScreen(
                                 viewModel.updateLocation(it)
                                 locationTouched = true
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),  // ✅ Simple
                             placeholder = { Text("e.g., Carrefour City Center Mall") },
                             leadingIcon = {
                                 Icon(
@@ -556,12 +557,14 @@ fun PostScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(  // ✨ ADD THIS
+                            singleLine = true,  // ✅ Native auto-scroll
+                            maxLines = 1,  // ✅ ADD: Strict enforcement
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = ImeAction.Done,
-                                capitalization = KeyboardCapitalization.Words
+                                capitalization = KeyboardCapitalization.Words,
+                                autoCorrect = true  // ✅ ADD: Helpful for location names
                             ),
-                            keyboardActions = KeyboardActions(  // ✨ ADD THIS
+                            keyboardActions = KeyboardActions(
                                 onDone = {
                                     keyboardController?.hide()
                                     focusManager.clearFocus()
@@ -596,7 +599,7 @@ fun PostScreen(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)  // Center at bottom
-                .padding(bottom = 16.dp)         // 16dp from bottom edge
+                .padding(bottom = 24.dp)         // 16dp from bottom edge
                 .width(280.dp)                   // Fixed width
                 .height(56.dp),
             enabled = isFormValid && !state.loading,
