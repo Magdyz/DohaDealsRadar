@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4 // fixed buttons to look the same
-        versionName = "1.0.4"
+        versionCode = 5 // email verification introduced
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
