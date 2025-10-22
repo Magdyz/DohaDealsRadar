@@ -220,7 +220,7 @@ fun PostScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            "Deal Photo",
+                            "Photo",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -293,7 +293,7 @@ fun PostScreen(
                 // ✅ PRESERVED: Title Field (using existing method: updateTitle)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Deal Title",
+                        "Title",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.SemiBold
                         )
@@ -343,19 +343,13 @@ fun PostScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 100.dp, max = 200.dp),
-                        placeholder = { Text("Details, terms, restrictions...") },
+                        placeholder = { Text("Details, colors, price...") },
                         minLines = 3,
                         maxLines = Int.MAX_VALUE,
                         keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Done,
+                            imeAction = ImeAction.Default,
                             capitalization = KeyboardCapitalization.Sentences,
                             autoCorrect = true
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            }
                         )
                     )
                 }
@@ -394,7 +388,7 @@ fun PostScreen(
                 // ✅ PRESERVED: Deal Type Segmented Control
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "Deal Type",
+                        "Type",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.SemiBold
                         )
@@ -473,7 +467,7 @@ fun PostScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                "Deal Link",
+                                "Link",
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.SemiBold
                                 )
