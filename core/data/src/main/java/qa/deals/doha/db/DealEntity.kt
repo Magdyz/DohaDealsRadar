@@ -15,6 +15,9 @@ import androidx.compose.runtime.Stable
  * - Added category field for deal categorization
  * - Added postedBy field for username attribution
  *
+ * ✅ UPDATED: 2025-10-23
+ * - Added autoApproved field to match API response
+ *
  * Indices for performance:
  * - title: Fast text search
  * - createdAt: Fast date sorting
@@ -43,5 +46,11 @@ data class DealEntity(
     val description: String? = null,
     val location: String? = null,
     val category: String = "other",
-    val postedBy: String = "Anonymous"  // ✨ NEW: Username attribution (default for old deals)
+    val postedBy: String = "Anonymous",  // ✨ NEW: Username attribution (default for old deals)
+
+    // ========================================
+    // ✅ NEW: Added field for auto-approval
+    // This field requires a Room Migration.
+    // ========================================
+    val autoApproved: Boolean = false
 )

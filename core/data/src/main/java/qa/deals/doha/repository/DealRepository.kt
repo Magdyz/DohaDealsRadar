@@ -53,8 +53,12 @@ class DealRepository {
         }
     }
 
+    // ========================================
+    // ✅ MODIFIED FUNCTION: submitDeal
+    // ========================================
     /**
      * Submit a new deal
+     * ✅ UPDATED: Now accepts userId and deviceId for email verification
      */
     suspend fun submitDeal(
         title: String,
@@ -64,13 +68,19 @@ class DealRepository {
         location: String? = null,
         category: String = "other",
         promoCode: String? = null,
-        postedBy: String = "Anonymous"  // ✨ NEW: Username parameter
+        postedBy: String = "Anonymous",
+        // ✅ NEW: Parameters for verified user submission
+        userId: String? = null,
+        deviceId: String? = null
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         Log.d("Repository", "📤 Submitting deal to backend")
         Log.d("Repository", "   Title: $title")
         Log.d("Repository", "   Category: $category")
-        Log.d("Repository", "   Posted by: $postedBy")  // ✨ NEW: Log username
+        Log.d("Repository", "   Posted by: $postedBy")
+        // ✅ NEW: Log new IDs
+        Log.d("Repository", "   User ID: $userId")
+        Log.d("Repository", "   Device ID: ${deviceId?.take(8)}...")
         Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         val request = SubmitDealRequest(
@@ -81,7 +91,10 @@ class DealRepository {
             location = location,
             category = category,
             promoCode = promoCode,
-            postedBy = postedBy  // ✨ NEW: Include username in request
+            postedBy = postedBy,
+            // ✅ NEW: Include new IDs in the request object
+            userId = userId,
+            deviceId = deviceId
         )
 
         val response = api.submitDeal(request)
@@ -89,15 +102,23 @@ class DealRepository {
         if (response.success == true) {
             Log.d("Repository", "✅ Deal submitted successfully")
             Log.d("Repository", "   Deal ID: ${response.data?.firstOrNull()?.id}")
+            // ✅ NEW: Log auto-approval status from response
+            Log.d(
+                "Repository",
+                "   Auto-Approved: ${response.data?.firstOrNull()?.autoApproved}"
+            )
         } else {
             Log.e("Repository", "❌ Deal submission failed: ${response.error}")
         }
 
         response
     }
+    // ========================================
+    // ✅ END OF MODIFIED FUNCTION
+    // ========================================
 
     // ========================================
-    // ✅ NEW FUNCTION: Add after submitDeal()
+    // ✅ PRESERVED FUNCTION: No changes
     // ========================================
     /**
      * Update deal image URL (for two-stage upload)
@@ -117,7 +138,7 @@ class DealRepository {
         api.updateDealImage(request)
     }
     // ========================================
-    // ✅ END OF NEW FUNCTION
+    // ✅ END OF PRESERVED FUNCTION
     // ========================================
 
     /**
@@ -174,5 +195,34 @@ class DealRepository {
      */
     suspend fun uploadImage(file: File): String = withContext(Dispatchers.IO) {
         StorageUploader.uploadImage(file)
+    }
+
+    // ========================================
+    // ✅ NEW: EMAIL VERIFICATION METHODS
+    // ========================================
+
+    /**
+     * Send verification code to email
+     */
+    suspend fun sendVerificationCode(email: String): SendCodeResponse =
+        withContext(Dispatchers.IO) {
+            api.sendVerificationCode(SendCodeRequest(email))
+        }
+
+    /**
+     * Verify code and get/create user
+     */
+    suspend fun verifyCodeAndGetUser(
+        email: String,
+        code: String,
+        deviceId: String
+    ): VerifyCodeResponse = withContext(Dispatchers.IO) {
+        api.verifyCodeAndGetUser(
+            VerifyCodeRequest(
+                email = email,
+                code = code,
+                deviceId = deviceId
+            )
+        )
     }
 }

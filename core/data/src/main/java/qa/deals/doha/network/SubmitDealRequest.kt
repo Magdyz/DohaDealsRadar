@@ -30,5 +30,10 @@ data class SubmitDealRequest(
     val location: String? = null,
     val category: String = "other",
     @SerializedName("promo_code") val promoCode: String? = null,
-    @SerializedName("posted_by") val postedBy: String = "Anonymous"  // ✨ NEW: Username attribution
+    @SerializedName("posted_by") val postedBy: String = "Anonymous",
+    // ========================================
+    // ✅ NEW: Added fields for verification
+    // ========================================
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("device_id") val deviceId: String? = null
 )

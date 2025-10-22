@@ -3,6 +3,11 @@ package qa.deals.doha.db
 import android.content.Context
 import androidx.room.Room
 
+/**
+ * ========================================
+ * ✨ DATABASE MODULE (OBJECT)
+ * ========================================
+ */
 object DatabaseModule {
     @Volatile
     private var INSTANCE: DealDatabase? = null
@@ -15,15 +20,21 @@ object DatabaseModule {
                 "deals.db"
             )
                 .addMigrations(
-                    DealDatabase.MIGRATION_3_4,  // ✅ Existing migration
-                    DealDatabase.MIGRATION_4_5   // ✨ NEW: Category migration
+                    DealDatabase.MIGRATION_3_4,
+                    DealDatabase.MIGRATION_4_5,
+                    DealDatabase.MIGRATION_5_6,
+                    DealDatabase.MIGRATION_6_7
                 )
-                .fallbackToDestructiveMigration()  // Keep this as safety net
+                .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
         }
     }
 
+    // ========================================
+    // ✅ FIX: Renamed this function from 'provideDao'
+    // to 'provideDealDao' to fix the unresolved reference.
+    // ========================================
     fun provideDealDao(context: Context): DealDao =
         provideDatabase(context).dealDao()
 }
