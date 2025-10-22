@@ -331,7 +331,51 @@ class DeviceIdManager private constructor(context: Context) {
         prefs.edit().remove(KEY_USERNAME).apply()
         Log.w(TAG, "🗑️ Cleared username")
     }
+// ========================================
+// 🆔 USER ID MANAGEMENT
+// ✨ ADD THESE METHODS TO DeviceIdManager.kt
+// Location: After clearUsername() method (around line 333)
+// ========================================
 
+    /**
+     * ✨ Get stored user ID (persistent across sessions)
+     * Returns null if no user ID stored
+     */
+    fun getUserId(): String? {
+        val userId = prefs.getString("user_id", null)
+        if (userId != null) {
+            Log.d(TAG, "🆔 Retrieved user ID: ${userId.take(8)}...")
+        } else {
+            Log.d(TAG, "🆔 No user ID stored locally")
+        }
+        return userId
+    }
+
+    /**
+     * ✨ Store user ID locally (persistent across sessions)
+     * Called after successful email verification
+     */
+    fun saveUserId(userId: String) {
+        prefs.edit().putString("user_id", userId).apply()
+        Log.d(TAG, "✅ Saved user ID: ${userId.take(8)}...")
+    }
+
+    /**
+     * ✨ Check if device has a verified user ID
+     */
+    fun hasUserId(): Boolean {
+        val hasUserId = prefs.contains("user_id")
+        Log.d(TAG, "🆔 Has local user ID: $hasUserId")
+        return hasUserId
+    }
+
+    /**
+     * ✨ Clear user ID (for testing only)
+     */
+    fun clearUserId() {
+        prefs.edit().remove("user_id").apply()
+        Log.w(TAG, "🗑️ Cleared user ID")
+    }
     // ========================================
     // 🧪 TESTING UTILITIES
     // ========================================

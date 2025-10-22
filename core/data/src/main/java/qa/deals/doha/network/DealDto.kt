@@ -13,6 +13,9 @@ import qa.deals.doha.db.DealEntity
  * - Added category field
  * - Added promoCode field
  * - Added postedBy field for username attribution
+ *
+ * ✅ UPDATED: 2025-10-23
+ * - Added autoApproved field for trust system
  */
 data class DealDto(
     val id: String?,
@@ -27,7 +30,12 @@ data class DealDto(
     val location: String? = null,
     val category: String? = "other",
     @SerializedName("promo_code") val promoCode: String? = null,
-    @SerializedName("posted_by") val postedBy: String? = "Anonymous"  // ✨ NEW: Username attribution
+    @SerializedName("posted_by") val postedBy: String? = "Anonymous",
+
+    // ========================================
+    // ✅ NEW: Added field for trust system
+    // ========================================
+    @SerializedName("auto_approved") val autoApproved: Boolean? = false
 )
 
 /**
@@ -38,6 +46,12 @@ data class DealDto(
  *
  * UPDATED: 2025-10-18
  * - Now includes postedBy mapping
+ *
+ * ✅ UPDATED: 2025-10-23
+ * - Now includes autoApproved mapping
+ *
+ * ⚠️ WARNING: This requires `DealEntity` to also
+ * have an `autoApproved` field.
  */
 fun DealDto.toEntity(): DealEntity {
     return DealEntity(
@@ -52,6 +66,7 @@ fun DealDto.toEntity(): DealEntity {
         description = this.description,
         location = this.location,
         category = this.category ?: "other",
-        postedBy = this.postedBy ?: "Anonymous"  // ✨ NEW: Map username to entity
+        postedBy = this.postedBy ?: "Anonymous",
+        autoApproved = this.autoApproved ?: false // ✅ NEW: Map autoApproved to entity
     )
 }
