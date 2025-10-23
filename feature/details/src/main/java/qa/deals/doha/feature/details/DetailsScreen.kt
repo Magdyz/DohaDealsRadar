@@ -544,16 +544,17 @@ private fun DealDetailsContent(
                         )
 
                         // ✨ "See more" / "See less" button
-                        if (deal.description!!.length > 150) {  // Only show if description is long
+                        if (deal.description!!.length > 100) {  // Only show if description is long
                             Text(
-                                text = if (isDescriptionExpanded) "See less" else "See more",
+                                text = if (isDescriptionExpanded) "See less ▲" else "See more ▼",
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Bold
                                 ),
                                 color = Color(0xFF8B7BA8),  // App primary color (purple)
                                 modifier = Modifier.clickable {
                                     isDescriptionExpanded = !isDescriptionExpanded
                                 }
+                                    .padding(top = 4.dp)  // Extra spacing from description
                             )
                         }
                     }
