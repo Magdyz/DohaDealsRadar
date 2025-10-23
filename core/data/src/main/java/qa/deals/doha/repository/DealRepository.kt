@@ -35,30 +35,30 @@ class DealRepository {
      */
     suspend fun refreshDeals(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            Log.d("Repository", "🔄 Fetching deals from network...")
+            Log.d("Repository", "Fetching deals from network...")
             val response = api.getDeals()
 
             if (response.success == true && response.data != null) {
                 val entities = response.data.map { it.toEntity() }
                 dealDao.insertAll(entities)
-                Log.d("Repository", "✅ Cached ${entities.size} deals")
+                Log.d("Repository", "Cached ${entities.size} deals")
                 Result.success(Unit)
             } else {
-                Log.e("Repository", "❌ API returned success=false or null data")
+                Log.e("Repository", "API returned success=false or null data")
                 Result.failure(Exception(response.error ?: "Unknown error"))
             }
         } catch (e: Exception) {
-            Log.e("Repository", "💥 Error refreshing deals", e)
+            Log.e("Repository", "ðŸ’¥ Error refreshing deals", e)
             Result.failure(e)
         }
     }
 
     // ========================================
-    // ✅ MODIFIED FUNCTION: submitDeal
+    // MODIFIED FUNCTION: submitDeal
     // ========================================
     /**
      * Submit a new deal
-     * ✅ UPDATED: Now accepts userId and deviceId for email verification
+     * UPDATED: Now accepts userId and deviceId for email verification
      */
     suspend fun submitDeal(
         title: String,
@@ -69,19 +69,17 @@ class DealRepository {
         category: String = "other",
         promoCode: String? = null,
         postedBy: String = "Anonymous",
-        // ✅ NEW: Parameters for verified user submission
+        // NEW: Parameters for verified user submission
         userId: String? = null,
         deviceId: String? = null
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        Log.d("Repository", "📤 Submitting deal to backend")
+        Log.d("Repository", "Submitting deal to backend")
         Log.d("Repository", "   Title: $title")
         Log.d("Repository", "   Category: $category")
         Log.d("Repository", "   Posted by: $postedBy")
-        // ✅ NEW: Log new IDs
+        // âœ… NEW: Log new IDs
         Log.d("Repository", "   User ID: $userId")
         Log.d("Repository", "   Device ID: ${deviceId?.take(8)}...")
-        Log.d("Repository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         val request = SubmitDealRequest(
             title = title,
@@ -92,7 +90,7 @@ class DealRepository {
             category = category,
             promoCode = promoCode,
             postedBy = postedBy,
-            // ✅ NEW: Include new IDs in the request object
+            // NEW: Include new IDs in the request object
             userId = userId,
             deviceId = deviceId
         )
@@ -100,25 +98,25 @@ class DealRepository {
         val response = api.submitDeal(request)
 
         if (response.success == true) {
-            Log.d("Repository", "✅ Deal submitted successfully")
+            Log.d("Repository", "Deal submitted successfully")
             Log.d("Repository", "   Deal ID: ${response.data?.firstOrNull()?.id}")
-            // ✅ NEW: Log auto-approval status from response
+            // âœ… NEW: Log auto-approval status from response
             Log.d(
                 "Repository",
                 "   Auto-Approved: ${response.data?.firstOrNull()?.autoApproved}"
             )
         } else {
-            Log.e("Repository", "❌ Deal submission failed: ${response.error}")
+            Log.e("Repository", "Deal submission failed: ${response.error}")
         }
 
         response
     }
     // ========================================
-    // ✅ END OF MODIFIED FUNCTION
+    // âœ… END OF MODIFIED FUNCTION
     // ========================================
 
     // ========================================
-    // ✅ PRESERVED FUNCTION: No changes
+    // âœ… PRESERVED FUNCTION: No changes
     // ========================================
     /**
      * Update deal image URL (for two-stage upload)
@@ -128,7 +126,7 @@ class DealRepository {
         dealId: String,
         newImageUrl: String
     ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "🖼️ Updating image for deal $dealId")
+        Log.d("Repository", "Updating image for deal $dealId")
 
         val request = UpdateImageRequest(
             deal_id = dealId,
@@ -138,7 +136,7 @@ class DealRepository {
         api.updateDealImage(request)
     }
     // ========================================
-    // ✅ END OF PRESERVED FUNCTION
+    //  END OF PRESERVED FUNCTION
     // ========================================
 
     /**
@@ -149,7 +147,7 @@ class DealRepository {
         voteType: String,
         deviceId: String
     ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "🗳️ Casting $voteType vote for deal $dealId")
+        Log.d("Repository", "Casting $voteType vote for deal $dealId")
 
         val request = VoteRequest(
             deal_id = dealId,
@@ -163,7 +161,7 @@ class DealRepository {
         if (response.success == true && response.data != null) {
             val entity = response.data.toEntity()
             dealDao.insertDeal(entity)
-            Log.d("Repository", "✅ Vote cast successfully, cache updated")
+            Log.d("Repository", "Vote cast successfully, cache updated")
         }
 
         response
@@ -178,7 +176,7 @@ class DealRepository {
         reason: String,
         note: String? = null
     ): ApiEnvelope<List<ReportDto>> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "🚨 Reporting deal $dealId for reason: $reason")
+        Log.d("Repository", "ðŸš¨ Reporting deal $dealId for reason: $reason")
 
         val request = ReportRequest(
             deal_id = dealId,
@@ -198,31 +196,82 @@ class DealRepository {
     }
 
     // ========================================
-    // ✅ NEW: EMAIL VERIFICATION METHODS
+    // NEW: EMAIL VERIFICATION METHODS
     // ========================================
 
     /**
      * Send verification code to email
+     * ✅ ENHANCED: Handles errors with user-friendly messages
      */
     suspend fun sendVerificationCode(email: String): SendCodeResponse =
         withContext(Dispatchers.IO) {
-            api.sendVerificationCode(SendCodeRequest(email))
+            try {
+                api.sendVerificationCode(SendCodeRequest(email))
+            } catch (e: retrofit2.HttpException) {
+                // ✅ Handle HTTP errors with user-friendly messages
+                when (e.code()) {
+                    400 -> SendCodeResponse(
+                        success = false,
+                        error = "Invalid email address. Please check and try again."
+                    )
+                    429 -> SendCodeResponse(
+                        success = false,
+                        error = "Too many requests. Please wait a moment."
+                    )
+                    else -> SendCodeResponse(
+                        success = false,
+                        error = "Failed to send code. Please try again."
+                    )
+                }
+            } catch (e: Exception) {
+                // ✅ Handle network and other errors
+                SendCodeResponse(
+                    success = false,
+                    error = "Network error. Please check your connection."
+                )
+            }
         }
 
     /**
      * Verify code and get/create user
+     * ✅ ENHANCED: Handles HTTP 401 errors with user-friendly messages
      */
     suspend fun verifyCodeAndGetUser(
         email: String,
         code: String,
         deviceId: String
     ): VerifyCodeResponse = withContext(Dispatchers.IO) {
-        api.verifyCodeAndGetUser(
-            VerifyCodeRequest(
-                email = email,
-                code = code,
-                deviceId = deviceId
+        try {
+            // Attempt to verify the code via API
+            api.verifyCodeAndGetUser(
+                VerifyCodeRequest(
+                    email = email,
+                    code = code,
+                    deviceId = deviceId
+                )
             )
-        )
+        } catch (e: retrofit2.HttpException) {
+            // ✅ Handle HTTP errors with user-friendly messages
+            when (e.code()) {
+                401 -> VerifyCodeResponse(
+                    success = false,
+                    error = "Invalid verification code. Please try again."
+                )
+                429 -> VerifyCodeResponse(
+                    success = false,
+                    error = "Too many attempts. Please wait a moment."
+                )
+                else -> VerifyCodeResponse(
+                    success = false,
+                    error = "Verification failed. Please try again."
+                )
+            }
+        } catch (e: Exception) {
+            // ✅ Handle network and other errors
+            VerifyCodeResponse(
+                success = false,
+                error = "Network error. Please check your connection."
+            )
+        }
     }
 }

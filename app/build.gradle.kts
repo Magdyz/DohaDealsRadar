@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5 // email verification introduced
-        versionName = "1.0.5"
+        versionCode = 7 // optimisation and speed
+        versionName = "1.0.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -107,4 +107,10 @@ dependencies {
 
     // Image loading
     implementation(libs.coil.compose)
+
+    // ✨ NEW: BASELINE PROFILES (Performance)
+    // Enables Profile-Guided Optimization (PGO) for faster app startup
+
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+
 }
