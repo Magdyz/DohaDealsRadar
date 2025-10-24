@@ -1,16 +1,43 @@
-package qa.deals.doha.design.theme
+// ========================================
+// ✅ START OF FIX 1
+// ========================================
+// ✨ CHANGED: This package now matches your file's folder structure.
+package qa.deals.core.design.theme
+// ========================================
+// ✅ END OF FIX 1
+// ========================================
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+// ========================================
+// ✅ START OF FIX 2
+// ========================================
+// ✨ 1. Import the R file from your core.design module.
+// This path is now correct because the package above is fixed.
+import qa.deals.doha.core.design.R
+
+// ✨ 2. Define the new "Inter" font family.
+private val Inter = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold)
+)
+
+// ✨ 3. Set the new "Inter" family as the default.
+private val DefaultFont = Inter
+// ========================================
+// ✅ END OF FIX 2
+// ========================================
 
 /**
  * Modern 2025 Typography System
  * Clean, readable, with generous line heights
  */
-private val DefaultFont = FontFamily.SansSerif
 
 val DohaTypography = Typography(
     // Display - Large hero text
