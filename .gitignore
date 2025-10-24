@@ -129,3 +129,5 @@ lint-results.*
 *.bak
 *.orig
 *.rej
+
+/app/release
