@@ -30,9 +30,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-// ✅ CORRECT IMPORT:
-import qa.deals.domain.DealCategory  // ✅ CORRECT IMPORT
+import qa.deals.domain.DealCategory
 import qa.deals.doha.feature.feed.components.DealCard
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 
 /**
  * ========================================
@@ -422,6 +424,24 @@ fun FeedScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         // ✅ PRESERVED: Grid with deals (2 columns)
+// ========================================
+                        // ✅ NEW: Detect when user scrolls near bottom
+                        // Triggers loadMoreDeals() automatically
+                        // ========================================
+                        LaunchedEffect(gridState) {
+                            snapshotFlow { gridState.layoutInfo }
+                                .collect { layoutInfo ->
+                                    val totalItems = layoutInfo.totalItemsCount
+                                    val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+                                    // Load more when user is within 4 items from bottom
+                                    if (totalItems > 0 && lastVisibleItem >= totalItems - 4) {
+                                        viewModel.loadMoreDeals()
+                                    }
+                                }
+                        }
+
+                        // ✅ PRESERVED: Grid with deals (2 columns)
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             state = gridState,
@@ -451,6 +471,26 @@ fun FeedScreen(
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
                                     modifier = Modifier.animateItem()
                                 )
+                            }
+
+                            // ========================================
+                            // ✅ NEW: Loading indicator at bottom when loading more
+                            // Shows small spinner while fetching next page
+                            // ========================================
+                            if (state.isLoadingMore) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            strokeWidth = 3.dp
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
