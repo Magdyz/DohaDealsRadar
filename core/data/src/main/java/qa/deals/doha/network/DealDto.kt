@@ -67,6 +67,8 @@ fun DealDto.toEntity(): DealEntity {
         location = this.location,
         category = this.category ?: "other",
         postedBy = this.postedBy ?: "Anonymous",
-        autoApproved = this.autoApproved ?: false // ✅ NEW: Map autoApproved to entity
-    )
+        autoApproved = this.autoApproved ?: false, // ✅ NEW: Map autoApproved to entity
+        promoCode = this.promoCode,
+
+        )
 }
