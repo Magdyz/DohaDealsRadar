@@ -330,7 +330,16 @@ private fun DealDetailsContent(
 
     // ✨ NEW: Description expansion state
     var isDescriptionExpanded by remember { mutableStateOf(false) }
-    val descriptionMaxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3
+
+// 🔧 FIX: Smart max lines - only truncate if description is actually long
+// Short descriptions (≤100 chars) show fully without ellipsis
+// Long descriptions (>100 chars) get truncated to 3 lines with "See more" button
+    val isDescriptionLong = (deal.description?.length ?: 0) > 100
+    val descriptionMaxLines = when {
+        !isDescriptionLong -> Int.MAX_VALUE  // ✅ Short text: show everything
+        isDescriptionExpanded -> Int.MAX_VALUE  // ✅ Expanded: show everything
+        else -> 3  // ✅ Long text collapsed: limit to 3 lines
+    }
 
     // ✨ NEW: Check if deal has a link (online deal)
     val hasLink = !deal.link.isNullOrBlank()
@@ -540,7 +549,11 @@ private fun DealDetailsContent(
                             ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = descriptionMaxLines,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = if (isDescriptionLong && !isDescriptionExpanded) {
+                                TextOverflow.Ellipsis  // ✅ Long text: show "..." when collapsed
+                            } else {
+                                TextOverflow.Clip  // ✅ Short text or expanded: no ellipsis
+                            }
                         )
 
                         // ✨ "See more" / "See less" button
