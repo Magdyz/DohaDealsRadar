@@ -103,7 +103,7 @@ fun DealCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(4.dp),
+            .padding(2.dp),
         onClick = { onClick?.invoke() },
         shape = MaterialTheme.shapes.medium, // ✅ Rounded edges
         colors = CardDefaults.cardColors(
@@ -128,8 +128,10 @@ fun DealCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(4f / 3f) // ✅ 2025 standard 4:3 ratio
-                        .clip(MaterialTheme.shapes.medium)
+                        .aspectRatio(4f / 4f) // ✅ 4:4 ratio
+                        .padding(8.dp)
+                        .clip(MaterialTheme.shapes.large)
+                        .background(Color.White)
                 ) {
                     // ✅ ENHANCED: Image painter with load state tracking
                     val painter = rememberAsyncImagePainter(
@@ -184,7 +186,7 @@ fun DealCard(
                                 highlight = PlaceholderHighlight.shimmer(),
                                 shape = MaterialTheme.shapes.medium
                             ),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
 
                     // ========================================
@@ -193,12 +195,12 @@ fun DealCard(
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = 8.dp)
+                            .padding(bottom = 3.dp)
                             // ✨ CHANGE 2: More transparent background (was 0.5f, now 0.25f)
                             // ✨ CHANGE 2: Glass-morphism effect with blur
                             .background(
                                 color = Color.Black.copy(alpha = 0.25f), // More transparent
-                                shape = MaterialTheme.shapes.medium
+                                shape = MaterialTheme.shapes.large
                             )
                             // ✨ CHANGE 1: Smaller padding (was 8dp horizontal, now 6dp)
                             .padding(horizontal = 6.dp, vertical = 3.dp),
@@ -250,8 +252,8 @@ fun DealCard(
                 Text(
                     text = deal.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.SemiBold,  // ✅ More prominent
-                        fontSize = 14.sp,              // ✅ WCAG 2.1 compliant
+                        fontWeight = FontWeight.Bold,  // ✅ More prominent
+                        fontSize = 13.sp,              // ✅ Font size title
                         lineHeight = 20.sp             // ✅ Optimal 1.43x ratio
                     ),
                     maxLines = 2,
