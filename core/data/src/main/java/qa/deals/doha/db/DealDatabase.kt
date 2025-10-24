@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DealEntity::class],
-    version = 7,  // ⚠️ CRITICAL: Incremented version to 7
+    version = 8,  // ⚠️ CRITICAL: Incremented version to 8
     exportSchema = false
 )
 abstract class DealDatabase : RoomDatabase() {
@@ -51,5 +51,12 @@ abstract class DealDatabase : RoomDatabase() {
                 Log.d("DealDatabase", "✅ Migration 6→7: Added category index")
             }
         }
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE deals ADD COLUMN promoCode TEXT DEFAULT NULL")
+                Log.d("DealDatabase", "Migration 7->8: Added promoCode column")
+            }
+        }
+
     }
 }

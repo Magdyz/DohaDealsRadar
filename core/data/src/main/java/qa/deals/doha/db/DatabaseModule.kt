@@ -23,7 +23,8 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_3_4,
                     DealDatabase.MIGRATION_4_5,
                     DealDatabase.MIGRATION_5_6,
-                    DealDatabase.MIGRATION_6_7
+                    DealDatabase.MIGRATION_6_7,
+                    DealDatabase.MIGRATION_7_8
                 )
                 .fallbackToDestructiveMigration()
                 .build()

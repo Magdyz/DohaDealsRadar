@@ -52,5 +52,6 @@ data class DealEntity(
     // ✅ NEW: Added field for auto-approval
     // This field requires a Room Migration.
     // ========================================
-    val autoApproved: Boolean = false
+    val autoApproved: Boolean = false,
+    val promoCode: String? = null
 )

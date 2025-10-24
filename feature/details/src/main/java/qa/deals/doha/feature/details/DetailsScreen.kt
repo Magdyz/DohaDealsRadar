@@ -509,7 +509,7 @@ private fun DealDetailsContent(
                             .clickable(onClick = onReport),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🚩", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
+                        Text(text = "🚩", style = MaterialTheme. typography.titleMedium.copy(fontSize = 20.sp))
                     }
                 }
 
@@ -527,7 +527,7 @@ private fun DealDetailsContent(
                 // Title (unchanged)
                 // ========================================
                 Text(
-                    text = deal.title,
+                    text = deal.title.replace("\n", " "),
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp,
@@ -636,70 +636,28 @@ private fun DealDetailsContent(
                 }
 
                 // ========================================
+                // ✅ NEW: Promo Code Card
+                // Added as per request, styled like LocationCard
+                // ========================================
+                if (!deal.promoCode.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    PromoCodeCard(promoCode = deal.promoCode!!, context = context)
+                }
+
+
+                // ========================================
                 // ✅ Location Card (stays inline - NO floating button)
                 // ========================================
                 if (!deal.location.isNullOrBlank()) {
+                    // Add spacing *only if* there was no promo code
+                    if (deal.promoCode.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                     LocationCard(location = deal.location!!, context = context)
 
-                    // Promo code extraction (unchanged)
-                    if (deal.link != null && !deal.description.isNullOrBlank()) {
-                        val promoMatch = Regex("code[:=]?\\s*([A-Z0-9]+)", RegexOption.IGNORE_CASE)
-                            .find(deal.description!!)
-                        val promoCode = promoMatch?.groupValues?.getOrNull(1)
-
-                        if (promoCode != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .clickable {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("Promo Code", promoCode)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "✅ Promo code copied!", Toast.LENGTH_SHORT).show()
-                                    },
-                                shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(
-                                            width = 1.5.dp,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = MaterialTheme.shapes.medium
-                                        )
-                                        .padding(16.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Text(
-                                                text = "🎟️ Promo Code",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = promoCode,
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp,
-                                                    letterSpacing = 1.2.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                        Text(text = "📋", style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp))
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-                    }
+                    // ========================================
+                    // 🗑️ REMOVED: Old promo code logic from here
+                    // ========================================
 
                     // ✅ Show inline link button if both location and link exist
                     if (deal.link.isNotBlank()) {
@@ -897,6 +855,126 @@ private fun LocationCard(
                     )
                     Text(
                         text = "Copied to clipboard",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color(0xFF10B981)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ========================================
+// ✅ NEW: Promo Code Card
+// Copied from LocationCard to match style, as requested.
+// ========================================
+@Composable
+private fun PromoCodeCard(
+    promoCode: String,
+    context: android.content.Context
+) {
+    var showCopiedMessage by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showCopiedMessage) {
+        if (showCopiedMessage) {
+            kotlinx.coroutines.delay(2000)
+            showCopiedMessage = false
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🎟️", // Changed icon
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = "Promo Code", // Changed title
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Copy Button
+                IconButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                        // Changed clip data
+                        val clip = android.content.ClipData.newPlainText("Promo Code", promoCode)
+                        clipboard.setPrimaryClip(clip)
+                        showCopiedMessage = true
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            CircleShape
+                        )
+                ) {
+                    Text(
+                        text = if (showCopiedMessage) "✓" else "📋",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (showCopiedMessage)
+                            Color(0xFF10B981)
+                        else
+                            MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Promo Code Text (Styled to stand out)
+            Text(
+                text = promoCode,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    letterSpacing = 1.2.sp
+                ),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Copied confirmation
+            if (showCopiedMessage) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Promo code copied", // Changed text
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Medium
                         ),
