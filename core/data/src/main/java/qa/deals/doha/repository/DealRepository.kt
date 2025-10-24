@@ -8,12 +8,15 @@ import qa.deals.doha.db.DatabaseModule
 import qa.deals.doha.db.DealDao
 import qa.deals.doha.db.DealEntity
 import qa.deals.doha.network.*
+import qa.deals.doha.network.PaginationMeta
 import qa.deals.doha.util.AppContext
 import java.io.File
 
 /**
  * Repository for managing deals.
  * Implements Stale-While-Revalidate (SWR) pattern.
+ *
+ * ✅ UPDATED: Added pagination support (2025-10-24)
  */
 class DealRepository {
 
@@ -25,36 +28,52 @@ class DealRepository {
 
     /**
      * Get cached deals as a Flow (reactive updates)
+     * ✅ PRESERVED: No changes
      */
     fun getCachedDeals(): Flow<List<DealEntity>> {
         return dealDao.getAllDeals()
     }
 
     /**
-     * Refresh deals from network and update cache
+     * ✅ UPDATED: Refresh deals from network and update cache
+     *
+     * @param page Page number to fetch (default: 1)
+     * @param append If true, appends to existing cache. If false, replaces cache.
+     * @return Result with PaginationMeta or error
      */
-    suspend fun refreshDeals(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun refreshDeals(page: Int = 1, append: Boolean = false): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
         try {
-            Log.d("Repository", "Fetching deals from network...")
-            val response = api.getDeals()
+            Log.d("Repository", "📄 Fetching deals (page: $page, append: $append)...")
+            val response = api.getDeals(page = page, limit = 20)
 
             if (response.success == true && response.data != null) {
                 val entities = response.data.map { it.toEntity() }
-                dealDao.insertAll(entities)
-                Log.d("Repository", "Cached ${entities.size} deals")
-                Result.success(Unit)
+
+                if (append) {
+                    // Append to existing cache (for pagination - load more)
+                    dealDao.insertAll(entities)
+                    val totalCached = dealDao.getDealsCount()
+                    Log.d("Repository", "➕ Appended ${entities.size} deals (total cached: $totalCached)")
+                } else {
+                    // Replace cache (for initial load or pull-to-refresh)
+                    dealDao.clearAll()
+                    dealDao.insertAll(entities)
+                    Log.d("Repository", "🔄 Replaced cache with ${entities.size} deals")
+                }
+
+                Result.success(response.pagination)
             } else {
-                Log.e("Repository", "API returned success=false or null data")
+                Log.e("Repository", "❌ API returned success=false or null data")
                 Result.failure(Exception(response.error ?: "Unknown error"))
             }
         } catch (e: Exception) {
-            Log.e("Repository", "ðŸ’¥ Error refreshing deals", e)
+            Log.e("Repository", "💥 Error refreshing deals", e)
             Result.failure(e)
         }
     }
 
     // ========================================
-    // MODIFIED FUNCTION: submitDeal
+    // ✅ PRESERVED: Submit Deal (No Changes)
     // ========================================
     /**
      * Submit a new deal
@@ -77,7 +96,6 @@ class DealRepository {
         Log.d("Repository", "   Title: $title")
         Log.d("Repository", "   Category: $category")
         Log.d("Repository", "   Posted by: $postedBy")
-        // âœ… NEW: Log new IDs
         Log.d("Repository", "   User ID: $userId")
         Log.d("Repository", "   Device ID: ${deviceId?.take(8)}...")
 
@@ -90,7 +108,6 @@ class DealRepository {
             category = category,
             promoCode = promoCode,
             postedBy = postedBy,
-            // NEW: Include new IDs in the request object
             userId = userId,
             deviceId = deviceId
         )
@@ -100,7 +117,6 @@ class DealRepository {
         if (response.success == true) {
             Log.d("Repository", "Deal submitted successfully")
             Log.d("Repository", "   Deal ID: ${response.data?.firstOrNull()?.id}")
-            // âœ… NEW: Log auto-approval status from response
             Log.d(
                 "Repository",
                 "   Auto-Approved: ${response.data?.firstOrNull()?.autoApproved}"
@@ -111,12 +127,9 @@ class DealRepository {
 
         response
     }
-    // ========================================
-    // âœ… END OF MODIFIED FUNCTION
-    // ========================================
 
     // ========================================
-    // âœ… PRESERVED FUNCTION: No changes
+    // ✅ PRESERVED: Update Deal Image (No Changes)
     // ========================================
     /**
      * Update deal image URL (for two-stage upload)
@@ -135,10 +148,10 @@ class DealRepository {
 
         api.updateDealImage(request)
     }
-    // ========================================
-    //  END OF PRESERVED FUNCTION
-    // ========================================
 
+    // ========================================
+    // ✅ PRESERVED: Cast Vote (No Changes)
+    // ========================================
     /**
      * Cast a vote on a deal
      */
@@ -167,6 +180,9 @@ class DealRepository {
         response
     }
 
+    // ========================================
+    // ✅ PRESERVED: Report Deal (No Changes)
+    // ========================================
     /**
      * Report a deal
      */
@@ -176,7 +192,7 @@ class DealRepository {
         reason: String,
         note: String? = null
     ): ApiEnvelope<List<ReportDto>> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "ðŸš¨ Reporting deal $dealId for reason: $reason")
+        Log.d("Repository", "🚨 Reporting deal $dealId for reason: $reason")
 
         val request = ReportRequest(
             deal_id = dealId,
@@ -188,6 +204,9 @@ class DealRepository {
         api.reportDeal(request)
     }
 
+    // ========================================
+    // ✅ PRESERVED: Upload Image (No Changes)
+    // ========================================
     /**
      * Upload image to Supabase Storage
      */
@@ -196,7 +215,7 @@ class DealRepository {
     }
 
     // ========================================
-    // NEW: EMAIL VERIFICATION METHODS
+    // ✅ PRESERVED: Email Verification (No Changes)
     // ========================================
 
     /**
@@ -208,7 +227,7 @@ class DealRepository {
             try {
                 api.sendVerificationCode(SendCodeRequest(email))
             } catch (e: retrofit2.HttpException) {
-                // ✅ Handle HTTP errors with user-friendly messages
+                // Handle HTTP errors with user-friendly messages
                 when (e.code()) {
                     400 -> SendCodeResponse(
                         success = false,
@@ -224,7 +243,7 @@ class DealRepository {
                     )
                 }
             } catch (e: Exception) {
-                // ✅ Handle network and other errors
+                // Handle network and other errors
                 SendCodeResponse(
                     success = false,
                     error = "Network error. Please check your connection."
@@ -251,7 +270,7 @@ class DealRepository {
                 )
             )
         } catch (e: retrofit2.HttpException) {
-            // ✅ Handle HTTP errors with user-friendly messages
+            // Handle HTTP errors with user-friendly messages
             when (e.code()) {
                 401 -> VerifyCodeResponse(
                     success = false,
@@ -267,7 +286,7 @@ class DealRepository {
                 )
             }
         } catch (e: Exception) {
-            // ✅ Handle network and other errors
+            // Handle network and other errors
             VerifyCodeResponse(
                 success = false,
                 error = "Network error. Please check your connection."

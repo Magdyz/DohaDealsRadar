@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="ProjectModuleManager">
-    <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feature/details/DohaDealsRadar.feature.details.main.iml" filepath="$PROJECT_DIR$/.idea/modules/feature/details/DohaDealsRadar.feature.details.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feature/feed/DohaDealsRadar.feature.feed.main.iml" filepath="$PROJECT_DIR$/.idea/modules/feature/feed/DohaDealsRadar.feature.feed.main.iml" />
-    </modules>
-  </component>
-</project>
