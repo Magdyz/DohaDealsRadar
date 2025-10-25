@@ -277,7 +277,7 @@ fun DealCard(
                         contentColor = Color(0xFFF3F3F4)
 
                     ),
-                    shape = MaterialTheme.shapes.extraLarge, // Rounded edges
+                    shape = MaterialTheme.shapes.large, // Rounded edges
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 2.dp,
@@ -298,7 +298,7 @@ fun DealCard(
                             text = "View Deal",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
+                                fontSize = 13.sp
                             )
                         )
                     }
