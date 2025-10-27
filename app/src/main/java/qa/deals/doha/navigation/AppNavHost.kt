@@ -12,11 +12,14 @@ import qa.deals.doha.feature.details.DetailsScreen
 import qa.deals.doha.feature.feed.FeedScreen
 import qa.deals.doha.feature.post.PostScreen
 import qa.deals.doha.feature.report.ReportScreen
+import qa.deals.doha.feature.archive.ArchiveScreen  // ✅ SPRINT 6: Import ArchiveScreen
 
 /**
  * Main navigation host for the app.
  * Manages navigation between all screens.
  * ✅ OPTIMIZED: Instant navigation, no animation delay
+ * ✅ SPRINT 6: Added Archive screen navigation
+ *
  */
 @Composable
 fun AppNavHost(
@@ -43,6 +46,22 @@ fun AppNavHost(
                 },
                 onPostClick = {
                     navController.navigate(Routes.POST)
+                },
+                // ✅ SPRINT 6: Navigate to archive screen
+                onArchiveClick = {
+                    navController.navigate(Routes.ARCHIVE)
+                }
+            )
+        }
+        // ========================================
+        // ✅ SPRINT 6: Archive Screen - Show archived deals
+        // Shows deals older than 10 days
+        // ========================================
+        composable(Routes.ARCHIVE) {
+            ArchiveScreen(
+                onBackClick = { navController.popBackStack() },
+                onDealClick = { dealId ->
+                    navController.navigate(Routes.details(dealId))
                 }
             )
         }

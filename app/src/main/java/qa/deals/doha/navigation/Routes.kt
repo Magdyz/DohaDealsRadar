@@ -10,6 +10,9 @@ object Routes {
     const val DETAILS = "details/{dealId}"
     const val REPORT = "report/{dealId}"
 
+    const val ARCHIVE = "archive"  // ✅ SPRINT 6: Archive screen route
+
+
     /**
      * Helper function to create details route with dealId
      */

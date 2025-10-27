@@ -35,6 +35,11 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 
 /**
  * ========================================
@@ -65,6 +70,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 private fun CategoryFilterChips(
     selectedCategory: DealCategory?,
     onCategorySelected: (DealCategory?) -> Unit,
+    onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive
     modifier: Modifier = Modifier
 ) {
     // ✅ PRESERVED: Scroll state for horizontal scrolling
@@ -167,6 +173,50 @@ private fun CategoryFilterChips(
                     .animateContentSize()  // ✨ Smooth size transitions
             )
         }
+        // ========================================
+        // ✅ SPRINT 6: "ARCHIVE" CHIP
+        // Navigate to archive screen to view old deals
+        // ========================================
+        FilterChip(
+            selected = false,  // Never selected (it's a navigation button)
+            onClick = onArchiveClick,
+            label = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "📦",
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+                    )
+                    Text(
+                        text = "Archive",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        )
+                    )
+                }
+            },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = Color(0xFF9C27B0),
+                selectedLabelColor = Color.White,
+                containerColor = Color.Transparent,
+                labelColor = MaterialTheme.colorScheme.onSurface
+            ),
+            border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = false,
+                borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                selectedBorderColor = Color(0xFF9C27B0),
+                borderWidth = 1.5.dp,
+                selectedBorderWidth = 2.dp
+            ),
+            modifier = Modifier
+                .height(40.dp)
+                .animateContentSize()
+        )
+
     }
 }
 
@@ -208,7 +258,8 @@ private fun CategoryFilterChips(
 @Composable
 fun FeedScreen(
     onDealClick: (String) -> Unit = {},
-    onPostClick: () -> Unit = {}
+    onPostClick: () -> Unit = {},
+    onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
 ) {
     val context = LocalContext.current
 
@@ -337,6 +388,7 @@ fun FeedScreen(
                 onCategorySelected = { category ->
                     viewModel.filterByCategory(category)
                 },
+                onArchiveClick = onArchiveClick,  // ✅ SPRINT 6: Pass archive click handler
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -469,7 +521,13 @@ fun FeedScreen(
                                     userVoteType = viewModel.getVoteType(deal.id),
                                     optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
-                                    modifier = Modifier.animateItem()
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = tween(durationMillis = 250),
+                                        fadeOutSpec = tween(durationMillis = 200),
+                                        placementSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
                                 )
                             }
 

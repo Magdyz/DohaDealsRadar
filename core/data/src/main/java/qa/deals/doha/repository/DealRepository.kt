@@ -34,6 +34,75 @@ class DealRepository {
         return dealDao.getAllDeals()
     }
 
+    // ========================================
+    // ✅ SPRINT 3: Archive Feature - Get Active Deals
+    // Returns only non-archived deals (for main feed)
+    // ========================================
+    /**
+     * Get cached ACTIVE deals as a Flow (excludes archived)
+     * Use this for the main feed to hide archived deals
+     */
+    fun getCachedActiveDeals(): Flow<List<DealEntity>> {
+        return dealDao.getActiveDeals()
+    }
+
+    // ========================================
+    // ✅ SPRINT 3: Archive Feature - Get Archived Deals
+    // Returns only archived deals (for archive screen)
+    // ========================================
+    /**
+     * Get cached ARCHIVED deals as a Flow
+     * Use this for the archive screen
+     */
+    fun getCachedArchivedDeals(): Flow<List<DealEntity>> {
+        return dealDao.getArchivedDeals()
+    }
+
+    // ========================================
+    // ✅ SPRINT 3: Archive Feature - Refresh Archived Deals
+    // Fetches archived deals from API and updates cache
+    // ========================================
+    /**
+     * Refresh archived deals from network and update cache
+     *
+     * @param page Page number to fetch (default: 1)
+     * @param append If true, appends to existing cache. If false, replaces cache.
+     * @return Result with PaginationMeta or error
+     */
+    suspend fun refreshArchivedDeals(page: Int = 1, append: Boolean = false): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "📦 Fetching archived deals (page: $page, append: $append)...")
+            val response = api.getArchivedDeals(page = page, limit = 20)
+
+            if (response.success == true && response.data != null) {
+                val entities = response.data.map { it.toEntity() }
+
+                if (append) {
+                    // Append to existing cache (for pagination - load more)
+                    dealDao.insertAll(entities)
+                    val totalArchived = dealDao.getArchivedDealsCount()
+                    Log.d("Repository", "➕ Appended ${entities.size} archived deals (total: $totalArchived)")
+                } else {
+                    // ✅ FIX: Replace only the archived deals in the cache
+                    // This prevents stale archived deals from remaining
+                    dealDao.clearArchived() // <-- ADDED THIS LINE
+                    // For archived deals, we don't clear ALL deals, just insert/update
+                    // This prevents clearing active deals when refreshing archive
+                    dealDao.insertAll(entities)
+                    Log.d("Repository", "🔄 Updated cache with ${entities.size} archived deals")
+                }
+
+                Result.success(response.pagination)
+            } else {
+                Log.e("Repository", "❌ API returned success=false or null data for archived deals")
+                Result.failure(Exception(response.error ?: "Unknown error"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error refreshing archived deals", e)
+            Result.failure(e)
+        }
+    }
+
     /**
      * ✅ UPDATED: Refresh deals from network and update cache
      *

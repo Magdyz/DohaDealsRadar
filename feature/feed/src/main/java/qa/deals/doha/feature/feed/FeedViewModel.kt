@@ -135,8 +135,7 @@ class FeedViewModel(
         Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
         _selectedCategory.value = category
         // Reset pagination when filter changes
-        uiState = uiState.copy(currentPage = 1, hasMorePages = true)
-        refreshDeals()
+        // uiState = uiState.copy(currentPage = 1, hasMorePages = true)
     }
 
     // ✅ UPDATED: Refresh Deals from Network (Pull-to-Refresh)

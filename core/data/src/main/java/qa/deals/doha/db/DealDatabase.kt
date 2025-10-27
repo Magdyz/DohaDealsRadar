@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DealEntity::class],
-    version = 8,  // ⚠️ CRITICAL: Incremented version to 8
+    version = 9,  // ⚠️ CRITICAL: Incremented version to 9
     exportSchema = false
 )
 abstract class DealDatabase : RoomDatabase() {
@@ -57,6 +57,18 @@ abstract class DealDatabase : RoomDatabase() {
                 Log.d("DealDatabase", "Migration 7->8: Added promoCode column")
             }
         }
-
+        // ========================================
+        // ✅ SPRINT 1: MIGRATION 8 to 9
+        // (Adds isArchived column and index for archive feature)
+        // ========================================
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add isArchived column with default value false (all existing deals remain active)
+                database.execSQL("ALTER TABLE deals ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+                // Add index for fast filtering of active vs archived deals
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_deals_isArchived` ON `deals` (`isArchived`)")
+                Log.d("DealDatabase", "✅ Migration 8→9: Added isArchived column & index (SPRINT 1: Archive Feature)")
+            }
+        }
     }
 }
