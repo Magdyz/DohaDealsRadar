@@ -484,7 +484,7 @@ fun FeedScreen(
                 else -> {
                     // ✅ PRESERVED: Pull-to-refresh ONLY wraps content when deals exist
                     PullToRefreshBox(
-                        isRefreshing = state.loading,
+                        isRefreshing = state.loading && !state.isLoadingMore,
                         onRefresh = { viewModel.refreshDeals() },
                         state = pullToRefreshState,
                         modifier = Modifier.fillMaxSize()
