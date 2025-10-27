@@ -27,7 +27,14 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_7_8,
                     DealDatabase.MIGRATION_8_9  // ✅ SPRINT 1: Archive feature migration
                 )
-                .fallbackToDestructiveMigration()
+                // ========================================
+                // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
+                // This line would delete the user's entire database (including
+                // their vote history) on the next app upgrade (e.g., version 10).
+                // Removing it forces proper migrations for all future updates,
+                // protecting user data.
+                // ========================================
+                //.fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
         }

@@ -27,6 +27,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.network.ReportReason
+// ========================================
+// ✅ NEW IMPORTS to fix errors
+// ========================================
+import androidx.compose.foundation.ExperimentalFoundationApi // For BringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusEvent
+import kotlinx.coroutines.delay // For the 'delay' function
+import kotlinx.coroutines.launch // For 'scope.launch'
+import androidx.compose.runtime.mutableFloatStateOf
 
 /**
  * Report Screen - Clean, minimal Vinted-inspired design
@@ -37,7 +47,7 @@ import qa.deals.doha.network.ReportReason
  * ✅ UPDATED: Modern purple checkmark success screen (2025)
  * ✅ UPDATED: Floating button matches PostScreen and DetailsScreen (2025-01-20)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ReportScreen(
     dealId: String,
@@ -52,7 +62,7 @@ fun ReportScreen(
     // Auto-dismiss on success
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
-            kotlinx.coroutines.delay(2000)
+            delay(2000)
             onClose()
         }
     }
@@ -124,11 +134,17 @@ fun ReportScreen(
                     onClick = { viewModel.submitReport() },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)  // ✅ Center at bottom
+                        // ========================================
+                        // ✅ FIX: Added .imePadding()
+                        // This makes the button "float" above the keyboard
+                        // when the "Additional details" text field is focused.
+                        // ========================================
+                        .imePadding()
                         .padding(bottom = 24.dp)         // ✅ 16dp from edge (matches others)
                         .width(280.dp)                   // ✅ Fixed width (matches others)
                         .height(56.dp),                  // ✅ 56dp height (matches others)
-                    enabled = !uiState.loading && uiState.selectedReason != null,
-                    colors = ButtonDefaults.buttonColors(
+                        enabled = uiState.selectedReason != null,
+                        colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = Color.White,
                         disabledContainerColor = Color(0xFF4B5563),
@@ -146,8 +162,7 @@ fun ReportScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                brush = if (!uiState.loading && uiState.selectedReason != null) {
-                                    Brush.linearGradient(
+                                brush = if (uiState.selectedReason != null) {                                    Brush.linearGradient(
                                         colors = listOf(
                                             Color(0xFFE91E63),  // ✅ Pink (matches others)
                                             Color(0xFF9C27B0)   // ✅ Purple (matches others)
@@ -265,11 +280,11 @@ private fun SuccessContent() {
     // ✨ Animation States
     // ========================================
     var visible by remember { mutableStateOf(false) }
-    var checkmarkScale by remember { mutableStateOf(0f) }
+    var checkmarkScale by remember { mutableFloatStateOf(0f) }
 
     // Launch animations
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(100)
+        delay(100)
         visible = true
         checkmarkScale = 1f
     }
@@ -516,6 +531,7 @@ private fun DailyLimitContent(onClose: () -> Unit) {
  * ✅ CHANGE 4: Report form WITHOUT inline button
  * Button removed - now shown as floating button in main ReportScreen
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReportFormContent(
     viewModel: ReportViewModel,
@@ -524,6 +540,12 @@ private fun ReportFormContent(
     onNoteChanged: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
+    // ========================================
+    // ✅ FIX: Setup for automatic scrolling
+    // ========================================
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+
     Column(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -661,7 +683,21 @@ private fun ReportFormContent(
             onValueChange = onNoteChanged,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 140.dp),
+                .heightIn(min = 140.dp)
+            // ========================================
+            // ✅ FIX: Add these 2 modifiers to the text field
+            // This tells the parent scrollable Column to move
+            // this field into view when it is focused.
+            // ========================================
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .onFocusEvent {
+                if (it.isFocused) {
+                    scope.launch {
+                        delay(200) // Small delay to let keyboard animate in
+                        bringIntoViewRequester.bringIntoView()
+                    }
+                }
+            },
             placeholder = {
                 Text(
                     when (uiState.selectedReason) {
