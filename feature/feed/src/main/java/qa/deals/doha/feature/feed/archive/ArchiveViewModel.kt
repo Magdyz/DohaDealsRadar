@@ -124,7 +124,6 @@ class ArchiveViewModel(
         _selectedCategory.value = category
         // Reset pagination when filter changes
         uiState = uiState.copy(currentPage = 1, hasMorePages = true)
-        refreshArchivedDeals()
     }
 
     // ========================================

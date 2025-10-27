@@ -35,6 +35,11 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 
 /**
  * ========================================
@@ -516,7 +521,13 @@ fun FeedScreen(
                                     userVoteType = viewModel.getVoteType(deal.id),
                                     optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
-                                    modifier = Modifier.animateItem()
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = tween(durationMillis = 250),
+                                        fadeOutSpec = tween(durationMillis = 200),
+                                        placementSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
                                 )
                             }
 
