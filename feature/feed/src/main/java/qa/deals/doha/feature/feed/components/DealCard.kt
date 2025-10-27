@@ -28,6 +28,8 @@ import com.google.accompanist.placeholder.material.shimmer
 import androidx.compose.ui.graphics.Color
 import com.google.accompanist.placeholder.PlaceholderHighlight
 import qa.deals.doha.design.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -40,6 +42,7 @@ import qa.deals.doha.design.theme.*
  * 4. Rounded edges: All corners rounded for modern look
  * 5. ✨ NEW: Glass-morphism effect for vote buttons container
  * 6. ✨ NEW: Circular vote buttons with smaller size
+ * 7. 🆕 NEW: "New" badge for deals posted within 48 hours
  */
 @Composable
 fun DealCard(
@@ -74,6 +77,33 @@ fun DealCard(
     val hotCountText = remember(displayHotCount) { "$displayHotCount" }
     val coldCountText = remember(displayColdCount) { "$displayColdCount" }
     val isDarkTheme = false
+
+    // ========================================
+// 🆕 NEW FEATURE: Check if deal is new (within 2 days)
+// ========================================
+    val isNewDeal = remember(deal.createdAt) {
+        deal.createdAt?.let { createdAtStr ->
+            try {
+                // Parse the timestamp (assuming ISO 8601 format from Supabase)
+                val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                val createdDate = formatter.parse(createdAtStr)
+
+                if (createdDate != null) {
+                    val currentTime = System.currentTimeMillis()
+                    val createdTime = createdDate.time
+                    val hoursDifference = (currentTime - createdTime) / (1000 * 60 * 60)
+
+                    // Return true if less than or equal to 48 hours (2 days)
+                    hoursDifference <= 48 // Change 48 to desired hours
+                } else {
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing date for deal ${deal.id}: ${e.message}")
+                false
+            }
+        } ?: false
+    }
 
     // ========================================
     // ✅ ENHANCED: Log image URL being displayed
@@ -188,7 +218,32 @@ fun DealCard(
                             ),
                         contentScale = ContentScale.Fit
                     )
-
+// ========================================
+// 🆕 NEW: "New" Badge (Top-Right Corner)
+// Only shows for deals posted within 48 hours
+// ========================================
+                    if (isNewDeal) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .background(
+                                    color = Color(0xFF9046CF).copy(alpha = 0.92f), // Semi-transparent purple
+                                    shape = CircleShape
+                                )
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "New",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
                     // ========================================
                     // ✨ UPDATED: Vote buttons with glass-morphism effect
                     // ========================================
