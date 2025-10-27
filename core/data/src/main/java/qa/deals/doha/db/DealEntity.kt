@@ -31,7 +31,9 @@ import androidx.compose.runtime.Stable
         Index(value = ["title"]),
         Index(value = ["createdAt"]),
         Index(value = ["status"]),
-        Index(value = ["category"])
+        Index(value = ["category"]),
+        Index(value = ["isArchived"])  // ✅ SPRINT 1: Index for archive filtering
+
     ]
 )
 data class DealEntity(
@@ -53,5 +55,13 @@ data class DealEntity(
     // This field requires a Room Migration.
     // ========================================
     val autoApproved: Boolean = false,
-    val promoCode: String? = null
+    val promoCode: String? = null,
+    // ========================================
+    // SPRINT 1: Archive Feature
+    // Field to track if deal is archived (auto-archived after 10 days)
+    // Default: false (all existing deals remain active)
+    // Migration: 8-9 adds this column with default false
+    // ========================================
+    val isArchived: Boolean = false
+
 )

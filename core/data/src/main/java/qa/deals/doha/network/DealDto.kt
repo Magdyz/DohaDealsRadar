@@ -35,7 +35,15 @@ data class DealDto(
     // ========================================
     // ✅ NEW: Added field for trust system
     // ========================================
-    @SerializedName("auto_approved") val autoApproved: Boolean? = false
+    @SerializedName("auto_approved") val autoApproved: Boolean? = false,
+    // ========================================
+    // ✅ SPRINT 2: Archive Feature
+    // Field to receive archive status from backend
+    // Backend sets this to true for deals older than 10 days
+    // Default: false (for backwards compatibility with old API responses)
+    // ========================================
+    @SerializedName("is_archived") val isArchived: Boolean? = false
+
 )
 
 /**
@@ -69,6 +77,10 @@ fun DealDto.toEntity(): DealEntity {
         postedBy = this.postedBy ?: "Anonymous",
         autoApproved = this.autoApproved ?: false, // ✅ NEW: Map autoApproved to entity
         promoCode = this.promoCode,
-
+        // ========================================
+        // ✅ SPRINT 2: Map isArchived from API to Entity
+        // If backend doesn't send it, default to false (active)
+        // ========================================
+        isArchived = this.isArchived ?: false
         )
 }

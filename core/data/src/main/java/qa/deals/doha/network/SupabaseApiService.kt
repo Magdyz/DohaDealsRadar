@@ -68,6 +68,21 @@ interface SupabaseApiService {
     ): ApiEnvelope<List<DealDto>>
 
     /**
+     * ========================================
+     * ✅ SPRINT 2: Get archived deals with pagination
+     * Returns deals that are older than 10 days (auto-archived by backend)
+     * ========================================
+     * @param page Page number (default: 1)
+     * @param limit Items per page (default: 20, max: 50)
+     * @return List of archived deals wrapped in ApiEnvelope
+     */
+    @GET("get_archived_deals")
+    suspend fun getArchivedDeals(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): ApiEnvelope<List<DealDto>>
+
+    /**
      * Submit a new deal
      */
     @POST("submit_deal")
