@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +50,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.focus.FocusDirection
+
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusEvent
+import kotlinx.coroutines.launch // ✅ Make sure this import is present
+import androidx.core.net.toUri
 
 /**
  * ✨ REDESIGNED: Post a Deal Screen - Vinted-Style Layout (2025)
@@ -159,6 +164,12 @@ fun PostScreen(
         val imageFile = File(context.cacheDir, "JPEG_${timeStamp}.jpg")
         return FileProvider.getUriForFile(context, "${context.packageName}.provider", imageFile)
     }
+
+    // ========================================
+    // Setup for automatic scrolling
+    // ========================================
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -272,8 +283,7 @@ fun PostScreen(
                         if (state.selectedImageUri != null || state.imageUrl.isNotBlank()) {
                             item {
                                 SelectedImageThumbnail(
-                                    uri = state.selectedImageUri ?: Uri.parse(state.imageUrl),
-                                    onRemove = {
+                                    uri = state.selectedImageUri ?: state.imageUrl.toUri(),                                    onRemove = {
                                         viewModel.clearImage()
                                     }
                                 )
@@ -311,7 +321,7 @@ fun PostScreen(
                         maxLines = 1,
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Next,
-                            autoCorrect = true
+                            autoCorrectEnabled = true
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
@@ -349,7 +359,7 @@ fun PostScreen(
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Default,
                             capitalization = KeyboardCapitalization.Sentences,
-                            autoCorrect = true
+                            autoCorrectEnabled = true
                         )
                     )
                 }
@@ -493,7 +503,7 @@ fun PostScreen(
                                 keyboardOptions = KeyboardOptions(
                                     imeAction = ImeAction.Done,
                                     keyboardType = KeyboardType.Uri,
-                                    autoCorrect = false
+                                    autoCorrectEnabled = false
                                 ),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
@@ -525,7 +535,18 @@ fun PostScreen(
                                 onValueChange = {
                                     viewModel.updatePromoCode(it)  // ✅ PRESERVED: Existing method name
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()// ========================================
+                                    // ✅ FIX: Add modifiers for auto-scrolling
+                                    // ========================================
+                                    .bringIntoViewRequester(bringIntoViewRequester)
+                                    .onFocusEvent {
+                                        if (it.isFocused) {
+                                            scope.launch { // <-- FIX: Added this line
+                                                delay(200) // <-- Now resolves
+                                                bringIntoViewRequester.bringIntoView() // <-- Now resolves
+                                            } // <-- FIX: Added this line
+                                        }
+                                    },
                                 placeholder = { Text("Enter code here") },
                                 singleLine = true,
                                 maxLines = 1,
@@ -533,7 +554,7 @@ fun PostScreen(
                                     imeAction = ImeAction.Done,
                                     keyboardType = KeyboardType.Text,
                                     capitalization = KeyboardCapitalization.Characters,
-                                    autoCorrect = false
+                                    autoCorrectEnabled = false
                                 ),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
@@ -562,7 +583,19 @@ fun PostScreen(
                                 viewModel.updateLocation(it)  // ✅ PRESERVED: Existing method name
                                 locationTouched = true
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
+                                // ========================================
+                                // ✅ FIX: Add modifiers for auto-scrolling
+                                // ========================================
+                                .bringIntoViewRequester(bringIntoViewRequester)
+                                .onFocusEvent {
+                                    if (it.isFocused) {
+                                        scope.launch {
+                                            delay(200)
+                                            bringIntoViewRequester.bringIntoView()
+                                        }
+                                    }
+                                },
                             placeholder = { Text("e.g., Carrefour City Center Mall") },
                             leadingIcon = {
                                 Icon(
@@ -576,7 +609,7 @@ fun PostScreen(
                             keyboardOptions = KeyboardOptions(
                                 imeAction = ImeAction.Done,
                                 capitalization = KeyboardCapitalization.Words,
-                                autoCorrect = true
+                                autoCorrectEnabled = true
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
@@ -612,6 +645,11 @@ fun PostScreen(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                // ========================================
+                // This makes the button "float" above the keyboard
+                // when a text field is focused.
+                // ========================================
+                .imePadding()
                 .padding(bottom = 24.dp)
                 .width(280.dp)
                 .height(56.dp),

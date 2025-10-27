@@ -35,11 +35,15 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.rememberCoroutineScope // ✅ NEW: Import
+import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by GlobalScope)
+// ========================================
+// ✅ NEW IMPORTS (for animateItem)
+// ========================================
+import androidx.compose.foundation.ExperimentalFoundationApi // ✅ NEW: Required for animateItem
 
 /**
  * ========================================
@@ -254,7 +258,7 @@ private fun CategoryFilterChips(
  * @param onDealClick Callback when deal card is clicked
  * @param onPostClick Callback when FAB is clicked to post deal
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FeedScreen(
     onDealClick: (String) -> Unit = {},
@@ -282,6 +286,11 @@ fun FeedScreen(
     // ✅ PRESERVED: Grid and pull-to-refresh states
     val gridState = rememberLazyGridState()
     val pullToRefreshState = rememberPullToRefreshState()
+// ========================================
+    // ✅ FIX (1.3): Get a lifecycle-aware CoroutineScope
+    // We will use this for the FAB's click animation.
+    // ========================================
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -322,8 +331,13 @@ fun FeedScreen(
                 onClick = {
                     isPressed = true
                     onPostClick()
-                    kotlinx.coroutines.GlobalScope.launch {
-                        kotlinx.coroutines.delay(150)
+                    // ========================================
+                    // ✅ FIX (1.3): Use 'scope.launch' instead of 'GlobalScope.launch'
+                    // This ensures the animation coroutine is cancelled if the
+                    // user navigates away from the FeedScreen, preventing leaks.
+                    // ========================================
+                    scope.launch {
+                        delay(150) // 'delay' is now called from a CoroutineScope
                         isPressed = false
                     }
                 },
@@ -522,10 +536,10 @@ fun FeedScreen(
                                     optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
                                     modifier = Modifier.animateItem(
-                                        fadeInSpec = tween(durationMillis = 250),
-                                        fadeOutSpec = tween(durationMillis = 200),
-                                        placementSpec = spring(
-                                            stiffness = Spring.StiffnessMediumLow
+                                        fadeInSpec = tween(350), // Nice fade-in
+                                        placementSpec = spring( // Bouncy placement
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
                                         )
                                     )
                                 )

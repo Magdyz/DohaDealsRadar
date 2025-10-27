@@ -2,7 +2,6 @@ package qa.deals.doha.feature.feed.components
 
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,18 +16,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
 import qa.deals.doha.db.DealEntity
-import com.google.accompanist.placeholder.material.placeholder
-import com.google.accompanist.placeholder.material.shimmer
+
 import androidx.compose.ui.graphics.Color
-import com.google.accompanist.placeholder.PlaceholderHighlight
 import qa.deals.doha.design.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+// ✅ NEW IMPORTS (Copied from DetailsScreen.kt)
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
+import androidx.compose.runtime.getValue
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -44,6 +48,43 @@ import java.util.*
  * 6. ✨ NEW: Circular vote buttons with smaller size
  * 7. 🆕 NEW: "New" badge for deals posted within 48 hours
  */
+
+// ========================================
+// ✅ NEW: Added ImageSkeleton (Copied from DetailsScreen.kt)
+// This shimmer skeleton will be used for a professional loading state.
+// ========================================
+@Composable
+private fun ImageSkeleton() {
+    // ✨ Shimmer animation
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmer_alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize() // Use fillMaxSize to match the image
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+            )
+    ) {
+        // ✅ Centered loading indicator
+        CircularProgressIndicator(
+            modifier = Modifier
+                .size(48.dp)
+                .align(Alignment.Center),
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 3.dp
+        )
+    }
+}
+
 @Composable
 fun DealCard(
     deal: DealEntity,
@@ -59,16 +100,7 @@ fun DealCard(
     val TAG = "DealCard"
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // ✅ FIX: Check vote status directly from DeviceIdManager (source of truth)
-    val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
-    val actualHasVoted = remember(deal.id) { deviceIdManager.hasVoted(deal.id) }
-    val actualUserVoteType = remember(deal.id) { deviceIdManager.getVoteType(deal.id) }
-
-    // ✅ Use actual vote status (not the stale parameter)
-    val effectiveHasVoted = actualHasVoted
-    val effectiveUserVoteType = actualUserVoteType
-
-    // ========================================
+        // ========================================
     // Vote count calculations
     // ========================================
     val displayHotCount = optimisticHotCount ?: (deal.hotCount ?: 0)
@@ -103,28 +135,6 @@ fun DealCard(
                 false
             }
         } ?: false
-    }
-
-    // ========================================
-    // ✅ ENHANCED: Log image URL being displayed
-    // ========================================
-    LaunchedEffect(deal.id, deal.imageUrl) {
-        val imageType = when {
-            deal.imageUrl?.contains("thumb_") == true -> "📸 THUMBNAIL"
-            deal.imageUrl?.contains("full_") == true -> "📷 FULL IMAGE"
-            deal.imageUrl?.startsWith("http") == true -> "🔗 EXTERNAL"
-            deal.imageUrl == null -> "❌ NO IMAGE"
-            else -> "❓ UNKNOWN"
-        }
-
-        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        Log.d(TAG, "🖼️  DISPLAY: Rendering deal card")
-        Log.d(TAG, "   → Deal ID: ${deal.id.take(8)}...")
-        Log.d(TAG, "   → Title: ${deal.title.take(40)}")
-        Log.d(TAG, "   → Image type: $imageType")
-        Log.d(TAG, "   → URL: ${deal.imageUrl}")
-        Log.d(TAG, "   → Hot votes: ${deal.hotCount ?: 0}")
-        Log.d(TAG, "   → Cold votes: ${deal.coldCount ?: 0}")
     }
 
     // ========================================
@@ -163,60 +173,40 @@ fun DealCard(
                         .clip(MaterialTheme.shapes.large)
                         .background(Color.White)
                 ) {
-                    // ✅ ENHANCED: Image painter with load state tracking
-                    val painter = rememberAsyncImagePainter(
-                        model = coil.request.ImageRequest.Builder(context)
+// ========================================
+                    // ✅ FIX (3.2): Replaced Image + placeholder
+                    // with SubcomposeAsyncImage.
+                    // This uses the superior pattern from DetailsScreen
+                    // and implements the ImageSkeleton for loading.
+                    // ========================================
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(context)
                             .data(imageUrl)
-                            .size(400, 400) // ✅ Grid thumbnail size (prevents loading full 4K images)
-                            .crossfade(150) // ✅ Smooth fade-in animation
-                            // ✅ Cache this specific size
-                            .memoryCacheKey("grid_$imageUrl")
+                            .size(400, 400) // ✅ Grid thumbnail size
+                            .scale(Scale.FIT) // Use FIT to match old ContentScale.Fit
+                            .crossfade(150)
+                            .memoryCacheKey("grid_$imageUrl") // ✅ Cache this specific size
                             .diskCacheKey("grid_$imageUrl")
                             .build(),
-                        placeholder = null,
-                        error = null
-                    )
-
-                    // ✅ ENHANCED: Log image loading state changes
-                    LaunchedEffect(painter.state) {
-                        when (val state = painter.state) {
-                            is coil.compose.AsyncImagePainter.State.Loading -> {
-                                Log.d(TAG, "   ⏳ Loading image for ${deal.id.take(8)}...")
-                            }
-                            is coil.compose.AsyncImagePainter.State.Success -> {
-                                val imageType = when {
-                                    imageUrl.contains("thumb_") -> "THUMBNAIL ⚠️"
-                                    imageUrl.contains("full_") -> "FULL IMAGE ✅"
-                                    else -> "EXTERNAL"
-                                }
-                                Log.d(TAG, "   ✅ Image loaded: $imageType")
-                                Log.d(TAG, "      Deal: ${deal.id.take(8)}")
-                                Log.d(TAG, "      URL: $imageUrl")
-                            }
-                            is coil.compose.AsyncImagePainter.State.Error -> {
-                                Log.e(TAG, "   ❌ Image load FAILED")
-                                Log.e(TAG, "      Deal: ${deal.id.take(8)}")
-                                Log.e(TAG, "      URL: $imageUrl")
-                                Log.e(TAG, "      Error: ${state.result.throwable.message}")
-                            }
-                            else -> { /* Empty or other state */ }
-                        }
-                    }
-
-                    val isLoading = painter.state is coil.compose.AsyncImagePainter.State.Loading
-
-                    Image(
-                        painter = painter,
                         contentDescription = deal.title,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .placeholder(
-                                visible = isLoading,
-                                color = Color.LightGray,
-                                highlight = PlaceholderHighlight.shimmer(),
-                                shape = MaterialTheme.shapes.medium
-                            ),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.Fit, // ✅ Match old ContentScale
+                        modifier = Modifier.fillMaxSize(),
+                        loading = { ImageSkeleton() }, // ✅ Use the shimmer skeleton
+                        error = {
+                            // ✅ Added a fallback error state
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "📷",
+                                    style = MaterialTheme.typography.displayMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
                     )
 // ========================================
 // 🆕 NEW: "New" Badge (Top-Right Corner)

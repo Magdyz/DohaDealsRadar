@@ -67,7 +67,7 @@ class FeedViewModel(
 
     // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering
     val deals: StateFlow<List<DealEntity>> = combine(
-        repo.getCachedDeals(),
+        repo.getCachedActiveDeals(),
         _searchQuery,
         _selectedCategory
     ) { allDeals, query, category ->
