@@ -33,6 +33,7 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.ExperimentalFoundationApi // For animateItem
 
 /**
  * ========================================
@@ -58,7 +59,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
  * @param onBackClick Callback when back button is pressed
  * @param onDealClick Callback when a deal card is clicked
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ArchiveScreen(
     onBackClick: () -> Unit,
@@ -262,16 +263,35 @@ fun ArchiveScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.onSearchQueryChange(it) },
-                        placeholder = { Text("Search archived deals...") },
+                        placeholder = {
+                            Text(
+                                "Search archived deals...",
+                                color = Color(0xFF9E9E9E) // Light grey placeholder for contrast on white
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color(0xFF757575) // Medium grey icon
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.medium, // Rounded corners for modern look
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
-                            focusedBorderColor = Color.White,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.7f)
+                            focusedTextColor = Color(0xFF424242), // Dark grey text when typing
+                            unfocusedTextColor = Color(0xFF424242), // Dark grey text
+                            cursorColor = Color(0xFF9C27B0), // Purple cursor matching app theme
+                            focusedBorderColor = Color(0xFF9C27B0), // Purple border when focused
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.85f)
+                        ),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 16.sp
                         )
                     )
                 }
@@ -299,29 +319,6 @@ fun ArchiveScreen(
             // ✅ LOADING/ERROR/SUCCESS STATES
             // ========================================
             when {
-                // CASE 1: Initial Load
-                state.loading && archivedDeals.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(56.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = 4.dp
-                            )
-                            Text(
-                                text = "Loading archived deals...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
 
                 // CASE 2: Error State
                 state.error != null && archivedDeals.isEmpty() -> {
