@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11 // Adjusted img feed, title and font
-        versionName = "1.1.1"
+        versionCode = 12 // Adjusted img feed, title and font
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

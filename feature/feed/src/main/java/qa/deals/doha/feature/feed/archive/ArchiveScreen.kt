@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.ExperimentalFoundationApi // For animateItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 
 /**
  * ========================================
@@ -385,6 +386,14 @@ fun ArchiveScreen(
                         isRefreshing = state.loading,
                         onRefresh = { viewModel.refreshArchivedDeals() },
                         state = pullToRefreshState,
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = state.loading && !state.isLoadingMore,
+                                color = MaterialTheme.colorScheme.primary,  // ✅ Purple
+                                modifier = Modifier.align(Alignment.TopCenter)
+                            )
+                        },
                         modifier = Modifier.fillMaxSize()
                     ) {
                         // ✅ Detect when user scrolls near bottom
@@ -424,7 +433,7 @@ fun ArchiveScreen(
                                     onClick = { onDealClick(deal.id) },
                                     onVoteHot = { /* Archived deals can't be voted */ },
                                     onVoteCold = { /* Archived deals can't be voted */ },
-                                    hasVoted = true, // Disable voting for archived deals
+                                    hasVoted = false, // ✅ FIXED: Show as disabled (gray), not voted (white)
                                     userVoteType = null,
                                     optimisticHotCount = null,
                                     optimisticColdCount = null,
@@ -442,8 +451,10 @@ fun ArchiveScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(32.dp),
-                                            strokeWidth = 3.dp
+                                            modifier = Modifier.size(50.dp),
+                                            strokeWidth = 3.dp,
+                                            color = MaterialTheme.colorScheme.primary,  // ✅ Purple
+
                                         )
                                     }
                                 }

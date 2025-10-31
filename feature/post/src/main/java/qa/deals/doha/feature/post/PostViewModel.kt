@@ -316,6 +316,17 @@ class PostViewModel(
     }
 
     // ========================================
+// 🔧 NEW (2025-10-29): Clear error method
+// This is called when user makes changes to form fields
+// ========================================
+    fun clearError() {
+        if (uiState.error != null) {
+            Log.d("PostViewModel", "🧹 Clearing error state")
+            uiState = uiState.copy(error = null)
+        }
+    }
+
+    // ========================================
     // ❌ REMOVED: `submitDealWithUsername`
     // This function was part of the old dialog flow and is no longer needed.
     // The new flow calls `submitDeal()` directly from `onEmailVerified`.
@@ -357,10 +368,20 @@ class PostViewModel(
             return
         }
 
+// AFTER (with detailed logging):
+        Log.d("PostViewModel", "📝 Step 1: Validating title...")
+        Log.d("PostViewModel", "   Title: '${uiState.title}'")
+        Log.d("PostViewModel", "   Title length: ${uiState.title.length}")
+        Log.d("PostViewModel", "   Is blank: ${uiState.title.isBlank()}")
+
         if (!isValidTitle(uiState.title)) {
+            Log.e("PostViewModel", "❌ VALIDATION FAILED: Title contains invalid characters")
+            Log.e("PostViewModel", "   Title: '${uiState.title}'")
+            Log.e("PostViewModel", "   Title bytes: ${uiState.title.toByteArray().joinToString(" ") { "%02x".format(it) }}")
             uiState = uiState.copy(error = "Title contains invalid characters or URLs")
             return
         }
+
 
         if (uiState.description.isNotBlank() && !isValidDescription(uiState.description)) {
             uiState = uiState.copy(error = "Description is too long (max 2000 characters)")
@@ -725,18 +746,38 @@ class PostViewModel(
     /**
      * Validate title - allow multilingual input
      */
+    /**
+     * Validate title - allow multilingual input, emojis, and common symbols
+     * 🔧 FIXED (2025-10-29): More permissive regex to allow emojis and Arabic
+     */
     private fun isValidTitle(title: String): Boolean {
         val trimmed = title.trim()
 
         // Length check (3-200 characters)
-        if (trimmed.length < 3 || trimmed.length > 200) return false
+        if (trimmed.length < 3 || trimmed.length > 200) {
+            Log.d("PostViewModel", "❌ Title length invalid: ${trimmed.length}")
+            return false
+        }
 
         // Block URLs in title
         val urlPatterns = listOf("http://", "https://", "www.")
-        if (urlPatterns.any { trimmed.lowercase().contains(it) }) return false
+        if (urlPatterns.any { trimmed.lowercase().contains(it) }) {
+            Log.d("PostViewModel", "❌ Title contains URL")
+            return false
+        }
 
-        // Allow Unicode letters, numbers, spaces, and common punctuation
-        return trimmed.matches(Regex("^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$"))
+        // 🔧 FIXED: More permissive validation
+        // Allow: Letters, Numbers, Punctuation, Symbols, Whitespace, Emojis
+        // Block: Only control characters and invisible formatting
+        val hasOnlyControlChars = trimmed.all { it.isWhitespace() || it.isISOControl() }
+        if (hasOnlyControlChars) {
+            Log.d("PostViewModel", "❌ Title has only control characters")
+            return false
+        }
+
+        // 🔧 NEW: Allow almost anything except pure control characters
+        // This is more user-friendly and allows emojis, Arabic, special symbols
+        return true
     }
 
     /**

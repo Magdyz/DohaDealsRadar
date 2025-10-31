@@ -1,6 +1,7 @@
 package qa.deals.doha.feature.feed
 
 import androidx.compose.animation.animateContentSize
+import qa.deals.doha.feature.feed.components.SkeletonDealCard  //  NEW: Skeleton loading card
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,7 @@ import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by Globa
 // ✅ NEW IMPORTS (for animateItem)
 // ========================================
 import androidx.compose.foundation.ExperimentalFoundationApi // ✅ NEW: Required for animateItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 
 /**
  * ========================================
@@ -122,7 +124,6 @@ private fun CategoryFilterChips(
             ),
             modifier = Modifier
                 .height(40.dp)
-                .animateContentSize()  // ✨ Smooth size transitions
         )
 
         // ========================================
@@ -406,37 +407,30 @@ fun FeedScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ========================================
-            // ✅ PRESERVED: Loading/Error/Success States
-            // Smart state management prevents double spinner
-            // ========================================
-            when {
-                // ========================================
-                // 🎯 CASE 1: Initial Load (First Time)
-                // Show ONLY center spinner, NO pull-to-refresh
-                // ========================================
-                state.loading && deals.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // ✅ PRESERVED: Modern large spinner (2025 style)
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(56.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = 4.dp
-                            )
 
-                            // ✅ PRESERVED: Loading text
-                            Text(
-                                text = "Loading deals...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+            when {
+
+                // ========================================
+                // CASE 1: Initial Loading State (Empty with Loading)
+                // Show skeleton cards instead of spinner
+                // ========================================
+
+                state.loading && deals.isEmpty() && state.error == null -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 8.dp,
+                            end = 8.dp,
+                            top = 8.dp,
+                            bottom = 88.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Show 6 skeleton cards (3 rows x 2 columns)
+                        items(6) {
+                            SkeletonDealCard()
                         }
                     }
                 }
@@ -487,9 +481,16 @@ fun FeedScreen(
                         isRefreshing = state.loading && !state.isLoadingMore,
                         onRefresh = { viewModel.refreshDeals() },
                         state = pullToRefreshState,
-                        modifier = Modifier.fillMaxSize()
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = state.loading && !state.isLoadingMore,
+                                color = MaterialTheme.colorScheme.primary,  // ✅ Purple
+                                modifier = Modifier.align(Alignment.TopCenter)
+                            )
+                        },
+                                modifier = Modifier.fillMaxSize()
                     ) {
-                        // ✅ PRESERVED: Grid with deals (2 columns)
 // ========================================
                         // ✅ NEW: Detect when user scrolls near bottom
                         // Triggers loadMoreDeals() automatically
@@ -535,13 +536,6 @@ fun FeedScreen(
                                     userVoteType = viewModel.getVoteType(deal.id),
                                     optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
-                                    modifier = Modifier.animateItem(
-                                        fadeInSpec = tween(350), // Nice fade-in
-                                        placementSpec = spring( // Bouncy placement
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    )
                                 )
                             }
 
@@ -558,8 +552,10 @@ fun FeedScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(32.dp),
-                                            strokeWidth = 3.dp
+                                            modifier = Modifier.size(50.dp),
+                                            strokeWidth = 3.dp,
+                                            color = MaterialTheme.colorScheme.primary,  // ✅ Purple
+
                                         )
                                     }
                                 }

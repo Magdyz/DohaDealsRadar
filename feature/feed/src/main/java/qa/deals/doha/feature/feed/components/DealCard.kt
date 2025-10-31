@@ -73,16 +73,7 @@ private fun ImageSkeleton() {
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
             )
-    ) {
-        // ✅ Centered loading indicator
-        CircularProgressIndicator(
-            modifier = Modifier
-                .size(48.dp)
-                .align(Alignment.Center),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 3.dp
-        )
-    }
+    )
 }
 
 @Composable
@@ -99,6 +90,7 @@ fun DealCard(
 ) {
     val TAG = "DealCard"
     val context = androidx.compose.ui.platform.LocalContext.current
+    val isArchived = deal.isArchived
 
         // ========================================
     // Vote count calculations
@@ -184,7 +176,7 @@ fun DealCard(
                             .data(imageUrl)
                             .size(400, 400) // ✅ Grid thumbnail size
                             .scale(Scale.FIT) // Use FIT to match old ContentScale.Fit
-                            .crossfade(150)
+                            .crossfade(200)
                             .memoryCacheKey("grid_$imageUrl") // ✅ Cache this specific size
                             .diskCacheKey("grid_$imageUrl")
                             .build(),
@@ -258,10 +250,11 @@ fun DealCard(
                             emoji = "🔥",
                             count = hotCountText,
                             onClick = {
-                                Log.d(TAG, "🔥 HOT VOTE clicked for ${deal.id.take(8)}")
-                                onVoteHot?.invoke()
+                                if (!isArchived) {  // ✅ NEW: Check archive status
+                                    onVoteHot?.invoke()
+                                }
                             },
-                            enabled = !hasVoted,
+                            enabled = !hasVoted && !isArchived,  // ✅ MODIFIED: Disable if archived
                             isVoted = userVoteType == "hot",
                             backgroundColor = if (isDarkTheme) VoteHotBgDark else VoteHotBg,
                             contentColor = if (isDarkTheme) VoteHotContentDark else VoteHotContent
@@ -272,10 +265,11 @@ fun DealCard(
                             emoji = "❄️",
                             count = coldCountText,
                             onClick = {
-                                Log.d(TAG, "❄️ COLD VOTE clicked for ${deal.id.take(8)}")
-                                onVoteCold?.invoke()
+                                if (!isArchived) {  // ✅ NEW: Check archive status
+                                    onVoteCold?.invoke()
+                                }
                             },
-                            enabled = !hasVoted,
+                            enabled = !hasVoted && !isArchived,  // ✅ MODIFIED: Disable if archived
                             isVoted = userVoteType == "cold",
                             backgroundColor = if (isDarkTheme) VoteColdBgDark else VoteColdBg,
                             contentColor = if (isDarkTheme) VoteColdContentDark else VoteColdContent
@@ -311,16 +305,18 @@ fun DealCard(
                 // ========================================
                 Button(
                     onClick = {
-                        Log.d(TAG, "👁️ VIEW clicked for ${deal.id.take(8)}: ${deal.title.take(30)}")
-                        onClick?.invoke()
+                        if (!isArchived) {  // ✅ NEW: Check archive status
+                            onClick?.invoke()
+                        }
                     },
+                    enabled = !isArchived,  // ✅ MODIFIED: Disable if archived
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp), // Taller, not squashed
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF9046CF),
-                        contentColor = Color(0xFFF3F3F4)
-
+                        contentColor = Color(0xFFF3F3F4),
+                        disabledContainerColor = Color.Gray  // ✅ Gray when disabled
                     ),
                     shape = MaterialTheme.shapes.large, // Rounded edges
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
@@ -340,7 +336,7 @@ fun DealCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "View Deal",
+                            text = if (isArchived) "Archived" else "View Deal",  // ✅ Change text when archived
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp

@@ -28,10 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.db.DealEntity
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.BorderStroke
 // ✨ NEW: Advanced Coil imports for 2025 performance
 import coil.compose.SubcomposeAsyncImage
@@ -259,35 +256,27 @@ private fun formatVoteCount(count: Int): String = when {
  */
 @Composable
 private fun ImageSkeleton() {
-    // ✨ Shimmer animation
+    // ✨ Shimmer animation - NO SPINNER, only shimmer effect
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
-        targetValue = 0.7f,
+        targetValue = 0.6f,  // ✅ Reduced max alpha for subtlety
         animationSpec = infiniteRepeatable(
-            animation = tween(1000),
+            animation = tween(1000, easing = LinearEasing),  // ✅ Smooth linear
             repeatMode = RepeatMode.Reverse
         ),
         label = "shimmer_alpha"
     )
 
+    // ✅ Pure shimmer effect - NO CircularProgressIndicator
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f)  // ✅ Square like feed cards
+            .aspectRatio(1f)
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+                color = Color(0xFFE0E0E0).copy(alpha = alpha)  // ✅ Light grey
             )
-    ) {
-        // ✅ Centered loading indicator
-        CircularProgressIndicator(
-            modifier = Modifier
-                .size(48.dp)
-                .align(Alignment.Center),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 3.dp
-        )
-    }
+    )
 }
 
 /**
@@ -433,8 +422,11 @@ private fun DealDetailsContent(
                                     else Modifier
                                 )
                                 .clickable(
-                                    enabled = !uiState.hasVoted,
-                                    onClick = { if (!uiState.hasVoted) onVote("hot") }
+                                    enabled = !uiState.hasVoted && !uiState.isArchived,
+                                    onClick = {
+                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("hot")
+                                    }
+
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -472,8 +464,10 @@ private fun DealDetailsContent(
                                     else Modifier
                                 )
                                 .clickable(
-                                    enabled = !uiState.hasVoted,
-                                    onClick = { if (!uiState.hasVoted) onVote("cold") }
+                                    enabled = !uiState.hasVoted && !uiState.isArchived,
+                                    onClick = {
+                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("cold")
+                                    }
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -506,7 +500,9 @@ private fun DealDetailsContent(
                             .size(52.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF374151))
-                            .clickable(onClick = onReport),
+                            .clickable(    enabled = !uiState.isArchived,
+                                onClick = { if (!uiState.isArchived) onReport() }
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = "🚩", style = MaterialTheme. typography.titleMedium.copy(fontSize = 20.sp))
@@ -641,8 +637,7 @@ private fun DealDetailsContent(
                 // ========================================
                 if (!deal.promoCode.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    PromoCodeCard(promoCode = deal.promoCode!!, context = context)
-                }
+                    PromoCodeCard(promoCode = deal.promoCode!!, context = context, isArchived = uiState.isArchived)                }
 
 
                 // ========================================
@@ -653,8 +648,7 @@ private fun DealDetailsContent(
                     if (deal.promoCode.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(16.dp))
                     }
-                    LocationCard(location = deal.location!!, context = context)
-
+                    LocationCard(location = deal.location!!, context = context, isArchived = uiState.isArchived)
                     // ========================================
                     // 🗑️ REMOVED: Old promo code logic from here
                     // ========================================
@@ -663,7 +657,8 @@ private fun DealDetailsContent(
                     if (deal.link.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
-                            onClick = { onOpenLink(deal.link) },
+                            onClick = { if (!uiState.isArchived) onOpenLink(deal.link) },
+                            enabled = !uiState.isArchived,  // Add this line
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -700,7 +695,8 @@ private fun DealDetailsContent(
         // ========================================
         if (hasLink && deal.location.isNullOrBlank()) {
             Button(
-                onClick = { onOpenLink(deal.link) },
+                onClick = {  if (!uiState.isArchived) onOpenLink(deal.link) },
+                enabled = !uiState.isArchived,  // Add this line
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 16.dp)
@@ -756,7 +752,8 @@ private fun DealDetailsContent(
 @Composable
 private fun LocationCard(
     location: String,
-    context: android.content.Context
+    context: android.content.Context,
+    isArchived: Boolean = false  // Archive status
 ) {
     var showCopiedMessage by remember { mutableStateOf(false) }
 
@@ -807,6 +804,7 @@ private fun LocationCard(
 
                 // Copy Button
                 IconButton(
+                    enabled = !isArchived,
                     onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                                 as android.content.ClipboardManager
@@ -873,7 +871,8 @@ private fun LocationCard(
 @Composable
 private fun PromoCodeCard(
     promoCode: String,
-    context: android.content.Context
+    context: android.content.Context,
+    isArchived: Boolean = false  // Archive status
 ) {
     var showCopiedMessage by remember { mutableStateOf(false) }
 
@@ -924,6 +923,7 @@ private fun PromoCodeCard(
 
                 // Copy Button
                 IconButton(
+                    enabled = !isArchived,
                     onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                                 as android.content.ClipboardManager

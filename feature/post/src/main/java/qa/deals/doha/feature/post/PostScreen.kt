@@ -50,7 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.focus.FocusDirection
-
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.focus.onFocusEvent
@@ -80,7 +80,7 @@ import androidx.core.net.toUri
  * ✅ ALL LOGGING PRESERVED
  * ✅ ALL EXISTING VIEWMODEL METHODS PRESERVED (updateTitle, updateLocation, etc.)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PostScreen(
     onBackClick: () -> Unit = {},
@@ -91,6 +91,27 @@ fun PostScreen(
         factory = PostViewModelFactory(context)
     )
     val state = viewModel.uiState
+// 🔧 NEW: Snackbar for error display
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 🔧 NEW: Auto-clear error when user makes changes
+    LaunchedEffect(state.title, state.description, state.link, state.location,
+        state.selectedImageUri, state.imageUrl, state.dealType) {
+        if (state.error != null) {
+            viewModel.clearError()
+        }
+    }
+
+    // 🔧 NEW: Show error in Snackbar when validation fails
+    LaunchedEffect(state.error) {
+        state.error?.let { errorMessage ->
+            Log.e("PostScreen", "❌ Validation Error: $errorMessage")
+            snackbarHostState.showSnackbar(
+                message = errorMessage,
+                duration = SnackbarDuration.Long
+            )
+        }
+    }
 
     // ✨ Modern keyboard & focus management (PRESERVED)
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -173,6 +194,16 @@ fun PostScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) {
+                    Snackbar(
+                        snackbarData = it,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        actionColor = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
             topBar = {
                 TopAppBar(
                     title = {
@@ -632,6 +663,52 @@ fun PostScreen(
 
                 // ✅ PRESERVED: Extra space at bottom
                 Spacer(Modifier.height(24.dp))
+            }
+        }
+
+        // 🔧 NEW: Error display above button
+        if (state.error != null) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 88.dp),  // Above the button
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        state.error!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
 

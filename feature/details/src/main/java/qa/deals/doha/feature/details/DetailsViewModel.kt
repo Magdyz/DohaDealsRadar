@@ -22,7 +22,9 @@ data class DetailsUiState(
     val voting: Boolean = false,
     val voteError: String? = null,
     val hasVoted: Boolean = false,
-    val userVoteType: String? = null
+    val userVoteType: String? = null,
+    val isArchived: Boolean = false
+
 )
 
 /**
@@ -65,7 +67,8 @@ class DetailsViewModel(
                             loading = false,
                             error = null,
                             hasVoted = hasVoted,
-                            userVoteType = voteType
+                            userVoteType = voteType,
+                            isArchived = deal.isArchived
                         )
                         Log.d("Details", "✅ Deal loaded: ${deal.title}, voted: $hasVoted")
                     } else {

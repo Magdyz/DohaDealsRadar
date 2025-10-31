@@ -84,11 +84,7 @@ class DealRepository {
                     Log.d("Repository", "➕ Appended ${entities.size} archived deals (total: $totalArchived)")
                 } else {
                     // ✅ FIX: Replace only the archived deals in the cache
-                    // This prevents stale archived deals from remaining
-                    dealDao.clearArchived() // <-- ADDED THIS LINE
-                    // For archived deals, we don't clear ALL deals, just insert/update
-                    // This prevents clearing active deals when refreshing archive
-                    dealDao.insertAll(entities)
+                    dealDao.replaceArchivedDeals(entities)
                     Log.d("Repository", "🔄 Updated cache with ${entities.size} archived deals")
                 }
 
@@ -124,10 +120,10 @@ class DealRepository {
                     val totalCached = dealDao.getDealsCount()
                     Log.d("Repository", "➕ Appended ${entities.size} deals (total cached: $totalCached)")
                 } else {
-                    // Replace cache (for initial load or pull-to-refresh)
-                    dealDao.clearAll()
-                    dealDao.insertAll(entities)
+                    // Replace cache atomically (prevents flash)
+                    dealDao.replaceAllDeals(entities) // ✅ Single atomic operation
                     Log.d("Repository", "🔄 Replaced cache with ${entities.size} deals")
+
                 }
 
                 Result.success(response.pagination)
