@@ -46,7 +46,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
     // Coil for image loading
-    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation(libs.accompanist.swiperefresh)
     implementation("com.google.accompanist:accompanist-placeholder-material:0.36.0")
 }

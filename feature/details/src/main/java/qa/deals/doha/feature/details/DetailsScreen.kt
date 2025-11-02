@@ -28,18 +28,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.db.DealEntity
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.BorderStroke
 // ✨ NEW: Advanced Coil imports for 2025 performance
-import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Scale
 import androidx.compose.foundation.layout.imePadding
+import qa.deals.doha.core.design.R
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 
 /**
  * Details Screen - Modern 2025 Design
@@ -256,25 +253,14 @@ private fun formatVoteCount(count: Int): String = when {
  */
 @Composable
 private fun ImageSkeleton() {
-    // ✨ Shimmer animation - NO SPINNER, only shimmer effect
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.6f,  // ✅ Reduced max alpha for subtlety
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),  // ✅ Smooth linear
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer_alpha"
-    )
-
-    // ✅ Pure shimmer effect - NO CircularProgressIndicator
+    // ✅ UPDATED: Static background - NO ANIMATION to prevent flash
+    // Simple, subtle background that doesn't draw attention
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .background(
-                color = Color(0xFFE0E0E0).copy(alpha = alpha)  // ✅ Light grey
+                color = Color(0xFFF5F5F5)  // ✅ Very light grey - barely noticeable
             )
     )
 }
@@ -350,20 +336,19 @@ private fun DealDetailsContent(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(MaterialTheme.shapes.medium)
+                        .background(Color(0xFFF5F5F5)) // <-- 1. FIX: Add stable background
                 ) {
                     SubcomposeAsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(imageUrl)
-                            .memoryCacheKey(imageUrl)
-                            .diskCacheKey(imageUrl)
-                            .scale(Scale.FILL)
-                            .crossfade(300)
-                            .placeholderMemoryCacheKey(imageUrl)
+                            .data("$imageUrl?width=1200&quality=80&format=webp")
+                            .scale(Scale.FIT)
+                            .memoryCacheKey("detail_w1200_$imageUrl")
+                            .diskCacheKey("detail_w1200_$imageUrl")
+                            .placeholderMemoryCacheKey("grid_w400_$imageUrl") // ✅ Use our new grid image as placeholder
                             .build(),
                         contentDescription = deal.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        loading = { ImageSkeleton() },
                         error = {
                             Box(
                                 modifier = Modifier

@@ -38,5 +38,5 @@ dependencies {
 
     // ✨ PERFORMANCE 1.1: Coil for image loading configuration
     api(libs.coil.compose)  // ← ADD THIS LINE (use 'api' so it's available to modules that depend on :core:design)
-
+    api(libs.coil.network.okhttp)  // ← Coil 3.0 network backend
 }

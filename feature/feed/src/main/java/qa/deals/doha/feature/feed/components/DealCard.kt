@@ -30,9 +30,9 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Scale
 import androidx.compose.runtime.getValue
 
 /**
@@ -55,23 +55,13 @@ import androidx.compose.runtime.getValue
 // ========================================
 @Composable
 private fun ImageSkeleton() {
-    // ✨ Shimmer animation
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer_alpha"
-    )
-
+    // ✅ UPDATED: Static background - NO ANIMATION to prevent flash
+    // Simple, subtle background for smooth loading experience
     Box(
         modifier = Modifier
             .fillMaxSize() // Use fillMaxSize to match the image
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+                color = Color(0xFFF5F5F5)  // ✅ Very light grey - barely noticeable
             )
     )
 }
@@ -173,19 +163,23 @@ fun DealCard(
                     // ========================================
                     SubcomposeAsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(imageUrl)
-                            .size(400, 400) // ✅ Grid thumbnail size
-                            .scale(Scale.FIT) // Use FIT to match old ContentScale.Fit
-                            .crossfade(200)
-                            .memoryCacheKey("grid_$imageUrl") // ✅ Cache this specific size
-                            .diskCacheKey("grid_$imageUrl")
+                            .data("$imageUrl?width=400&quality=80&format=webp")
+                            .scale(Scale.FIT)
+                            .memoryCacheKey("grid_w400_$imageUrl")
+                            .diskCacheKey("grid_w400_$imageUrl")
+                            .listener(
+                                onStart = { Log.d(TAG, "🖼️ Loading image: $imageUrl") },
+                                onSuccess = { _, _ -> Log.d(TAG, "✅ Image loaded: $imageUrl") },
+                                onError = { _, result ->
+                                    Log.e(TAG, "❌ Image failed: $imageUrl", result.throwable)
+                                }
+                            )
                             .build(),
                         contentDescription = deal.title,
-                        contentScale = ContentScale.Fit, // ✅ Match old ContentScale
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
-                        loading = { ImageSkeleton() }, // ✅ Use the shimmer skeleton
+                        loading = { ImageSkeleton() },
                         error = {
-                            // ✅ Added a fallback error state
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()

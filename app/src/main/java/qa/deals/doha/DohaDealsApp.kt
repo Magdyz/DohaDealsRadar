@@ -1,12 +1,15 @@
 package qa.deals.doha
 
 import android.app.Application
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
-import coil.util.DebugLogger
+import android.content.Context
+import android.util.Log
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
+import coil3.util.DebugLogger
+import okio.Path.Companion.toOkioPath
 import qa.deals.doha.util.AppContext
 
 /**
@@ -20,7 +23,7 @@ import qa.deals.doha.util.AppContext
  *
  * CHANGES:
  * - ✅ Existing: AppContext initialization
- * - ✨ NEW: Coil ImageLoader optimization for 2025 performance
+ * - ✨ NEW: Coil 3.0 ImageLoader optimization for 2025 performance
  * - ✨ NEW: Aggressive image caching strategy
  * - ✨ NEW: Memory and disk cache configuration
  *
@@ -29,43 +32,41 @@ import qa.deals.doha.util.AppContext
  * - Reduced memory usage (25% RAM limit)
  * - 250MB disk cache for persistent storage
  * - Optimized for slow networks
+ *
+ * COIL 3.0 MIGRATION:
+ * - Changed from ImageLoaderFactory to SingletonImageLoader.Factory
+ * - Updated imports to coil3.* namespace
  */
-class DohaDealsApp : Application(), ImageLoaderFactory {  // ✨ NEW: Implement ImageLoaderFactory
+class DohaDealsApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
 
+        Log.d("DohaDealsApp", "📱 Application onCreate() called")
+
         // ✅ EXISTING: Make appContext available to core modules (e.g., DataStore)
         AppContext.init(this)
 
-        // ✨ NEW: Coil will automatically use newImageLoader() for all image loading
-        // No manual initialization needed - just implement ImageLoaderFactory
+        Log.d("DohaDealsApp", "✅ AppContext initialized")
     }
 
     /**
-     * ✨ NEW: Configure Coil ImageLoader for optimal performance
+     * ✨ COIL 3.0: Factory method to create ImageLoader singleton
      *
-     * This is called automatically by Coil when the first image is loaded.
-     * Configuration applies to ALL images in the app (Feed, Details, etc.)
-     *
-     * PERFORMANCE FEATURES:
-     * - Memory cache: 25% of available RAM
-     * - Disk cache: 250MB persistent storage
-     * - Cache-first strategy: Check cache before network
-     * - Crossfade animations: Smooth image transitions
-     * - Debug logging: Track image loads (remove in production)
-     *
-     * Created: 2025-10-19 14:52:06 UTC by @Magdyz
+     * This is called automatically by Coil when the first image is requested.
+     * Replaces the old ImageLoaderFactory.newImageLoader() pattern.
      */
-    override fun newImageLoader(): ImageLoader {
-        return ImageLoader.Builder(this)
+    override fun newImageLoader(context: Context): ImageLoader {
+        Log.d("DohaDealsApp", "🖼️ Creating Coil 3.0 ImageLoader...")
+
+        return ImageLoader.Builder(context)
             // ========================================
             // 💾 MEMORY CACHE CONFIGURATION
             // Stores decoded images in RAM for instant access
             // ========================================
             .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)  // ✅ Use 25% of app memory for image cache
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)  // ✅ Use 25% of app memory for image cache
                     .strongReferencesEnabled(true)  // ✅ Keep strong references for better performance
                     .build()
             }
@@ -76,7 +77,7 @@ class DohaDealsApp : Application(), ImageLoaderFactory {  // ✨ NEW: Implement 
             // ========================================
             .diskCache {
                 DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache"))  // ✅ Store in app cache directory
+                    .directory(context.cacheDir.resolve("image_cache").toPath().toOkioPath())  // ✅ Store in app cache directory
                     .maxSizeBytes(250 * 1024 * 1024)  // ✅ 250MB max disk cache
                     .build()
             }
@@ -84,16 +85,9 @@ class DohaDealsApp : Application(), ImageLoaderFactory {  // ✨ NEW: Implement 
             // ========================================
             // 🚀 PERFORMANCE OPTIMIZATIONS
             // ========================================
-            .respectCacheHeaders(false)  // ✅ Prefer local cache over server cache headers
             .diskCachePolicy(CachePolicy.ENABLED)  // ✅ Always use disk cache
             .memoryCachePolicy(CachePolicy.ENABLED)  // ✅ Always use memory cache
             .networkCachePolicy(CachePolicy.ENABLED)  // ✅ Cache network responses
-
-            // ========================================
-            // 🎨 UX ENHANCEMENTS
-            // ========================================
-            .crossfade(true)  // ✅ Smooth crossfade animation (300ms default)
-            .crossfade(300)  // ✅ Explicit 300ms crossfade duration
 
             // ========================================
             // 🐛 DEBUG CONFIGURATION
@@ -103,5 +97,8 @@ class DohaDealsApp : Application(), ImageLoaderFactory {  // ✨ NEW: Implement 
             // TODO: Remove .logger() before production release
 
             .build()
+            .also {
+                Log.d("DohaDealsApp", "✅ Coil 3.0 ImageLoader created successfully")
+            }
     }
 }

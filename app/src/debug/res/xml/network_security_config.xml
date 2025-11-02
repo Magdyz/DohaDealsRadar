@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ========================================
+    🔓 DEBUG NETWORK SECURITY CONFIG
+    ========================================
+
+    PURPOSE:
+    - Allow cleartext HTTP traffic for development
+    - Enable testing with local servers (localhost, 10.0.2.2)
+    - Allow HTTP image URLs for debugging
+    - Simplify development without HTTPS requirements
+
+    ⚠️ WARNING:
+    - This config is ONLY for DEBUG builds
+    - NEVER use this in production
+    - Cleartext traffic can be intercepted
+
+    DEVELOPMENT SCENARIOS:
+    - Testing with local API server (http://localhost:3000)
+    - Android emulator (http://10.0.2.2:3000)
+    - HTTP image URLs from test sources
+    - Debugging network traffic with proxies
+
+    Last Updated: 2025-11-01
+    Version: 1.0 (Debug)
+-->
+<network-security-config>
+
+    <!-- ========================================
+         🔓 BASE CONFIG: Allow Cleartext (Debug Only)
+         ========================================
+
+         SECURITY TRADE-OFF:
+         - Development speed vs. Security
+         - Allows HTTP for easier debugging
+         - Automatically disabled in release builds
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Trust system CA certificates -->
+            <certificates src="system" />
+
+            <!-- Optional: Add user-installed certificates for debugging tools
+                 (Charles Proxy, Fiddler, etc.) -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- ========================================
+         🌐 DOMAIN CONFIG: Supabase (Debug)
+         ========================================
+
+         Even in debug, prefer HTTPS for Supabase
+         But allow fallback to HTTP if needed
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Supabase Storage & Database -->
+        <domain includeSubdomains="false">nzchbnshkrkdqpcawohu.supabase.co</domain>
+
+        <!-- Supabase Edge Functions -->
+        <domain includeSubdomains="false">nzchbnshkrkdqpcawohu.functions.supabase.co</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- ========================================
+         🏠 LOCAL DEVELOPMENT
+         ========================================
+
+         Explicit config for common development scenarios
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Localhost -->
+        <domain includeSubdomains="true">localhost</domain>
+
+        <!-- Android Emulator -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+
+        <!-- Local network (common router range) -->
+        <domain includeSubdomains="true">192.168.1.1</domain>
+        <domain includeSubdomains="true">192.168.0.1</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!--
+        ℹ️ DEBUG NOTE:
+
+        This config allows:
+        ✅ HTTP and HTTPS traffic
+        ✅ User-installed certificates (debugging proxies)
+        ✅ Local server connections
+        ✅ Insecure connections for testing
+
+        In RELEASE builds, this file is NOT used.
+        Production uses the strict HTTPS-only config.
+    -->
+
+</network-security-config>

@@ -11,8 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import qa.deals.doha.navigation.AppNavHost
 import qa.deals.doha.design.theme.DohaDealsTheme
-import coil.Coil
-import qa.deals.doha.design.image.ImageLoaderConfig  // ✨ NEW: Import image config
 
 /**
  * Main activity - Entry point of the app.
@@ -37,8 +35,6 @@ class MainActivity : ComponentActivity() {
         // - 40% less memory usage
         // - Smooth 60fps scrolling
         // ========================================
-        val imageLoader = ImageLoaderConfig.create(this)
-        Coil.setImageLoader(imageLoader)
 
         setContent {
             DohaDealsTheme {
