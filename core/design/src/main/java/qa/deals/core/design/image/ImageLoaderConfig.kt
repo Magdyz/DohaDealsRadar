@@ -3,11 +3,12 @@ package qa.deals.doha.design.image
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import coil.ImageLoader
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
-import coil.util.DebugLogger
+import coil3.ImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
+import coil3.util.DebugLogger
+import okio.Path.Companion.toOkioPath
 
 /**
  * ✨ OPTIMIZED COIL CONFIGURATION FOR 2025
@@ -45,9 +46,6 @@ object ImageLoaderConfig {
     /** Disk cache size in bytes (250MB) */
     private const val DISK_CACHE_SIZE_BYTES = 250L * 1024 * 1024  // 250MB
 
-    /** Crossfade animation duration in milliseconds */
-    private const val CROSSFADE_DURATION_MS = 150
-
     // ========================================
     // 🚀 IMAGE LOADER FACTORY
     // ========================================
@@ -70,7 +68,6 @@ object ImageLoaderConfig {
             .configureDiskCache(context)
             .configureBitmapDecoder()
             .configureCachePolicies()
-            .configureCrossfade()
             .configureDebugLogging(context)
             .build()
             .also { logConfiguration() }
@@ -90,10 +87,10 @@ object ImageLoaderConfig {
         context: Context
     ): ImageLoader.Builder {
         return memoryCache {
-            MemoryCache.Builder(context)
+            MemoryCache.Builder()
                 // ✨ Use 25% of available memory for image cache
                 // This is aggressive but safe - Coil manages it well
-                .maxSizePercent(MEMORY_CACHE_PERCENT)
+                .maxSizePercent(context, MEMORY_CACHE_PERCENT)
 
                 // ✨ Use strong references for faster access
                 // Prevents GC from clearing cache too aggressively
@@ -119,7 +116,7 @@ object ImageLoaderConfig {
         return diskCache {
             DiskCache.Builder()
                 // ✨ Store in app's cache directory (cleared by system when needed)
-                .directory(context.cacheDir.resolve("image_cache"))
+                .directory(context.cacheDir.resolve("image_cache").toPath().toOkioPath())
 
                 // ✨ 250MB cache - aggressive for performance
                 // Enough for ~500-1000 deal images
@@ -144,9 +141,7 @@ object ImageLoaderConfig {
             // ✨ Enable hardware bitmaps (Android 8.0+ / API 26+)
             // Hardware bitmaps use GPU memory = 2x faster rendering
             // Since minSdk is 26, this is always enabled
-            add(
-                coil.decode.BitmapFactoryDecoder.Factory()
-            )
+            add(coil3.decode.BitmapFactoryDecoder.Factory())
             Log.d(TAG, "   ✅ Hardware bitmaps enabled (2x faster rendering)")
         }
     }
@@ -170,24 +165,6 @@ object ImageLoaderConfig {
 
             // ✨ Enable network cache (respects HTTP cache headers)
             .networkCachePolicy(CachePolicy.ENABLED)
-
-            // ✨ Respect cache headers from server
-            // If server says "cache for 1 week", we cache for 1 week
-            .respectCacheHeaders(true)
-    }
-
-    // ========================================
-    // 🎬 ANIMATION CONFIGURATION
-    // ========================================
-
-    /**
-     * Configures smooth crossfade animation when images load.
-     *
-     * 150ms is the sweet spot - fast enough to feel instant,
-     * slow enough to look smooth.
-     */
-    private fun ImageLoader.Builder.configureCrossfade(): ImageLoader.Builder {
-        return crossfade(CROSSFADE_DURATION_MS)
     }
 
     // ========================================
@@ -245,7 +222,6 @@ object ImageLoaderConfig {
         Log.d(TAG, "   📊 Memory cache: ${(MEMORY_CACHE_PERCENT * 100).toInt()}% of RAM")
         Log.d(TAG, "   💾 Disk cache: ${DISK_CACHE_SIZE_BYTES / (1024 * 1024)}MB")
         Log.d(TAG, "   🖼️ Hardware bitmaps: enabled (minSdk 26)")
-        Log.d(TAG, "   🎬 Crossfade: ${CROSSFADE_DURATION_MS}ms")
         Log.d(TAG, "   📱 Android version: ${Build.VERSION.SDK_INT}")
         Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }

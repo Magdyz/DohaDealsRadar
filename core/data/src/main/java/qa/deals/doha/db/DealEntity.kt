@@ -3,7 +3,6 @@ package qa.deals.doha.db
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import androidx.compose.runtime.Stable
 
 /**
  * ========================================
@@ -24,7 +23,6 @@ import androidx.compose.runtime.Stable
  * - status: Fast filtering by status
  * - category: Fast category filtering
  */
-@Stable
 @Entity(
     tableName = "deals",
     indices = [

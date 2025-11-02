@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12 // Adjusted img feed, title and font
-        versionName = "1.1.2"
+        versionCode = 13 // Adjusted img feed, title and font
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -105,12 +105,13 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
 
-    // Image loading
-    implementation(libs.coil.compose)
-
     // ✨ NEW: BASELINE PROFILES (Performance)
     // Enables Profile-Guided Optimization (PGO) for faster app startup
 
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
+    implementation(platform(libs.coil.bom))
+    implementation(libs.coil.android)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 }

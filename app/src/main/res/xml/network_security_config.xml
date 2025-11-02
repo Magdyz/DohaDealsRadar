@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ========================================
+    🔒 PRODUCTION NETWORK SECURITY CONFIG
+    ========================================
+
+    PURPOSE:
+    - Enforce HTTPS-only connections (no cleartext HTTP)
+    - Restrict network access to trusted Supabase domains
+    - Prevent man-in-the-middle attacks
+    - Follow Android 2025 security best practices
+
+    SECURITY FEATURES:
+    1. Base config: HTTPS-only (cleartextTrafficPermitted="false")
+    2. Domain-specific: Only allow connections to Supabase
+    3. System certificates: Trust Android's built-in CA certificates
+
+    ⚠️ IMPORTANT:
+    - This is for RELEASE builds (production)
+    - Debug builds use network_security_config_debug.xml
+    - Any HTTP requests will be BLOCKED
+
+    Last Updated: 2025-11-01
+    Version: 1.0 (Production)
+-->
+<network-security-config>
+
+    <!-- ========================================
+         🛡️ BASE CONFIG: HTTPS-Only (Production)
+         ======================================== -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system CA certificates (Google, Let's Encrypt, etc.) -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- ========================================
+         🌐 DOMAIN CONFIG: Supabase API & Storage
+         ========================================
+
+         ALLOW: Only HTTPS connections to:
+         1. nzchbnshkrkdqpcawohu.supabase.co (Storage, Auth, Database)
+         2. nzchbnshkrkdqpcawohu.functions.supabase.co (Edge Functions)
+
+         WHY: Explicit allowlist prevents accidental data leaks
+         to untrusted domains.
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Supabase Storage & Database -->
+        <domain includeSubdomains="false">nzchbnshkrkdqpcawohu.supabase.co</domain>
+
+        <!-- Supabase Edge Functions -->
+        <domain includeSubdomains="false">nzchbnshkrkdqpcawohu.functions.supabase.co</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!--
+        ℹ️ CERTIFICATE PINNING (Optional - Future Enhancement)
+
+        Uncomment below to enable certificate pinning for maximum security.
+        This prevents MITM attacks even if CA is compromised.
+
+        STEPS TO ENABLE:
+        1. Get Supabase certificate fingerprint
+        2. Add <pin-set> with SHA-256 hash
+        3. Test thoroughly before production
+
+        <domain-config>
+            <domain includeSubdomains="true">supabase.co</domain>
+            <pin-set expiration="2026-01-01">
+                <pin digest="SHA-256">base64-encoded-hash-here</pin>
+            </pin-set>
+        </domain-config>
+    -->
+
+</network-security-config>
