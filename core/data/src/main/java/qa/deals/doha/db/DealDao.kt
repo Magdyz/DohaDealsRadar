@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.Flow
  * Updated: 2025-10-23
  * - Added getDealsCount() for pagination tracking
  * - All existing functions preserved
+ *
+ * Updated: 2025-11-05 (Sprint 2)
+ * - Added Sprint 2 methods (temporarily commented out)
  */
 @Dao
 interface DealDao {
@@ -70,18 +73,46 @@ interface DealDao {
     @Query("SELECT COUNT(*) FROM deals")
     suspend fun getDealsCount(): Int
 
-    // ========================================
-    // ✅ SPRINT 1: Get count of active deals (not archived)
-    // Used for pagination tracking in main feed
-    // ========================================
     @Query("SELECT COUNT(*) FROM deals WHERE isArchived = 0")
     suspend fun getActiveDealsCount(): Int
 
-    // ========================================
-    // ✅ SPRINT 1: Get count of archived deals
-    // Used for pagination tracking in archive screen
-    // ========================================
     @Query("SELECT COUNT(*) FROM deals WHERE isArchived = 1")
     suspend fun getArchivedDealsCount(): Int
+
+    // ========================================
+    // 🚧 SPRINT 2: NEW METHODS - TEMPORARILY COMMENTED OUT
+    // ========================================
+    // These methods reference new columns that don't exist yet in the old schema.
+    // Room validates queries at compile-time, so we need to:
+    // 1. Build with these commented out
+    // 2. Run the app (migration 9→10 will create the columns)
+    // 3. Uncomment these methods
+    // 4. Rebuild successfully
+    //
+    // IMPORTANT: Column names use camelCase (Kotlin property names),
+    // not snake_case (SQL column names)
+    // ========================================
+
+
+    // Get deals submitted by a specific user
+    @Query("SELECT * FROM deals WHERE submittedByUserId = :userId AND deletedAt IS NULL ORDER BY createdAt DESC")
+    fun getDealsByUser(userId: String): Flow<List<DealEntity>>
+
+    // Get pending deals (awaiting approval)
+    @Query("SELECT * FROM deals WHERE status = 'pending' AND deletedAt IS NULL ORDER BY createdAt DESC")
+    fun getPendingDeals(): Flow<List<DealEntity>>
+
+    // Soft delete a deal (marks as deleted instead of removing from DB)
+    @Query("UPDATE deals SET deletedAt = :deletedAt, deletedBy = :deletedBy, deletionReason = :reason WHERE id = :dealId")
+    suspend fun softDeleteDeal(dealId: String, deletedAt: String, deletedBy: String?, reason: String?)
+
+    // Approve a deal and record who approved it
+    @Query("UPDATE deals SET status = 'approved', approvedBy = :approvedBy, approvedAt = :approvedAt WHERE id = :dealId")
+    suspend fun approveDeal(dealId: String, approvedBy: String?, approvedAt: String)
+
+    // Get approved, active, non-deleted deals (most restrictive filter)
+    @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY createdAt DESC")
+    fun getApprovedActiveDeals(): Flow<List<DealEntity>>
+    
 
 }

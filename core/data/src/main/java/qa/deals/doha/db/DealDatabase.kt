@@ -7,12 +7,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [DealEntity::class],
-    version = 9,  // ⚠️ CRITICAL: Incremented version to 9
+    entities = [DealEntity::class,
+        UserEntity::class
+    ],
+
+    version = 10,  // Change from 9 to 10
     exportSchema = false
 )
+
 abstract class DealDatabase : RoomDatabase() {
     abstract fun dealDao(): DealDao
+    abstract fun userDao(): UserDao  // Add this
+
 
     companion object {
         // ✅ Migration from version 3 to 4 (adds indices)
@@ -70,5 +76,72 @@ abstract class DealDatabase : RoomDatabase() {
                 Log.d("DealDatabase", "✅ Migration 8→9: Added isArchived column & index (SPRINT 1: Archive Feature)")
             }
         }
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                // Create users table
+
+                database.execSQL("""
+
+            CREATE TABLE IF NOT EXISTS users (
+
+                id TEXT PRIMARY KEY NOT NULL,
+
+                email TEXT NOT NULL,
+
+                username TEXT NOT NULL,
+
+                device_id TEXT,
+
+                email_verified INTEGER NOT NULL DEFAULT 0,
+
+                role TEXT NOT NULL DEFAULT 'user',
+
+                auto_approve INTEGER NOT NULL DEFAULT 0,
+
+                approved_deals_count INTEGER NOT NULL DEFAULT 0,
+
+                created_at TEXT,
+
+                last_login_at TEXT
+
+            )
+
+        """)
+
+
+
+                // Add new columns to deals table
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN submitted_by_user_id TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN approved_by TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN approved_at TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deleted_at TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deleted_by TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deletion_reason TEXT")
+
+
+
+                // Create indices
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_submitted_by_user_id ON deals(submitted_by_user_id)")
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_approved_by ON deals(approved_by)")
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_deleted_at ON deals(deleted_at)")
+
+            }
+
+        }
+
+
     }
 }
