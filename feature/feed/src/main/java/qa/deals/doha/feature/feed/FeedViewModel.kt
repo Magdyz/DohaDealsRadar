@@ -19,6 +19,7 @@ import qa.deals.doha.db.DealEntity
 import qa.deals.domain.DealCategory
 import qa.deals.doha.network.PaginationMeta
 import qa.deals.doha.repository.DealRepository
+import qa.deals.doha.repository.PreloadRepository
 
 /**
  * ========================================
@@ -54,7 +55,9 @@ data class FeedUiState(
 class FeedViewModel(
     private val context: Context,
     private val repo: DealRepository = DealRepository(),
-    private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context)
+    private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context),
+    // ✨ NEW: Preload repository for checking cached data from onboarding
+    private val preloadRepo: PreloadRepository = PreloadRepository.getInstance()
 ) : ViewModel() {
 
     // ✅ PRESERVED: Search Query State
@@ -141,6 +144,49 @@ class FeedViewModel(
     // ✅ UPDATED: Refresh Deals from Network (Pull-to-Refresh)
     fun refreshDeals() {
         viewModelScope.launch {
+            // ========================================
+            // ✨ NEW: CHECK PRELOAD CACHE FIRST
+            // If onboarding preloaded data, use it for instant display
+            // ========================================
+            // ⚠️ SAFE: Falls back to normal load if cache empty/expired
+            // ⚠️ NON-BREAKING: Existing load logic preserved below
+            val preloadedDeals = preloadRepo.getCachedDeals()
+            if (preloadedDeals != null && preloadedDeals.isNotEmpty()) {
+                Log.d("Feed", "⚡ Using preloaded deals (${preloadedDeals.size} deals, age: ${preloadRepo.getCacheAge()}s)")
+
+                // Insert preloaded deals into Room cache
+                // This makes them immediately available via the deals Flow
+                try {
+                    repo.insertPreloadedDeals(preloadedDeals)
+
+                    uiState = uiState.copy(
+                        loading = false,
+                        currentPage = 1,
+                        hasMorePages = true // Assume more pages available
+                    )
+
+                    Log.d("Feed", "✅ Preloaded deals inserted into cache")
+
+                    // Clear preload cache after successful use
+                    preloadRepo.clearCache()
+
+                    // Exit early - preload succeeded
+                    return@launch
+                } catch (e: Exception) {
+                    Log.e("Feed", "⚠️ Failed to insert preloaded deals, falling back to normal load", e)
+                    // Continue to normal load below
+                }
+            } else {
+                Log.d("Feed", "📡 No preload cache available, loading normally")
+            }
+
+            // ========================================
+            // ✅ PRESERVED: ORIGINAL LOAD LOGIC
+            // This runs if:
+            // - No preload cache
+            // - Preload cache expired
+            // - Preload insert failed
+            // ========================================
             uiState = uiState.copy(loading = true, error = null, currentPage = 1)
             try {
                 Log.d("Feed", "🔄 Refreshing deals (page 1)...")

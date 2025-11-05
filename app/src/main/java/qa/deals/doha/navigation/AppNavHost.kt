@@ -13,6 +13,8 @@ import qa.deals.doha.feature.feed.FeedScreen
 import qa.deals.doha.feature.post.PostScreen
 import qa.deals.doha.feature.report.ReportScreen
 import qa.deals.doha.feature.archive.ArchiveScreen  // ✅ SPRINT 6: Import ArchiveScreen
+// ✅ 1. ADD THIS IMPORT for the new screen
+import qa.deals.onboarding.OnboardingScreen
 
 /**
  * Main navigation host for the app.
@@ -23,11 +25,12 @@ import qa.deals.doha.feature.archive.ArchiveScreen  // ✅ SPRINT 6: Import Arch
  */
 @Composable
 fun AppNavHost(
-    navController: NavHostController
+    navController: NavHostController,
+    startDestination: String = Routes.FEED
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.FEED,
+        startDestination = startDestination,
         // ========================================
         // ✅ INSTANT NAVIGATION: No animation delay
         // ========================================
@@ -36,6 +39,20 @@ fun AppNavHost(
         popEnterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None }
     ) {
+        // ========================================
+        // Onboarding Screen - First-time user introduction
+        // ========================================
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(
+                onFinished = {
+                    // Navigate to feed and remove onboarding from backstack
+                    navController.navigate(Routes.FEED) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // ========================================
         // Feed Screen - Home screen showing list of deals
         // ========================================

@@ -42,7 +42,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
-    // (We’ll use DataStore later in this module)
+    // (We'll use DataStore later in this module)
     implementation(libs.datastore.preferences)
 
     implementation("androidx.room:room-runtime:2.6.1")
@@ -51,4 +51,9 @@ dependencies {
     // ✅ NEW: EXIF Interface for reading image orientation
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
+    // ✨ NEW: Coil 3.0 for image preloading (ImagePreloader utility)
+    implementation(platform(libs.coil.bom))
+    implementation(libs.coil.android)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 }

@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13 // Adjusted img feed, title and font
-        versionName = "1.1.3"
+        versionCode = 14 // New onboarding screen and background loading
+        versionName = "1.1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -94,6 +94,7 @@ dependencies {
     implementation(project(":feature:post"))
     implementation(project(":feature:details"))
     implementation(project(":feature:report"))
+    implementation(project(":feature:onboarding"))
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
@@ -114,4 +115,6 @@ dependencies {
     implementation(libs.coil.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    // This library contains HorizontalPager
+    implementation("androidx.compose.foundation:foundation:1.7.0") // Or any other recent version
 }
