@@ -99,6 +99,31 @@ class DealRepository {
         }
     }
 
+    // ========================================
+    // ✨ NEW: INSERT PRELOADED DEALS
+    // Insert deals from PreloadRepository into Room cache
+    // ========================================
+    /**
+     * Insert preloaded deals into Room cache
+     * Called by FeedViewModel when preload cache is available
+     *
+     * ⚠️ SAFE: Only inserts, doesn't replace existing data
+     * ⚠️ NON-BREAKING: If fails, normal load continues
+     *
+     * @param deals List of preloaded deal entities
+     */
+    suspend fun insertPreloadedDeals(deals: List<DealEntity>) = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "📥 Inserting ${deals.size} preloaded deals into cache...")
+            // Replace cache atomically (same as normal refresh)
+            dealDao.replaceAllDeals(deals)
+            Log.d("Repository", "✅ Preloaded deals inserted successfully")
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Failed to insert preloaded deals", e)
+            throw e // Rethrow so FeedViewModel can handle
+        }
+    }
+
     /**
      * ✅ UPDATED: Refresh deals from network and update cache
      *

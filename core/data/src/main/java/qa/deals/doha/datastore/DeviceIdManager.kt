@@ -3,9 +3,7 @@ package qa.deals.doha.datastore
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
-import android.provider.Settings
 import android.util.Log
-import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -375,6 +373,29 @@ class DeviceIdManager private constructor(context: Context) {
     fun clearUserId() {
         prefs.edit().remove("user_id").apply()
         Log.w(TAG, "🗑️ Cleared user ID")
+    }
+
+    // 📱 ONBOARDING MANAGEMENT
+    private val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
+
+    /**
+     * ✨ Checks if the user has seen the onboarding flow.
+     * This is a synchronous (fast) read from SharedPreferences,
+     * perfect for checking on app startup.
+     */
+    fun hasSeenOnboarding(): Boolean {
+        val seen = prefs.getBoolean(KEY_HAS_SEEN_ONBOARDING, false)
+        Log.d(TAG, "📱 Has seen onboarding: $seen")
+        return seen
+    }
+
+    /**
+     * ✨ Marks the onboarding flow as "seen".
+     * This is called once the user finishes the slides.
+     */
+    fun setHasSeenOnboarding() {
+        prefs.edit().putBoolean(KEY_HAS_SEEN_ONBOARDING, true).apply()
+        Log.d(TAG, "✅ Onboarding complete. Flag set to true.")
     }
     // ========================================
     // 🧪 TESTING UTILITIES

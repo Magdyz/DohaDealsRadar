@@ -11,7 +11,7 @@ object Routes {
     const val REPORT = "report/{dealId}"
 
     const val ARCHIVE = "archive"  // ✅ SPRINT 6: Archive screen route
-
+    const val ONBOARDING = "onboarding" // ✅ ADD THIS NEW ROUTE
 
     /**
      * Helper function to create details route with dealId

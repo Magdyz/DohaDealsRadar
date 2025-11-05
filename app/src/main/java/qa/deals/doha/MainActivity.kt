@@ -11,6 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import qa.deals.doha.navigation.AppNavHost
 import qa.deals.doha.design.theme.DohaDealsTheme
+// ✅ 1. ADD THIS IMPORT
+import qa.deals.doha.datastore.DeviceIdManager
+// ✅ 2. ADD THIS IMPORT
+import qa.deals.doha.navigation.Routes
 
 /**
  * Main activity - Entry point of the app.
@@ -36,6 +40,18 @@ class MainActivity : ComponentActivity() {
         // - Smooth 60fps scrolling
         // ========================================
 
+        // ✅ 3. GET THE DEVICEIDMANAGER INSTANCE
+        val deviceIdManager = DeviceIdManager.getInstance(this.applicationContext)
+
+        // ✅ 4. CHECK THE FLAG (IT'S SYNCHRONOUS AND FAST)
+        val hasSeenOnboarding = deviceIdManager.hasSeenOnboarding()
+
+        // ✅ 5. DETERMINE THE STARTING SCREEN
+        val startDestination = if (hasSeenOnboarding) {
+            Routes.FEED // Start on the main feed if onboarding is done
+        } else {
+            Routes.ONBOARDING // Start on the onboarding screen
+        }
         setContent {
             DohaDealsTheme {
                 Surface(
@@ -43,7 +59,11 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    AppNavHost(navController = navController)
+                    // ✅ 6. PASS THE START DESTINATION TO THE NAVHOST
+                    AppNavHost(
+                        navController = navController,
+                        startDestination = startDestination // Pass the variable here
+                    )
                 }
             }
         }

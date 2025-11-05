@@ -36,9 +36,6 @@ import qa.deals.doha.feature.feed.components.DealCard
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.rememberCoroutineScope // ✅ NEW: Import
 import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by GlobalScope)
 // ========================================
