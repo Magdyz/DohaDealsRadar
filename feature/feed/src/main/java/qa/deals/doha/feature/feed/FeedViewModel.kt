@@ -122,17 +122,88 @@ class FeedViewModel(
 
     // ✅ PRESERVED + UPDATED: Initialization
     init {
-        Log.d("FeedViewModel", "🚀 Initializing with pagination and moderator support")
-        refreshDeals()
-        loadVoteStatus()
+        Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d("FeedViewModel", "🚀 Initializing FeedViewModel - SPRINT 5")
+        Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        try {
+            refreshDeals()
+            Log.d("FeedViewModel", "✅ refreshDeals() completed")
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "💥 refreshDeals() failed", e)
+        }
+
+        try {
+            loadVoteStatus()
+            Log.d("FeedViewModel", "✅ loadVoteStatus() completed")
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "💥 loadVoteStatus() failed", e)
+        }
 
         // ✅ SPRINT 5: Monitor moderator status and update UI
         viewModelScope.launch {
-            isModerator.collect { isMod ->
-                uiState = uiState.copy(showModeratorButton = isMod)
-                Log.d("FeedViewModel", "🛡️ Moderator status: $isMod")
+            try {
+                Log.d("FeedViewModel", "🔄 Starting isModerator collection...")
+                isModerator.collect { isMod ->
+                    Log.d("FeedViewModel", "🛡️ Moderator status changed: $isMod")
+                    uiState = uiState.copy(showModeratorButton = isMod)
+                    Log.d("FeedViewModel", "   Updated UI state: showModeratorButton=$isMod")
+                }
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "💥 isModerator collection failed", e)
             }
         }
+
+        // ✅ SPRINT 5: Fetch user profile if logged in but not cached
+        viewModelScope.launch {
+            try {
+                val userId = deviceIdManager.getUserId()
+                Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("FeedViewModel", "🔍 CHECKING USER PROFILE CACHE")
+                Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("FeedViewModel", "👤 UserId from DeviceIdManager: ${userId?.take(8) ?: "NULL"}")
+
+                if (userId != null) {
+                    Log.d("FeedViewModel", "✅ User is logged in, checking cache...")
+
+                    // Check if user is cached locally
+                    val cachedUser = userRepo.getCachedUser(userId)
+                    if (cachedUser == null) {
+                        Log.d("FeedViewModel", "📥 User NOT cached in Room, fetching from backend...")
+                        try {
+                            val result = userRepo.fetchUserProfile(userId)
+                            if (result.isSuccess) {
+                                val user = result.getOrNull()
+                                Log.d("FeedViewModel", "✅ User profile fetched and cached")
+                                Log.d("FeedViewModel", "   Username: ${user?.username}")
+                                Log.d("FeedViewModel", "   Role: ${user?.role}")
+                                Log.d("FeedViewModel", "   AutoApprove: ${user?.autoApprove}")
+                            } else {
+                                Log.e("FeedViewModel", "❌ Failed to fetch user profile: ${result.exceptionOrNull()?.message}")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("FeedViewModel", "💥 Error fetching user profile", e)
+                        }
+                    } else {
+                        Log.d("FeedViewModel", "✅ User already cached in Room")
+                        Log.d("FeedViewModel", "   Username: ${cachedUser.username}")
+                        Log.d("FeedViewModel", "   Role: ${cachedUser.role}")
+                        Log.d("FeedViewModel", "   AutoApprove: ${cachedUser.autoApprove}")
+
+                        // ✅ CRITICAL: Manually check if user is moderator
+                        val isMod = cachedUser.role == "moderator" || cachedUser.role == "admin"
+                        Log.d("FeedViewModel", "🛡️ Is Moderator/Admin: $isMod")
+                    }
+                } else {
+                    Log.d("FeedViewModel", "❌ No userId - User not logged in")
+                }
+                Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "💥 User profile check crashed", e)
+            }
+        }
+
+        Log.d("FeedViewModel", "✅ FeedViewModel init complete")
     }
 
     // ✅ PRESERVED: Load Vote Status

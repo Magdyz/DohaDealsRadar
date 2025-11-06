@@ -44,11 +44,20 @@ fun PendingDealsScreen(
     val pendingDeals by viewModel.pendingDeals.collectAsState()
     val listState = rememberLazyListState()
 
-    // Set current user (TODO: Get from auth manager)
-    LaunchedEffect(Unit) {
-        // Replace with actual user ID from authentication
-        viewModel.setCurrentUser("YOUR_USER_ID_HERE")
+    // Get DeviceIdManager and set current user
+    val deviceIdManager = remember {
+        qa.deals.doha.datastore.DeviceIdManager.getInstance(context)
     }
+
+    LaunchedEffect(Unit) {
+        val userId = deviceIdManager.getUserId()
+        if (userId != null) {
+            viewModel.setCurrentUser(userId)
+        } else {
+            android.util.Log.w("PendingDeals", "⚠️ No userId found in DeviceIdManager")
+        }
+    }
+
 
     Scaffold(
         topBar = {
