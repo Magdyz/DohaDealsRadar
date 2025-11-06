@@ -65,7 +65,6 @@ class ModeratorViewModel(
     fun setCurrentUser(userId: String) {
         _currentUserId.value = userId
         loadUserRole(userId)
-        refreshPendingDeals()
     }
 
     /**
@@ -105,12 +104,21 @@ class ModeratorViewModel(
      * Update role state
      */
     private fun updateRole(role: String) {
+        val wasModerator = _uiState.value.isModerator
+        val isModerator = role == "moderator" || role == "admin"
+
         _uiState.update { it.copy(
             currentUserRole = role,
-            isModerator = role == "moderator" || role == "admin",
+            isModerator = isModerator,
             isAdmin = role == "admin"
         )}
-        Log.d("ModeratorVM", "User role updated: $role (isModerator=${_uiState.value.isModerator})")
+        Log.d("ModeratorVM", "User role updated: $role (isModerator=$isModerator)")
+
+        // ✅ FIX: Automatically fetch pending deals when role loads and user is moderator
+        if (!wasModerator && isModerator && _currentUserId.value != null) {
+            Log.d("ModeratorVM", "Role loaded as moderator, fetching pending deals")
+            refreshPendingDeals()
+        }
     }
 
     /**
