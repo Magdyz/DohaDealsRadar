@@ -278,6 +278,9 @@ fun FeedScreen(
     // ✅ PRESERVED: Collect state from ViewModel
     val deals by viewModel.deals.collectAsState()
     val state = viewModel.uiState
+    // SPRINT 4: Collect moderator state
+    val isModerator by viewModel.isModerator.collectAsState()
+    val showModeratorButton = state.showModeratorButton
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()  // ✨ NEW: Category state
 
@@ -322,63 +325,71 @@ fun FeedScreen(
             )
         },
         floatingActionButton = {
-            // ✅ PRESERVED: Gradient FAB with press animation
-            var isPressed by remember { mutableStateOf(false) }
-
-            FloatingActionButton(
-                onClick = {
-                    isPressed = true
-                    onPostClick()
-                    // ========================================
-                    // ✅ FIX (1.3): Use 'scope.launch' instead of 'GlobalScope.launch'
-                    // This ensures the animation coroutine is cancelled if the
-                    // user navigates away from the FeedScreen, preventing leaks.
-                    // ========================================
-                    scope.launch {
-                        delay(150) // 'delay' is now called from a CoroutineScope
-                        isPressed = false
-                    }
-                },
-                containerColor = Color.Transparent,
-                contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 10.dp,
-                    hoveredElevation = 8.dp
-                ),
-                shape = CircleShape,
-                modifier = Modifier
-                    .size(64.dp)
-                    .then(
-                        if (isPressed) {
-                            Modifier.size(60.dp)
-                        } else {
-                            Modifier.size(64.dp)
-                        }
-                    )
+            // SPRINT 4: Show both Post FAB and Moderator FAB
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Box(
+                // Moderator FAB (only show if user is moderator/admin)
+                if (showModeratorButton) {
+                    SmallFloatingActionButton(
+                        onClick = onModeratorClick,
+                        containerColor = Color(0xFF2563EB), // Blue
+                        contentColor = Color.White,
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "Moderator Dashboard",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                // Post FAB (main action button)
+                var isPressed by remember { mutableStateOf(false) }
+
+                FloatingActionButton(
+                    onClick = {
+                        isPressed = true
+                        onPostClick()
+                        scope.launch {
+                            delay(150)
+                            isPressed = false
+                        }
+                    },
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 10.dp,
+                        hoveredElevation = 8.dp
+                    ),
+                    shape = CircleShape,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF9C27B0),
-                                    Color(0xFFE91E63)
-                                ),
-                                start = Offset(0f, Float.POSITIVE_INFINITY),
-                                end = Offset(Float.POSITIVE_INFINITY, 0f)
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .size(if (isPressed) 60.dp else 64.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Post a deal",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF9C27B0),
+                                        Color(0xFFE91E63)
+                                    ),
+                                    start = Offset.Zero,
+                                    end = Offset.Infinite
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Post Deal",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
         },

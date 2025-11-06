@@ -15,6 +15,11 @@ import qa.deals.doha.feature.report.ReportScreen
 import qa.deals.doha.feature.archive.ArchiveScreen  // ✅ SPRINT 6: Import ArchiveScreen
 // ✅ 1. ADD THIS IMPORT for the new screen
 import qa.deals.onboarding.OnboardingScreen
+// SPRINT 4: Import moderator screens
+import qa.deals.doha.feature.feed.moderator.ModeratorDashboardScreen
+import qa.deals.doha.feature.feed.moderator.PendingDealsScreen
+import qa.deals.doha.feature.feed.profile.UserProfileScreen
+
 
 /**
  * Main navigation host for the app.
@@ -125,6 +130,52 @@ fun AppNavHost(
             ReportScreen(
                 dealId = dealId,
                 onClose = { navController.popBackStack() }
+            )
+        }
+        // ========================================
+        // SPRINT 4: MODERATOR SCREENS
+        // ========================================
+
+        // Moderator Dashboard
+        composable(Routes.MODERATOR_DASHBOARD) {
+            ModeratorDashboardScreen(
+                onBackClick = { navController.popBackStack() },
+                onPendingDealsClick = {
+                    navController.navigate(Routes.PENDING_DEALS)
+                },
+                onUserManagementClick = {
+                    // TODO: Sprint 6 - User management screen
+                },
+                onAuditLogClick = {
+                    // TODO: Sprint 9 - Audit log screen
+                }
+            )
+        }
+
+        // Pending Deals Screen
+        composable(Routes.PENDING_DEALS) {
+            PendingDealsScreen(
+                onBackClick = { navController.popBackStack() },
+                onDealClick = { deal ->
+                    navController.navigate(Routes.details(deal.id))
+                }
+            )
+        }
+
+        // User Profile Screen
+        composable(
+            route = Routes.USER_PROFILE,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            UserProfileScreen(
+                userId = userId,
+                onBackClick = { navController.popBackStack() },
+                onDealClick = { dealId ->
+                    navController.navigate(Routes.details(dealId))
+                }
             )
         }
     }

@@ -113,6 +113,6 @@ interface DealDao {
     // Get approved, active, non-deleted deals (most restrictive filter)
     @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun getApprovedActiveDeals(): Flow<List<DealEntity>>
-    
+
 
 }

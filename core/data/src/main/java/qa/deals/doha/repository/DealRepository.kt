@@ -383,4 +383,240 @@ class DealRepository {
             )
         }
     }
+    // ========================================
+    // ✅ SPRINT 3: USER ROLES & MODERATION METHODS
+    // ========================================
+
+    /**
+     * Get pending deals from API (moderator/admin only)
+     * @param userId User ID (must be moderator or admin)
+     * @param page Page number
+     * @param append If true, appends to cache. If false, replaces cache.
+     * @return Result with PaginationMeta or error
+     */
+    suspend fun getPendingDeals(
+        userId: String,
+        page: Int = 1,
+        append: Boolean = false
+    ): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "📋 Fetching pending deals (page: $page, user: $userId)...")
+
+            val response = api.getPendingDeals(
+                GetPendingDealsRequest(
+                    userId = userId,
+                    page = page,
+                    limit = 20
+                )
+            )
+
+            if (response.success == true && response.data != null) {
+                val entities = response.data.map { it.toEntity() }
+
+                if (append) {
+                    // Append to existing cache
+                    dealDao.insertAll(entities)
+                    Log.d("Repository", "➕ Appended ${entities.size} pending deals")
+                } else {
+                    // Insert pending deals into cache (don't replace all deals)
+                    dealDao.insertAll(entities)
+                    Log.d("Repository", "💾 Cached ${entities.size} pending deals")
+                }
+
+                Result.success(response.pagination)
+            } else {
+                Log.e("Repository", "❌ Failed to fetch pending deals: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to fetch pending deals"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error fetching pending deals", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get cached pending deals from local database (uses Flow for reactive updates)
+     * @return Flow of pending deals
+     */
+    fun getCachedPendingDeals(): Flow<List<DealEntity>> {
+        return dealDao.getPendingDeals()
+    }
+
+    /**
+     * Get deals by a specific user from API
+     * @param requestingUserId User ID making the request
+     * @param targetUserId User ID whose deals to fetch (null = requesting user's own deals)
+     * @param page Page number
+     * @return Result with PaginationMeta or error
+     */
+    suspend fun getDealsByUser(
+        requestingUserId: String,
+        targetUserId: String? = null,
+        page: Int = 1
+    ): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
+        try {
+            val userToFetch = targetUserId ?: requestingUserId
+            Log.d("Repository", "👤 Fetching deals by user: $userToFetch (page: $page)...")
+
+            val response = api.getUserDeals(
+                GetUserDealsRequest(
+                    userId = requestingUserId,
+                    targetUserId = targetUserId,
+                    page = page,
+                    limit = 20
+                )
+            )
+
+            if (response.success == true && response.data != null) {
+                val entities = response.data.map { it.toEntity() }
+
+                // Cache the deals
+                dealDao.insertAll(entities)
+                Log.d("Repository", "💾 Cached ${entities.size} deals for user: $userToFetch")
+
+                Result.success(response.pagination)
+            } else {
+                Log.e("Repository", "❌ Failed to fetch user deals: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to fetch user deals"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error fetching user deals", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get cached deals by user from local database (uses Flow for reactive updates)
+     * @param userId User ID whose deals to get
+     * @return Flow of deals by the user
+     */
+    fun getCachedDealsByUser(userId: String): Flow<List<DealEntity>> {
+        return dealDao.getDealsByUser(userId)
+    }
+
+    /**
+     * Approve a pending deal (moderator/admin only)
+     * @param dealId Deal ID to approve
+     * @param userId User ID (must be moderator or admin)
+     * @return Result with success/error
+     */
+    suspend fun approveDeal(
+        dealId: String,
+        userId: String
+    ): Result<DealDto> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "✅ Approving deal: $dealId by user: $userId")
+
+            val response = api.approveDeal(
+                ApproveDealRequest(
+                    userId = userId,
+                    dealId = dealId
+                )
+            )
+
+            if (response.success && response.data != null) {
+                // Update local cache with approved deal
+                val entity = response.data.toEntity()
+                dealDao.insertDeal(entity)
+
+                Log.d("Repository", "✅ Deal approved and cache updated: $dealId")
+                Result.success(response.data)
+            } else {
+                Log.e("Repository", "❌ Failed to approve deal: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to approve deal"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error approving deal", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Soft delete a deal (moderator/admin can delete any, users can delete own)
+     * @param dealId Deal ID to delete
+     * @param userId User ID
+     * @param reason Deletion reason
+     * @return Result with success/error
+     */
+    suspend fun deleteDeal(
+        dealId: String,
+        userId: String,
+        reason: String? = null
+    ): Result<DealDto> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "🗑️ Deleting deal: $dealId by user: $userId")
+
+            val response = api.deleteDeal(
+                DeleteDealRequest(
+                    userId = userId,
+                    dealId = dealId,
+                    reason = reason
+                )
+            )
+
+            if (response.success && response.data != null) {
+                // Update local cache with deleted deal (has deleted_at timestamp)
+                val entity = response.data.toEntity()
+                dealDao.insertDeal(entity)
+
+                Log.d("Repository", "🗑️ Deal deleted and cache updated: $dealId")
+                Result.success(response.data)
+            } else {
+                Log.e("Repository", "❌ Failed to delete deal: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to delete deal"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error deleting deal", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Reject a pending deal (moderator/admin only)
+     * @param dealId Deal ID to reject
+     * @param userId User ID (must be moderator or admin)
+     * @param reason Rejection reason
+     * @return Result with success/error
+     */
+    suspend fun rejectDeal(
+        dealId: String,
+        userId: String,
+        reason: String? = null
+    ): Result<DealDto> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "❌ Rejecting deal: $dealId by user: $userId")
+
+            val response = api.rejectDeal(
+                RejectDealRequest(
+                    userId = userId,
+                    dealId = dealId,
+                    reason = reason
+                )
+            )
+
+            if (response.success && response.data != null) {
+                // Update local cache with rejected deal
+                val entity = response.data.toEntity()
+                dealDao.insertDeal(entity)
+
+                Log.d("Repository", "❌ Deal rejected and cache updated: $dealId")
+                Result.success(response.data)
+            } else {
+                Log.e("Repository", "❌ Failed to reject deal: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to reject deal"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error rejecting deal", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get approved active deals (non-deleted) from local cache
+     * This is a more restrictive filter than getActiveDeals()
+     * @return Flow of approved, active, non-deleted deals
+     */
+    fun getCachedApprovedActiveDeals(): Flow<List<DealEntity>> {
+        return dealDao.getApprovedActiveDeals()
+    }
 }
