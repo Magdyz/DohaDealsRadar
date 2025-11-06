@@ -12,10 +12,10 @@ data class UserDto(
     val id: String,
 
     @SerializedName("email")
-    val email: String,
+    val email: String? = null,
 
     @SerializedName("username")
-    val username: String,
+    val username: String? = null,
 
     @SerializedName("device_id")
     val deviceId: String? = null,
