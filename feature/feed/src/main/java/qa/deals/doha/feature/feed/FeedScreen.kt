@@ -264,6 +264,7 @@ fun FeedScreen(
     onDealClick: (String) -> Unit = {},
     onPostClick: () -> Unit = {},
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
+    onModeratorClick: () -> Unit = {},  // ✅ SPRINT 4: Navigate to moderator dashboard
 ) {
     val context = LocalContext.current
 
