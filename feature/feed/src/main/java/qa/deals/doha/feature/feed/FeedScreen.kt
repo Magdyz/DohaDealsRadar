@@ -328,75 +328,77 @@ fun FeedScreen(
             )
         },
         floatingActionButton = {
-            // SPRINT 4: Show both Post FAB and Moderator FAB
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Moderator FAB (only show if user is moderator/admin)
-                if (showModeratorButton) {
-                    SmallFloatingActionButton(
-                        onClick = onModeratorClick,
-                        containerColor = Color(0xFF2563EB), // Blue
-                        contentColor = Color.White,
-                        shape = CircleShape
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = "Moderator Dashboard",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                // Post FAB (main action button)
-                var isPressed by remember { mutableStateOf(false) }
-
-                FloatingActionButton(
-                    onClick = {
-                        isPressed = true
-                        onPostClick()
-                        scope.launch {
-                            delay(150)
-                            isPressed = false
-                        }
-                    },
-                    containerColor = Color.Transparent,
+        // ✅ SPRINT 5: Show both Post FAB and Moderator FAB
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // ✅ SPRINT 5: Moderator FAB (only show if user is moderator/admin)
+            if (showModeratorButton) {
+                SmallFloatingActionButton(
+                    onClick = onModeratorClick,
+                    containerColor = Color(0xFF2563EB), // Blue
                     contentColor = Color.White,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 10.dp,
-                        hoveredElevation = 8.dp
-                    ),
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .size(if (isPressed) 60.dp else 64.dp)
+                    shape = CircleShape
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF9C27B0),
-                                        Color(0xFFE91E63)
-                                    ),
-                                    start = Offset.Zero,
-                                    end = Offset.Infinite
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Post Deal",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Moderator Dashboard",
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
+
+            // ✅ PRESERVED: Post FAB (main action button)
+            var isPressed by remember { mutableStateOf(false) }
+
+            FloatingActionButton(
+                onClick = {
+                    isPressed = true
+                    onPostClick()
+                    scope.launch {
+                        delay(150)
+                        isPressed = false
+                    }
+                },
+                containerColor = Color.Transparent,
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 10.dp,
+                    hoveredElevation = 8.dp
+                ),
+                shape = CircleShape,
+                modifier = Modifier
+                    .size(if (isPressed) 60.dp else 64.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF9C27B0),
+                                    Color(0xFFE91E63)
+                                ),
+                                start = Offset(0f, Float.POSITIVE_INFINITY),
+                                end = Offset(Float.POSITIVE_INFINITY, 0f)
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Post a deal",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+        }
+    },
+    containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         Column(

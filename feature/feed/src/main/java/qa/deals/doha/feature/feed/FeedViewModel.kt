@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import qa.deals.doha.datastore.DeviceIdManager
@@ -20,17 +21,15 @@ import qa.deals.domain.DealCategory
 import qa.deals.doha.network.PaginationMeta
 import qa.deals.doha.repository.DealRepository
 import qa.deals.doha.repository.PreloadRepository
-import qa.deals.doha.repository.UserRepository
-import kotlinx.coroutines.flow.map
+import qa.deals.doha.repository.UserRepository  // ✅ SPRINT 5: NEW IMPORT
 
 /**
  * ========================================
- * ✅ UPDATED: UI STATE WITH PAGINATION
+ * ✅ UPDATED: UI STATE WITH PAGINATION + MODERATOR
  * ========================================
  *
- * Updated: 2025-10-23
- * - Added pagination support
- * - All existing state preserved
+ * Updated: Sprint 5
+ * - Added moderator button visibility
  */
 data class FeedUiState(
     val loading: Boolean = false,
@@ -38,32 +37,28 @@ data class FeedUiState(
     val searchQuery: String = "",
     val votedDeals: Map<String, String> = emptyMap(),
     val optimisticCounts: Map<String, Pair<Int, Int>> = emptyMap(),
-    // ✅ NEW: Pagination state
+    // ✅ PRESERVED: Pagination state
     val currentPage: Int = 1,
     val hasMorePages: Boolean = true,
     val isLoadingMore: Boolean = false,
+    // ✅ SPRINT 5: Moderator UI state
     val showModeratorButton: Boolean = false
-
 )
 
 /**
  * ========================================
- * ✅ UPDATED: FEED VIEW MODEL WITH PAGINATION
+ * ✅ UPDATED: FEED VIEW MODEL WITH MODERATOR SUPPORT
  * ========================================
  *
- * Updated: 2025-10-23
- * - Lazy loading support
- * - Modern 2025 pagination pattern
- * - All existing features preserved
+ * Updated: Sprint 5
+ * - Moderator detection and UI control
  */
 class FeedViewModel(
     private val context: Context,
     private val repo: DealRepository = DealRepository(),
     private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context),
-    // ✨ NEW: Preload repository for checking cached data from onboarding
     private val preloadRepo: PreloadRepository = PreloadRepository.getInstance(),
-    private val userRepo: UserRepository = UserRepository()
-
+    private val userRepo: UserRepository = UserRepository()  // ✅ SPRINT 5: NEW DEPENDENCY
 ) : ViewModel() {
 
     // ✅ PRESERVED: Search Query State
@@ -74,7 +69,7 @@ class FeedViewModel(
     private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
     val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
 
-    // SPRINT 5: Expose moderator status
+    // ✅ SPRINT 5: Moderator status detection
     val isModerator: StateFlow<Boolean> = deviceIdManager.userIdFlow
         .map { userId ->
             if (userId != null) {
@@ -125,18 +120,19 @@ class FeedViewModel(
     var uiState by mutableStateOf(FeedUiState())
         private set
 
-    // ✅ PRESERVED: Initialization
+    // ✅ PRESERVED + UPDATED: Initialization
     init {
-        Log.d("FeedViewModel", "🚀 Initializing with pagination support")
+        Log.d("FeedViewModel", "🚀 Initializing with pagination and moderator support")
         refreshDeals()
         loadVoteStatus()
-        // SPRINT 5: Monitor moderator status
+
+        // ✅ SPRINT 5: Monitor moderator status and update UI
         viewModelScope.launch {
             isModerator.collect { isMod ->
                 uiState = uiState.copy(showModeratorButton = isMod)
+                Log.d("FeedViewModel", "🛡️ Moderator status: $isMod")
             }
         }
-
     }
 
     // ✅ PRESERVED: Load Vote Status
@@ -165,56 +161,30 @@ class FeedViewModel(
     fun filterByCategory(category: DealCategory?) {
         Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
         _selectedCategory.value = category
-        // Reset pagination when filter changes
-        // uiState = uiState.copy(currentPage = 1, hasMorePages = true)
     }
 
     // ✅ UPDATED: Refresh Deals from Network (Pull-to-Refresh)
     fun refreshDeals() {
         viewModelScope.launch {
-            // ========================================
-            // ✨ NEW: CHECK PRELOAD CACHE FIRST
-            // If onboarding preloaded data, use it for instant display
-            // ========================================
-            // ⚠️ SAFE: Falls back to normal load if cache empty/expired
-            // ⚠️ NON-BREAKING: Existing load logic preserved below
+            // Check preload cache first
             val preloadedDeals = preloadRepo.getCachedDeals()
             if (preloadedDeals != null && preloadedDeals.isNotEmpty()) {
-                Log.d("Feed", "⚡ Using preloaded deals (${preloadedDeals.size} deals, age: ${preloadRepo.getCacheAge()}s)")
-
-                // Insert preloaded deals into Room cache
-                // This makes them immediately available via the deals Flow
+                Log.d("Feed", "⚡ Using preloaded deals (${preloadedDeals.size} deals)")
                 try {
                     repo.insertPreloadedDeals(preloadedDeals)
-
                     uiState = uiState.copy(
                         loading = false,
                         currentPage = 1,
-                        hasMorePages = true // Assume more pages available
+                        hasMorePages = true
                     )
-
-                    Log.d("Feed", "✅ Preloaded deals inserted into cache")
-
-                    // Clear preload cache after successful use
                     preloadRepo.clearCache()
-
-                    // Exit early - preload succeeded
                     return@launch
                 } catch (e: Exception) {
-                    Log.e("Feed", "⚠️ Failed to insert preloaded deals, falling back to normal load", e)
-                    // Continue to normal load below
+                    Log.e("Feed", "⚠️ Failed to insert preloaded deals", e)
                 }
-            } else {
-                Log.d("Feed", "📡 No preload cache available, loading normally")
             }
 
-            // ========================================
-            // ✅ PRESERVED: ORIGINAL LOAD LOGIC
-            // This runs if:
-            // - No preload cache
-            // - Preload cache expired
-            // - Preload insert failed
-            // ========================================
+            // Normal load from network
             uiState = uiState.copy(loading = true, error = null, currentPage = 1)
             try {
                 Log.d("Feed", "🔄 Refreshing deals (page 1)...")
@@ -226,7 +196,7 @@ class FeedViewModel(
                         currentPage = 1,
                         hasMorePages = pagination?.hasMore ?: false
                     )
-                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals (hasMore: ${pagination?.hasMore})")
+                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals")
                 }.onFailure { error ->
                     Log.e("Feed", "💥 Failed to refresh deals", error)
                     uiState = uiState.copy(loading = false, error = error.message)
@@ -238,14 +208,9 @@ class FeedViewModel(
         }
     }
 
-    // ========================================
-    // ✅ NEW: Load More Deals (Lazy Loading)
-    // Called when user scrolls near bottom
-    // ========================================
+    // ✅ PRESERVED: Load More Deals (Lazy Loading)
     fun loadMoreDeals() {
-        // Don't load if already loading, no more pages, or initial load in progress
         if (uiState.isLoadingMore || !uiState.hasMorePages || uiState.loading) {
-            Log.d("Feed", "⏸️ Skipping loadMore (loading: ${uiState.isLoadingMore}, hasMore: ${uiState.hasMorePages})")
             return
         }
 
@@ -263,7 +228,7 @@ class FeedViewModel(
                         currentPage = nextPage,
                         hasMorePages = pagination?.hasMore ?: false
                     )
-                    Log.d("Feed", "✅ Loaded page $nextPage (hasMore: ${pagination?.hasMore})")
+                    Log.d("Feed", "✅ Loaded page $nextPage")
                 }.onFailure { error ->
                     Log.e("Feed", "💥 Failed to load more deals", error)
                     uiState = uiState.copy(isLoadingMore = false)
@@ -275,31 +240,15 @@ class FeedViewModel(
         }
     }
 
-    // ✅ PRESERVED: Vote Status Check
-    fun hasVoted(dealId: String): Boolean {
-        return uiState.votedDeals.containsKey(dealId)
-    }
-
-    // ✅ PRESERVED: Get Vote Type
-    fun getVoteType(dealId: String): String? {
-        return uiState.votedDeals[dealId]
-    }
-
-    // ✅ PRESERVED: Get Optimistic Hot Count
-    fun getOptimisticHotCount(dealId: String): Int? {
-        return uiState.optimisticCounts[dealId]?.first
-    }
-
-    // ✅ PRESERVED: Get Optimistic Cold Count
-    fun getOptimisticColdCount(dealId: String): Int? {
-        return uiState.optimisticCounts[dealId]?.second
-    }
+    // ✅ PRESERVED: Vote Status Checks
+    fun hasVoted(dealId: String): Boolean = uiState.votedDeals.containsKey(dealId)
+    fun getVoteType(dealId: String): String? = uiState.votedDeals[dealId]
+    fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
+    fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
     // ✅ PRESERVED: Vote HOT with Optimistic Update
     fun voteHot(dealId: String) {
-        if (hasVoted(dealId)) {
-            return
-        }
+        if (hasVoted(dealId)) return
 
         viewModelScope.launch {
             try {
@@ -310,7 +259,6 @@ class FeedViewModel(
 
                     val updatedCounts = uiState.optimisticCounts.toMutableMap()
                     updatedCounts[dealId] = Pair(newHotCount, currentColdCount)
-
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
@@ -329,20 +277,16 @@ class FeedViewModel(
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
-                } else {
-                    Log.e("FeedVote", "❌ Vote failed: ${result.error}")
                 }
             } catch (t: Throwable) {
-                Log.e("FeedVote", "💥 Failed to vote hot on deal: $dealId", t)
+                Log.e("FeedVote", "💥 Failed to vote hot", t)
             }
         }
     }
 
     // ✅ PRESERVED: Vote COLD with Optimistic Update
     fun voteCold(dealId: String) {
-        if (hasVoted(dealId)) {
-            return
-        }
+        if (hasVoted(dealId)) return
 
         viewModelScope.launch {
             try {
@@ -353,7 +297,6 @@ class FeedViewModel(
 
                     val updatedCounts = uiState.optimisticCounts.toMutableMap()
                     updatedCounts[dealId] = Pair(currentHotCount, newColdCount)
-
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
@@ -372,11 +315,9 @@ class FeedViewModel(
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
-                } else {
-                    Log.e("FeedVote", "❌ Vote failed: ${result.error}")
                 }
             } catch (t: Throwable) {
-                Log.e("FeedVote", "💥 Failed to vote cold on deal: $dealId", t)
+                Log.e("FeedVote", "💥 Failed to vote cold", t)
             }
         }
     }
