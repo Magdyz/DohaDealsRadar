@@ -129,7 +129,7 @@ fun UserProfileScreen(
 
                             // Username
                             Text(
-                                text = uiState.user!!.username,
+                                text = uiState.user!!.username ?: "Anonymous",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1F2937)
@@ -157,7 +157,7 @@ fun UserProfileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = uiState.user!!.email,
+                                    text = uiState.user!!.email ?: "No email",
                                     fontSize = 14.sp,
                                     color = Color(0xFF6B7280)
                                 )
