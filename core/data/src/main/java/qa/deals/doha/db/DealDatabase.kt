@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserEntity::class
     ],
 
-    version = 10,  // Change from 9 to 10
+    version = 11,  // Change from 10 to 11
     exportSchema = false
 )
 
@@ -137,6 +137,47 @@ abstract class DealDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_approved_by ON deals(approved_by)")
 
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_deleted_at ON deals(deleted_at)")
+
+            }
+
+        }
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                // SQLite doesn't support modifying column constraints directly
+                // We need to recreate the table with nullable email/username
+                // 1. Create new table with nullable email and username
+                database.execSQL("""
+
+                    CREATE TABLE IF NOT EXISTS users_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        email TEXT,
+                        username TEXT,
+                        device_id TEXT,
+                        email_verified INTEGER NOT NULL DEFAULT 0,
+                        role TEXT NOT NULL DEFAULT 'user',
+                        auto_approve INTEGER NOT NULL DEFAULT 0,
+                        approved_deals_count INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT,
+                        last_login_at TEXT
+                    )
+                """)
+                // 2. Copy data from old table to new table
+
+                database.execSQL("""
+                    INSERT INTO users_new (id, email, username, device_id, email_verified,
+                                          role, auto_approve, approved_deals_count,
+                                          created_at, last_login_at)
+                    SELECT id, email, username, device_id, email_verified,
+                           role, auto_approve, approved_deals_count,
+                           created_at, last_login_at
+                    FROM users
+                """)
+                // 3. Drop old table
+                database.execSQL("DROP TABLE users")
+                // 4. Rename new table to original name
+                database.execSQL("ALTER TABLE users_new RENAME TO users")
+                Log.d("DealDatabase", "✅ Migration 10→11: Made email and username nullable in users table")
 
             }
 

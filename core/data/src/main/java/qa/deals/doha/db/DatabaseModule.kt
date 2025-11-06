@@ -26,7 +26,8 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_6_7,
                     DealDatabase.MIGRATION_7_8,
                     DealDatabase.MIGRATION_8_9,
-                    DealDatabase.MIGRATION_9_10
+                    DealDatabase.MIGRATION_9_10,
+                    DealDatabase.MIGRATION_10_11
                 )
                 // ========================================
                 // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
