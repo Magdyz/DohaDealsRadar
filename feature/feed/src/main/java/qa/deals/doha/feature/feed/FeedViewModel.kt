@@ -20,6 +20,8 @@ import qa.deals.domain.DealCategory
 import qa.deals.doha.network.PaginationMeta
 import qa.deals.doha.repository.DealRepository
 import qa.deals.doha.repository.PreloadRepository
+import qa.deals.doha.repository.UserRepository
+import kotlinx.coroutines.flow.map
 
 /**
  * ========================================
@@ -39,7 +41,9 @@ data class FeedUiState(
     // ✅ NEW: Pagination state
     val currentPage: Int = 1,
     val hasMorePages: Boolean = true,
-    val isLoadingMore: Boolean = false
+    val isLoadingMore: Boolean = false,
+    val showModeratorButton: Boolean = false
+
 )
 
 /**
@@ -57,7 +61,9 @@ class FeedViewModel(
     private val repo: DealRepository = DealRepository(),
     private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context),
     // ✨ NEW: Preload repository for checking cached data from onboarding
-    private val preloadRepo: PreloadRepository = PreloadRepository.getInstance()
+    private val preloadRepo: PreloadRepository = PreloadRepository.getInstance(),
+    private val userRepo: UserRepository = UserRepository()
+
 ) : ViewModel() {
 
     // ✅ PRESERVED: Search Query State
@@ -67,6 +73,21 @@ class FeedViewModel(
     // ✅ PRESERVED: Category Filter State
     private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
     val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
+
+    // SPRINT 5: Expose moderator status
+    val isModerator: StateFlow<Boolean> = deviceIdManager.userIdFlow
+        .map { userId ->
+            if (userId != null) {
+                userRepo.isModerator(userId)
+            } else {
+                false
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering
     val deals: StateFlow<List<DealEntity>> = combine(
@@ -109,6 +130,13 @@ class FeedViewModel(
         Log.d("FeedViewModel", "🚀 Initializing with pagination support")
         refreshDeals()
         loadVoteStatus()
+        // SPRINT 5: Monitor moderator status
+        viewModelScope.launch {
+            isModerator.collect { isMod ->
+                uiState = uiState.copy(showModeratorButton = isMod)
+            }
+        }
+
     }
 
     // ✅ PRESERVED: Load Vote Status

@@ -12,21 +12,20 @@ import qa.deals.doha.feature.details.DetailsScreen
 import qa.deals.doha.feature.feed.FeedScreen
 import qa.deals.doha.feature.post.PostScreen
 import qa.deals.doha.feature.report.ReportScreen
-import qa.deals.doha.feature.archive.ArchiveScreen  // ✅ SPRINT 6: Import ArchiveScreen
-// ✅ 1. ADD THIS IMPORT for the new screen
+import qa.deals.doha.feature.archive.ArchiveScreen
 import qa.deals.onboarding.OnboardingScreen
-// SPRINT 4: Import moderator screens
+// SPRINT 4: Import moderator and profile screens
 import qa.deals.doha.feature.feed.moderator.ModeratorDashboardScreen
 import qa.deals.doha.feature.feed.moderator.PendingDealsScreen
 import qa.deals.doha.feature.feed.profile.UserProfileScreen
 
-
 /**
  * Main navigation host for the app.
  * Manages navigation between all screens.
+ *
  * ✅ OPTIMIZED: Instant navigation, no animation delay
  * ✅ SPRINT 6: Added Archive screen navigation
- *
+ * ✅ SPRINT 4: Added Moderator dashboard, pending deals, and user profile screens
  */
 @Composable
 fun AppNavHost(
@@ -72,9 +71,14 @@ fun AppNavHost(
                 // ✅ SPRINT 6: Navigate to archive screen
                 onArchiveClick = {
                     navController.navigate(Routes.ARCHIVE)
+                },
+                // ✅ SPRINT 4: Navigate to moderator dashboard
+                onModeratorClick = {
+                    navController.navigate(Routes.MODERATOR_DASHBOARD)
                 }
             )
         }
+
         // ========================================
         // ✅ SPRINT 6: Archive Screen - Show archived deals
         // Shows deals older than 10 days
@@ -132,11 +136,12 @@ fun AppNavHost(
                 onClose = { navController.popBackStack() }
             )
         }
+
         // ========================================
-        // SPRINT 4: MODERATOR SCREENS
+        // ✅ SPRINT 4: MODERATOR SCREENS
         // ========================================
 
-        // Moderator Dashboard
+        // Moderator Dashboard - Main hub for moderators
         composable(Routes.MODERATOR_DASHBOARD) {
             ModeratorDashboardScreen(
                 onBackClick = { navController.popBackStack() },
@@ -145,14 +150,16 @@ fun AppNavHost(
                 },
                 onUserManagementClick = {
                     // TODO: Sprint 6 - User management screen
+                    // This will navigate to admin panel in future sprint
                 },
                 onAuditLogClick = {
                     // TODO: Sprint 9 - Audit log screen
+                    // This will show moderation history in future sprint
                 }
             )
         }
 
-        // Pending Deals Screen
+        // Pending Deals Screen - Review deals awaiting approval
         composable(Routes.PENDING_DEALS) {
             PendingDealsScreen(
                 onBackClick = { navController.popBackStack() },
@@ -162,7 +169,7 @@ fun AppNavHost(
             )
         }
 
-        // User Profile Screen
+        // User Profile Screen - View any user's profile and deals
         composable(
             route = Routes.USER_PROFILE,
             arguments = listOf(

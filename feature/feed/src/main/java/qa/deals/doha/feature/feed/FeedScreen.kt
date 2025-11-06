@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by Globa
 // ========================================
 import androidx.compose.foundation.ExperimentalFoundationApi // ✅ NEW: Required for animateItem
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material.icons.filled.Shield
 
 /**
  * ========================================
@@ -73,7 +74,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 private fun CategoryFilterChips(
     selectedCategory: DealCategory?,
     onCategorySelected: (DealCategory?) -> Unit,
-    onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive
+    onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
+    onModeratorClick: () -> Unit = {},  // SPRINT 5: Navigate to moderator dashboard
     modifier: Modifier = Modifier
 ) {
     // ✅ PRESERVED: Scroll state for horizontal scrolling
