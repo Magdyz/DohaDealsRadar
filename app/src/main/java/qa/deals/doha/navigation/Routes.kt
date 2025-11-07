@@ -13,6 +13,10 @@ object Routes {
     const val ARCHIVE = "archive"  // ✅ SPRINT 6: Archive screen route
     const val ONBOARDING = "onboarding" // ✅ ADD THIS NEW ROUTE
 
+    // SPRINT 5: Authentication routes
+    const val LOGIN = "login"
+    const val ACCOUNT = "account"
+
     // SPRINT 4: Moderator routes
     const val MODERATOR_DASHBOARD = "moderator/dashboard"
     const val PENDING_DEALS = "moderator/pending"

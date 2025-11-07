@@ -44,6 +44,8 @@ import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by Globa
 import androidx.compose.foundation.ExperimentalFoundationApi // ✅ NEW: Required for animateItem
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.AccountCircle
+
 
 /**
  * ========================================
@@ -264,7 +266,8 @@ fun FeedScreen(
     onDealClick: (String) -> Unit = {},
     onPostClick: () -> Unit = {},
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
-    onModeratorClick: () -> Unit = {},  // ✅ SPRINT 4: Navigate to moderator dashboard
+    onAccountClick: () -> Unit = {},  // ✅ SPRINT 5: Navigate to account/login
+
 ) {
     val context = LocalContext.current
 
@@ -281,9 +284,6 @@ fun FeedScreen(
     // ✅ PRESERVED: Collect state from ViewModel
     val deals by viewModel.deals.collectAsState()
     val state = viewModel.uiState
-    // SPRINT 4: Collect moderator state
-    val isModerator by viewModel.isModerator.collectAsState()
-    val showModeratorButton = state.showModeratorButton
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()  // ✨ NEW: Category state
 
@@ -328,28 +328,26 @@ fun FeedScreen(
             )
         },
         floatingActionButton = {
-        // ✅ SPRINT 5: Show both Post FAB and Moderator FAB
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // ✅ SPRINT 5: Moderator FAB (only show if user is moderator/admin)
-            if (showModeratorButton) {
+            // ✅ SPRINT 5: Show both Post FAB and Account FAB
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ✅ SPRINT 5: Account FAB (always visible for all users)
                 SmallFloatingActionButton(
-                    onClick = onModeratorClick,
+                    onClick = onAccountClick,
                     containerColor = Color(0xFF2563EB), // Blue
                     contentColor = Color.White,
                     shape = CircleShape
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = "Moderator Dashboard",
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "My Account",
                         modifier = Modifier.size(24.dp)
                     )
                 }
-            }
 
-            // ✅ PRESERVED: Post FAB (main action button)
+                // ✅ PRESERVED: Post FAB (main action button)
             var isPressed by remember { mutableStateOf(false) }
 
             FloatingActionButton(

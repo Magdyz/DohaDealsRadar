@@ -69,6 +69,66 @@ class FeedViewModel(
     private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
     val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
 
+    // ✅ SPRINT 5: Authentication state
+
+    val isAuthenticated: StateFlow<Boolean> = deviceIdManager.userIdFlow
+
+        .map { userId -> userId != null }
+
+        .stateIn(
+
+            scope = viewModelScope,
+
+            started = SharingStarted.WhileSubscribed(5000),
+
+            initialValue = false
+
+        )
+
+
+
+    val currentUserId: StateFlow<String?> = deviceIdManager.userIdFlow
+
+        .stateIn(
+
+            scope = viewModelScope,
+
+            started = SharingStarted.WhileSubscribed(5000),
+
+            initialValue = null
+
+        )
+
+
+
+    val currentUserRole: StateFlow<String> = deviceIdManager.userIdFlow
+
+        .map { userId ->
+
+            if (userId != null) {
+
+                val user = userRepo.getCachedUser(userId)
+
+                user?.role ?: "user"
+
+            } else {
+
+                "user"
+
+            }
+
+        }
+
+        .stateIn(
+
+            scope = viewModelScope,
+
+            started = SharingStarted.WhileSubscribed(5000),
+
+            initialValue = "user"
+
+        )
+
     // ✅ SPRINT 5: Moderator status detection
     val isModerator: StateFlow<Boolean> = deviceIdManager.userIdFlow
         .map { userId ->

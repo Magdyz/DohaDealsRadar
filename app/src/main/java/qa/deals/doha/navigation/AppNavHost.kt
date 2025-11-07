@@ -18,6 +18,16 @@ import qa.deals.onboarding.OnboardingScreen
 import qa.deals.doha.feature.feed.moderator.ModeratorDashboardScreen
 import qa.deals.doha.feature.feed.moderator.PendingDealsScreen
 import qa.deals.doha.feature.feed.profile.UserProfileScreen
+// SPRINT 5: Import authentication and account screens
+import qa.deals.doha.feature.post.LoginScreen
+import qa.deals.doha.feature.feed.account.UserAccountScreen
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import qa.deals.doha.feature.feed.FeedViewModel
+import androidx.lifecycle.ViewModel
 
 /**
  * Main navigation host for the app.
@@ -61,6 +71,18 @@ fun AppNavHost(
         // Feed Screen - Home screen showing list of deals
         // ========================================
         composable(Routes.FEED) {
+            val context = LocalContext.current
+            val feedViewModel: FeedViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return FeedViewModel(context) as T
+                    }
+                }
+            )
+            val isAuthenticated by feedViewModel.isAuthenticated.collectAsState()
+            val currentUserRole by feedViewModel.currentUserRole.collectAsState()
+
             FeedScreen(
                 onDealClick = { dealId ->
                     navController.navigate(Routes.details(dealId))
@@ -72,9 +94,25 @@ fun AppNavHost(
                 onArchiveClick = {
                     navController.navigate(Routes.ARCHIVE)
                 },
-                // ✅ SPRINT 4: Navigate to moderator dashboard
-                onModeratorClick = {
-                    navController.navigate(Routes.MODERATOR_DASHBOARD)
+
+                // ✅ SPRINT 5: Navigate based on authentication and role
+
+                onAccountClick = {
+                    when {
+                        !isAuthenticated -> {
+                            // Not logged in → Login screen
+                            navController.navigate(Routes.LOGIN)
+                        }
+                        currentUserRole == "admin" || currentUserRole == "moderator" -> {
+                            // Moderator/Admin → Moderator dashboard
+                            navController.navigate(Routes.MODERATOR_DASHBOARD)
+                        }
+                        else -> {
+
+                            // Regular user → Account screen
+                            navController.navigate(Routes.ACCOUNT)
+                        }
+                    }
                 }
             )
         }
@@ -91,6 +129,55 @@ fun AppNavHost(
                 }
             )
         }
+
+        // ========================================
+        // ✅ SPRINT 5: LOGIN SCREEN
+        // Email verification flow for user authentication
+        // ========================================
+
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = { userId, username, email, role ->
+                    // Navigate based on role after login
+                    when (role) {
+                        "admin", "moderator" -> {
+                            navController.navigate(Routes.MODERATOR_DASHBOARD) {
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                        }
+                        else -> {
+                            navController.navigate(Routes.ACCOUNT) {
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                        }
+                    }
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ========================================
+        // ✅ SPRINT 5: ACCOUNT SCREEN
+        // User account with profile, stats, and deals
+        // ========================================
+
+        composable(Routes.ACCOUNT) {
+            UserAccountScreen(
+                onBackClick = { navController.popBackStack() },
+                onLogout = {
+                    // Return to feed after logout
+                    navController.navigate(Routes.FEED) {
+                        popUpTo(Routes.FEED) { inclusive = true }
+                    }
+                },
+
+                onDealClick = { dealId ->
+                    navController.navigate(Routes.details(dealId))
+                }
+            )
+        }
+
+
 
         // ========================================
         // Post Screen - Submit a new deal
