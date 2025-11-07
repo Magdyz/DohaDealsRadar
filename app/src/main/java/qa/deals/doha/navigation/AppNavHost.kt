@@ -28,6 +28,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import qa.deals.doha.feature.feed.FeedViewModel
 import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.remember
 
 /**
  * Main navigation host for the app.
