@@ -36,14 +36,19 @@ data class DealDto(
     // ✅ NEW: Added field for trust system
     // ========================================
     @SerializedName("auto_approved") val autoApproved: Boolean? = false,
-    // ========================================
-    // ✅ SPRINT 2: Archive Feature
-    // Field to receive archive status from backend
-    // Backend sets this to true for deals older than 10 days
-    // Default: false (for backwards compatibility with old API responses)
-    // ========================================
-    @SerializedName("is_archived") val isArchived: Boolean? = false
 
+    // ========================================
+    // ✅ SPRINT 5: User tracking fields
+    // ========================================
+
+    @SerializedName("submitted_by_user_id") val submittedByUserId: String? = null,
+    @SerializedName("approved_by") val approvedBy: String? = null,
+    @SerializedName("approved_at") val approvedAt: String? = null,
+    @SerializedName("report_count") val reportCount: Int? = 0,
+    @SerializedName("deleted_at") val deletedAt: String? = null,
+    @SerializedName("deleted_by") val deletedBy: String? = null,
+    @SerializedName("deletion_reason") val deletionReason: String? = null,
+    @SerializedName("is_archived") val isArchived: Boolean? = false
 )
 
 /**
@@ -75,12 +80,26 @@ fun DealDto.toEntity(): DealEntity {
         location = this.location,
         category = this.category ?: "other",
         postedBy = this.postedBy ?: "Anonymous",
-        autoApproved = this.autoApproved ?: false, // ✅ NEW: Map autoApproved to entity
+        autoApproved = this.autoApproved ?: false,
         promoCode = this.promoCode,
+
         // ========================================
         // ✅ SPRINT 2: Map isArchived from API to Entity
         // If backend doesn't send it, default to false (active)
         // ========================================
-        isArchived = this.isArchived ?: false
-        )
+
+        isArchived = this.isArchived ?: false,
+
+        // ========================================
+        // ✅ SPRINT 5: Map user tracking fields
+        // ========================================
+
+        submittedByUserId = this.submittedByUserId,
+        approvedBy = this.approvedBy,
+        approvedAt = this.approvedAt,
+        reportCount = this.reportCount ?: 0,
+        deletedAt = this.deletedAt,
+        deletedBy = this.deletedBy,
+        deletionReason = this.deletionReason
+    )
 }
