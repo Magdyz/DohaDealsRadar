@@ -327,83 +327,20 @@ fun FeedScreen(
                 )
             )
         },
-        floatingActionButton = {
-            // ✅ SPRINT 5: Show both Post FAB and Account FAB
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // ✅ SPRINT 5: Account FAB (always visible for all users)
-                SmallFloatingActionButton(
-                    onClick = onAccountClick,
-                    containerColor = Color(0xFF2563EB), // Blue
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "My Account",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
 
-                // ✅ PRESERVED: Post FAB (main action button)
-            var isPressed by remember { mutableStateOf(false) }
-
-            FloatingActionButton(
-                onClick = {
-                    isPressed = true
-                    onPostClick()
-                    scope.launch {
-                        delay(150)
-                        isPressed = false
-                    }
-                },
-                containerColor = Color.Transparent,
-                contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 10.dp,
-                    hoveredElevation = 8.dp
-                ),
-                shape = CircleShape,
-                modifier = Modifier
-                    .size(if (isPressed) 60.dp else 64.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF9C27B0),
-                                    Color(0xFFE91E63)
-                                ),
-                                start = Offset(0f, Float.POSITIVE_INFINITY),
-                                end = Offset(Float.POSITIVE_INFINITY, 0f)
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Post a deal",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-        }
-    },
-    containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-
-        Column(
+        // ✅ 2025 DESIGN: Box layout for dual FAB positioning
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Content in center
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+
             // ========================================
             // ✨ NEW: CATEGORY FILTER CHIPS
             // Horizontal scrolling chips below search bar
@@ -575,6 +512,113 @@ fun FeedScreen(
                     }
                 }
             }
+            }  // End of Column
+
+        // ========================================
+        // ✅ 2025 DESIGN: Account FAB - Bottom Left
+        // Reversed gradient (pink/purple) for visual distinction
+        // ========================================
+        var isAccountPressed by remember { mutableStateOf(false) }
+
+        FloatingActionButton(
+            onClick = {
+                isAccountPressed = true
+                onAccountClick()
+                scope.launch {
+                    delay(150)
+                    isAccountPressed = false
+                }
+            },
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 6.dp,
+                pressedElevation = 10.dp,
+                hoveredElevation = 8.dp
+            ),
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+                .size(if (isAccountPressed) 60.dp else 64.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFE91E63),  // Pink first (reversed)
+                                Color(0xFF9C27B0)   // Purple second
+                            ),
+                            start = Offset(0f, Float.POSITIVE_INFINITY),
+                            end = Offset(Float.POSITIVE_INFINITY, 0f)
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "My Account",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
-    }
-}
+
+        // ========================================
+        // ✅ 2025 DESIGN: Post FAB - Bottom Right
+        // Original gradient (purple/pink)
+        // ========================================
+        var isPostPressed by remember { mutableStateOf(false) }
+
+        FloatingActionButton(
+            onClick = {
+                isPostPressed = true
+                onPostClick()
+                scope.launch {
+                    delay(150)
+                    isPostPressed = false
+                }
+            },
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 6.dp,
+                pressedElevation = 10.dp,
+                hoveredElevation = 8.dp
+            ),
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .size(if (isPostPressed) 60.dp else 64.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF9C27B0),  // Purple first (original)
+                                Color(0xFFE91E63)   // Pink second
+                            ),
+                            start = Offset(0f, Float.POSITIVE_INFINITY),
+                            end = Offset(Float.POSITIVE_INFINITY, 0f)
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Post a deal",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+        }  // End of Box (this is correct placement)
+    }  // End of Scaffold
+}  // End of FeedScreen
