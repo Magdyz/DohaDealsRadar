@@ -795,31 +795,18 @@ private fun DealCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
 
             ) {
-
                 Text(
-
                     text = deal.title,
-
                     fontSize = 16.sp,
-
                     fontWeight = FontWeight.SemiBold,
-
                     color = Color(0xFF1F2937),
-
                     maxLines = 2
-
                 )
-
                 Text(
-
-                    text = deal.store ?: "Unknown Store",
-
+                    text = deal.location ?: "No location",
                     fontSize = 14.sp,
-
                     color = Color(0xFF6B7280)
-
                 )
-
             }
 
 
@@ -843,23 +830,14 @@ private fun DealCard(
                 shape = RoundedCornerShape(12.dp)
 
             ) {
-
                 Text(
-
-                    text = deal.status.uppercase(),
-
+                    text = deal.status?.uppercase() ?: "UNKNOWN",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-
                     color = Color.White,
-
                     fontSize = 10.sp,
-
                     fontWeight = FontWeight.Bold
-
                 )
-
             }
-
         }
 
     }
