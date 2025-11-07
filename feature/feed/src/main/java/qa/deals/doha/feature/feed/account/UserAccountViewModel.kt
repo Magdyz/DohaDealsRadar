@@ -215,15 +215,10 @@ class UserAccountViewModel(
                 if (cachedUser != null) {
 
                     Log.d("UserAccountVM", "User loaded from cache: ${cachedUser.username}")
-
                     _uiState.update { it.copy(
-
-                        user = cachedUser,
-
+                        user = cachedUser.toDto(),
                         loading = false
-
                     )}
-
                     calculateStats(userId)
 
                     return@launch
