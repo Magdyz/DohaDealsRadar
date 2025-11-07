@@ -118,8 +118,8 @@ fun UserAccountScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color(0xFF9C27B0),  // App purple (matches selected category)
+                    titleContentColor = Color.White
                 )
             )
         }
@@ -215,19 +215,12 @@ fun UserAccountScreen(
                     Text(
 
                         text = "My Deals (${userDeals.size})",
-
                         fontSize = 20.sp,
-
                         fontWeight = FontWeight.Bold,
-
-                        color = Color(0xFF1F2937)
-
+                        color = Color.White,
                     )
-
                 }
-
-
-
+                
                 // User's Deals List
 
                 if (userDeals.isEmpty() && !uiState.loading) {
@@ -471,7 +464,6 @@ private fun UserProfileCard(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
 
                     color = Color.White,
-
                     fontSize = 12.sp,
 
                     fontWeight = FontWeight.Bold
