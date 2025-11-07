@@ -83,6 +83,10 @@ fun AppNavHost(
             val isAuthenticated by feedViewModel.isAuthenticated.collectAsState()
             val currentUserRole by feedViewModel.currentUserRole.collectAsState()
 
+            // Access DeviceIdManager for first-time account screen check
+
+            val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
+
             FeedScreen(
                 onDealClick = { dealId ->
                     navController.navigate(Routes.details(dealId))
@@ -94,9 +98,7 @@ fun AppNavHost(
                 onArchiveClick = {
                     navController.navigate(Routes.ARCHIVE)
                 },
-
                 // ✅ SPRINT 5: Navigate based on authentication and role
-
                 onAccountClick = {
                     when {
                         !isAuthenticated -> {
@@ -104,8 +106,14 @@ fun AppNavHost(
                             navController.navigate(Routes.LOGIN)
                         }
                         currentUserRole == "admin" || currentUserRole == "moderator" -> {
-                            // Moderator/Admin → Moderator dashboard
-                            navController.navigate(Routes.MODERATOR_DASHBOARD)
+                            // Moderator/Admin → Check if first time
+                            if (!deviceIdManager.hasSeenAccountScreen()) {
+                                // First time → Show account screen
+                                navController.navigate(Routes.ACCOUNT)
+                            } else {
+                                // Subsequent times → Show dashboard
+                                navController.navigate(Routes.MODERATOR_DASHBOARD)
+                            }
                         }
                         else -> {
 
@@ -242,6 +250,12 @@ fun AppNavHost(
                 onAuditLogClick = {
                     // TODO: Sprint 9 - Audit log screen
                     // This will show moderation history in future sprint
+                },
+                onLogout = {
+                    // Return to feed after logout
+                    navController.navigate(Routes.FEED) {
+                        popUpTo(Routes.FEED) { inclusive = true }
+                    }
                 }
             )
         }

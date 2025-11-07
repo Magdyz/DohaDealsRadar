@@ -30,6 +30,7 @@ fun ModeratorDashboardScreen(
     onPendingDealsClick: () -> Unit,
     onUserManagementClick: () -> Unit = {},
     onAuditLogClick: () -> Unit = {},
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -84,6 +85,21 @@ fun ModeratorDashboardScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    // Logout button
+                    IconButton(
+                        onClick = {
+                            deviceIdManager.clearUserId()
+                            onLogout()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 },

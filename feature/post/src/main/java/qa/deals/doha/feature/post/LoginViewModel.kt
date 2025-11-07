@@ -215,47 +215,30 @@ class LoginViewModel(
 
 
                 val response = dealRepo.verifyCodeAndGetUser(
-
                     email = email,
-
                     code = code,
-
                     deviceId = deviceId
-
                 )
-
-
 
                 val user = response.user
 
-
-
                 if (response.success && user != null) {
-
                     Log.d("LoginViewModel", "✅ Verification successful! User: ${user.username}")
 
-
-
-                    // Store userId in DeviceIdManager
+                    // Store userId and username in DeviceIdManager
 
                     deviceIdManager.saveUserId(user.id)
-                    Log.d("LoginViewModel", "💾 UserId stored: ${user.id}")
-
+                    deviceIdManager.saveUsername(user.username)
+                    Log.d("LoginViewModel", "💾 UserId and username stored: ${user.id.take(8)}... / ${user.username}")
                     _uiState.value = _uiState.value.copy(
                         verificationState = LoginVerificationState.Verified(user),
                         isLoading = false
                     )
-
                 } else {
-
                     Log.e("LoginViewModel", "❌ Invalid code: ${response.error}")
-
                     _uiState.value = _uiState.value.copy(
-
                         verificationState = LoginVerificationState.Error(
-
                             response.error ?: "Invalid code. Please try again."
-
                         ),
 
                         isLoading = false,

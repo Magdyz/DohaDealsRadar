@@ -386,6 +386,25 @@ class DeviceIdManager private constructor(context: Context) {
     }
 
     /**
+     * ✨ Check if user has seen their account screen (for first-time moderator experience)
+     */
+
+    fun hasSeenAccountScreen(): Boolean {
+        val hasSeen = prefs.getBoolean("has_seen_account_screen", false)
+        Log.d(TAG, "🔍 Has seen account screen: $hasSeen")
+        return hasSeen
+    }
+
+    /**
+     * ✨ Mark that user has seen their account screen
+     */
+
+    fun setHasSeenAccountScreen() {
+        prefs.edit().putBoolean("has_seen_account_screen", true).apply()
+        Log.d(TAG, "✅ Marked account screen as seen")
+    }
+
+    /**
      * ✨ Check if device has a verified user ID
      */
     fun hasUserId(): Boolean {

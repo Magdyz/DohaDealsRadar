@@ -52,236 +52,158 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 import qa.deals.doha.db.DealEntity
 
-
-
 /**
-
  * User Account Screen
-
  * Displays user profile, statistics, and their submitted deals
-
  *
-
  * @param onBackClick Navigate back
-
  * @param onLogout User logged out, navigate to feed
-
  * @param onDealClick Navigate to deal details
-
  */
 
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
-
 fun UserAccountScreen(
-
     onBackClick: () -> Unit,
-
     onLogout: () -> Unit,
-
     onDealClick: (String) -> Unit = {},
-
     modifier: Modifier = Modifier
-
 ) {
-
     val context = LocalContext.current
-
     val viewModel: UserAccountViewModel = viewModel(
-
         factory = object : ViewModelProvider.Factory {
-
             @Suppress("UNCHECKED_CAST")
-
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-
                 return UserAccountViewModel(context) as T
-
             }
-
         }
-
     )
-
-
 
     val uiState by viewModel.uiState.collectAsState()
-
     val userDeals by viewModel.userDeals.collectAsState()
 
-
-
     val swipeRefreshState = rememberSwipeRefreshState(
-
         isRefreshing = uiState.loading
-
     )
 
-
-
+    // Mark that user has seen account screen (for moderator first-time experience)
+    LaunchedEffect(Unit) {
+        qa.deals.doha.datastore.DeviceIdManager.getInstance(context).setHasSeenAccountScreen()
+    }
     Scaffold(
-
         topBar = {
-
             TopAppBar(
-
                 title = { Text("My Account") },
-
                 navigationIcon = {
-
                     IconButton(onClick = onBackClick) {
-
                         Icon(
-
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-
                             contentDescription = "Back"
-
                         )
-
                     }
-
                 },
-
                 actions = {
-
                     // Logout button
-
                     IconButton(
-
                         onClick = {
-
                             viewModel.logout()
-
                             onLogout()
-
                         }
-
                     ) {
-
                         Icon(
-
                             imageVector = Icons.Default.ExitToApp,
-
                             contentDescription = "Logout",
-
                             tint = MaterialTheme.colorScheme.error
-
                         )
-
                     }
-
                 },
-
                 colors = TopAppBarDefaults.topAppBarColors(
-
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-
                 )
-
             )
-
         }
-
     ) { paddingValues ->
-
         SwipeRefresh(
-
             state = swipeRefreshState,
-
             onRefresh = { viewModel.refresh() },
-
             modifier = modifier
-
                 .fillMaxSize()
-
                 .padding(paddingValues)
-
         ) {
-
             LazyColumn(
-
                 modifier = Modifier.fillMaxSize(),
-
                 contentPadding = PaddingValues(16.dp),
-
                 verticalArrangement = Arrangement.spacedBy(16.dp)
-
             ) {
-
                 // Error message
-
                 if (uiState.error != null) {
-
                     item {
-
                         Card(
-
                             modifier = Modifier.fillMaxWidth(),
-
                             colors = CardDefaults.cardColors(
-
                                 containerColor = MaterialTheme.colorScheme.errorContainer
-
                             )
-
                         ) {
-
                             Row(
-
                                 modifier = Modifier.padding(16.dp),
-
                                 horizontalArrangement = Arrangement.SpaceBetween,
-
                                 verticalAlignment = Alignment.CenterVertically
-
                             ) {
-
                                 Text(
-
                                     text = uiState.error ?: "",
-
                                     color = MaterialTheme.colorScheme.onErrorContainer,
-
                                     modifier = Modifier.weight(1f)
-
                                 )
-
                                 TextButton(onClick = { viewModel.clearError() }) {
-
                                     Text("Dismiss")
-
                                 }
-
                             }
-
                         }
-
                     }
-
                 }
-
-
 
                 // User Profile Section
-
                 item {
+                    if (uiState.loading && uiState.user == null) {
 
-                    UserProfileCard(user = uiState.user)
-
+                        // Show loading indicator while fetching user data
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFFFFFF)
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(40.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(50.dp),
+                                    color = Color(0xFF9C27B0),  // Purple like feed
+                                    strokeWidth = 4.dp
+                                )
+                                Text(
+                                    text = "Getting account details...",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF6B7280),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        UserProfileCard(user = uiState.user)
+                    }
                 }
-
-
 
                 // Statistics Section
 
                 item {
-
                     StatisticsCard(stats = uiState.stats)
-
                 }
 
 

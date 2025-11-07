@@ -220,43 +220,25 @@ class UserAccountViewModel(
                         loading = false
                     )}
                     calculateStats(userId)
-
                     return@launch
-
                 }
-
-
 
                 // Fetch from API
 
                 val result = userRepo.fetchUserProfile(userId)
-
                 if (result.isSuccess) {
-
                     val userDto = result.getOrNull()
-
                     if (userDto != null) {
-
                         Log.d("UserAccountVM", "User loaded from API: ${userDto.username}")
-
                         _uiState.update { it.copy(
-
                             user = userDto,
-
                             loading = false
-
                         )}
-
                         calculateStats(userId)
-
                     }
-
                 } else {
-
                     Log.e("UserAccountVM", "Failed to load user profile: ${result.exceptionOrNull()}")
-
                     _uiState.update { it.copy(
-
                         loading = false,
 
                         error = "Failed to load profile"
@@ -354,46 +336,26 @@ class UserAccountViewModel(
      */
 
     private fun calculateStats(userId: String) {
-
         viewModelScope.launch {
-
             try {
+                // Get deals from cache (use first() to get current value, not continuous collection)
 
-                // Get deals from cache
+                val deals = dealRepo.getCachedDealsByUser(userId).first()
+                val stats = UserStats(
+                    totalDeals = deals.size,
+                    approvedDeals = deals.count { it.status == "approved" },
+                    pendingDeals = deals.count { it.status == "pending" },
+                    rejectedDeals = deals.count { it.status == "rejected" }
+                )
 
-                dealRepo.getCachedDealsByUser(userId).collect { deals ->
-
-                    val stats = UserStats(
-
-                        totalDeals = deals.size,
-
-                        approvedDeals = deals.count { it.status == "approved" },
-
-                        pendingDeals = deals.count { it.status == "pending" },
-
-                        rejectedDeals = deals.count { it.status == "rejected" }
-
-                    )
-
-
-
-                    _uiState.update { it.copy(stats = stats) }
-
-                    Log.d("UserAccountVM", "Stats calculated: $stats")
-
-                }
-
+                _uiState.update { it.copy(stats = stats) }
+                Log.d("UserAccountVM", "Stats calculated: $stats")
+                Log.d("UserAccountVM", "  Total: ${stats.totalDeals}, Approved: ${stats.approvedDeals}, Pending: ${stats.pendingDeals}, Rejected: ${stats.rejectedDeals}")
             } catch (e: Exception) {
-
                 Log.e("UserAccountVM", "Error calculating stats", e)
-
             }
-
         }
-
     }
-
-
 
     /**
 
