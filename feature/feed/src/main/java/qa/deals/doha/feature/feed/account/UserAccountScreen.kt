@@ -220,7 +220,7 @@ fun UserAccountScreen(
                         color = Color.White,
                     )
                 }
-                
+
                 // User's Deals List
 
                 if (userDeals.isEmpty() && !uiState.loading) {

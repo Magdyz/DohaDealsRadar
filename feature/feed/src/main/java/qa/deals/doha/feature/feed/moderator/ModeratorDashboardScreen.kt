@@ -11,6 +11,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -63,50 +65,51 @@ fun ModeratorDashboardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Moderator Dashboard",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF9C27B0),  // Purple
+                                Color(0xFF7B1FA2)   // Darker purple
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(1000f, 1000f)
                         )
-                        if (uiState.currentUserRole != null) {
-                            Text(
-                                text = uiState.currentUserRole!!.uppercase(),
-                                fontSize = 12.sp,
-                                color = Color(0xFF2563EB)
-                            )
+                    )
+            ) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("🛡️ Admin Dashboard", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("ADMIN", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    },
+                    navigationIcon = { IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
-                    }
-                },
-                actions = {
-                    // Logout button
-                    IconButton(
-                        onClick = {
-                            deviceIdManager.clearUserId()
-                            onLogout()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Logout",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    } },
+                    actions = { // Logout button
+                        IconButton(
+                            onClick = {
+                                deviceIdManager.clearUserId()
+                                onLogout()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Logout",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }},
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
-            )
+            }
         }
     ) { paddingValues ->
         Column(
