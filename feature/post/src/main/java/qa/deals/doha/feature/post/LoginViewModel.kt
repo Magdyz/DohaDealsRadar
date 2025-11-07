@@ -5,25 +5,15 @@ package qa.deals.doha.feature.post
 import android.content.Context
 
 import android.util.Log
-
 import androidx.lifecycle.ViewModel
-
 import androidx.lifecycle.viewModelScope
-
 import kotlinx.coroutines.flow.MutableStateFlow
-
 import kotlinx.coroutines.flow.StateFlow
-
 import kotlinx.coroutines.flow.asStateFlow
-
 import kotlinx.coroutines.launch
-
 import qa.deals.doha.datastore.DeviceIdManager
-
 import qa.deals.doha.network.UserInfo
-
 import qa.deals.doha.repository.DealRepository
-
 import qa.deals.doha.repository.UserRepository
 
 
@@ -248,18 +238,12 @@ class LoginViewModel(
 
                     // Store userId in DeviceIdManager
 
-                    deviceIdManager.setUserId(user.id)
-
+                    deviceIdManager.saveUserId(user.id)
                     Log.d("LoginViewModel", "💾 UserId stored: ${user.id}")
 
-
-
                     _uiState.value = _uiState.value.copy(
-
                         verificationState = LoginVerificationState.Verified(user),
-
                         isLoading = false
-
                     )
 
                 } else {
