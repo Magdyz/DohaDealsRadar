@@ -196,8 +196,8 @@ fun PendingDealsScreen(
                             DealApprovalCard(
                                 deal = deal,
                                 onApprove = { viewModel.approveDeal(deal.id) },
-                                onReject = { viewModel.rejectDeal(deal.id) },
-                                onDelete = { viewModel.deleteDeal(deal.id) },
+                                onReject = { reason -> viewModel.rejectDeal(deal.id, reason) },  // ✅ Pass reason
+                                onDelete = { reason -> viewModel.deleteDeal(deal.id, reason) },  // ✅ Pass reason
                                 onClick = { onDealClick(deal) },
                                 actionInProgress = uiState.actionInProgress
                             )

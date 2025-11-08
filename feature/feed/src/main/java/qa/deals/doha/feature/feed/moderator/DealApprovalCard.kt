@@ -33,8 +33,8 @@ import java.util.*
 fun DealApprovalCard(
     deal: DealEntity,
     onApprove: () -> Unit,
-    onReject: () -> Unit,
-    onDelete: () -> Unit,
+    onReject: (String?) -> Unit,  // ✅ Now accepts reason parameter
+    onDelete: (String?) -> Unit,  // ✅ Now accepts reason parameter
     onClick: () -> Unit,
     actionInProgress: Boolean = false,
     modifier: Modifier = Modifier
@@ -201,8 +201,7 @@ fun DealApprovalCard(
         RejectDealDialog(
             dealTitle = deal.title,
             onConfirm = { reason ->
-                showRejectDialog = false
-                onReject()
+                onReject(reason)  // ✅ Pass the reason!
             },
             onDismiss = { showRejectDialog = false }
         )
@@ -214,7 +213,7 @@ fun DealApprovalCard(
             dealTitle = deal.title,
             onConfirm = { reason ->
                 showDeleteDialog = false
-                onDelete()
+                onDelete(reason)  // ✅ Pass the reason!
             },
             onDismiss = { showDeleteDialog = false }
         )
