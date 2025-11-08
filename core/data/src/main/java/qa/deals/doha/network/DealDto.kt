@@ -108,8 +108,10 @@ fun DealDto.toEntity(): DealEntity {
         deletedAt = this.deletedAt,
         deletedBy = this.deletedBy,
         deletionReason = this.deletionReason,
-        // ✅ NEW: Map rejection fields
-        rejectionReason = this.rejectionReason,
+        // ✅ REUSE deletion_reason for rejection display
+        // Since we're using the same DB field for both rejections and deletions,
+        // map it to rejectionReason for UI display
+        rejectionReason = this.deletionReason,
         rejectedAt = this.rejectedAt,
         rejectedBy = this.rejectedBy
     )
