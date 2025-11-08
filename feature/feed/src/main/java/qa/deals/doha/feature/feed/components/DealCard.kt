@@ -163,7 +163,6 @@ fun DealCard(
                             .scale(Scale.FIT)
                             .memoryCacheKey("grid_w400_$imageUrl")
                             .diskCacheKey("grid_w400_$imageUrl")
-                            .crossfade(false)  // ✅ 2025: Disable crossfade for smoother scrolling
                             .listener(
                                 onStart = { Log.d(TAG, "🖼️ Loading image: $imageUrl") },
                                 onSuccess = { _, _ -> Log.d(TAG, "✅ Image loaded: $imageUrl") },
