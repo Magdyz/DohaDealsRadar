@@ -8,6 +8,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 
 /**
  * ========================================
@@ -56,6 +60,27 @@ class DeviceIdManager private constructor(context: Context) {
 
     @Volatile
     private var cachedDeviceId: String? = null
+    // ========================================
+
+    // ✨ USER ID FLOW - FOR REACTIVE UI
+
+    // ========================================
+
+
+
+    private val _userIdFlow = MutableStateFlow<String?>(null)
+
+    val userIdFlow: StateFlow<String?> = _userIdFlow.asStateFlow()
+
+
+
+    init {
+
+        // Initialize user ID flow with current value
+
+        _userIdFlow.value = prefs.getString("user_id", null)
+
+    }
 
     companion object {
         // Shared Preferences keys
@@ -353,9 +378,30 @@ class DeviceIdManager private constructor(context: Context) {
      * ✨ Store user ID locally (persistent across sessions)
      * Called after successful email verification
      */
+
     fun saveUserId(userId: String) {
         prefs.edit().putString("user_id", userId).apply()
+        _userIdFlow.value = userId // Update flow for reactive UI
         Log.d(TAG, "✅ Saved user ID: ${userId.take(8)}...")
+    }
+
+    /**
+     * ✨ Check if user has seen their account screen (for first-time moderator experience)
+     */
+
+    fun hasSeenAccountScreen(): Boolean {
+        val hasSeen = prefs.getBoolean("has_seen_account_screen", false)
+        Log.d(TAG, "🔍 Has seen account screen: $hasSeen")
+        return hasSeen
+    }
+
+    /**
+     * ✨ Mark that user has seen their account screen
+     */
+
+    fun setHasSeenAccountScreen() {
+        prefs.edit().putBoolean("has_seen_account_screen", true).apply()
+        Log.d(TAG, "✅ Marked account screen as seen")
     }
 
     /**
@@ -372,6 +418,7 @@ class DeviceIdManager private constructor(context: Context) {
      */
     fun clearUserId() {
         prefs.edit().remove("user_id").apply()
+        _userIdFlow.value = null // Update flow
         Log.w(TAG, "🗑️ Cleared user ID")
     }
 

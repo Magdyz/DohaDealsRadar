@@ -7,12 +7,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [DealEntity::class],
-    version = 9,  // ⚠️ CRITICAL: Incremented version to 9
+    entities = [DealEntity::class,
+        UserEntity::class
+    ],
+
+    version = 12,  // Incremented for rejection fields
     exportSchema = false
 )
+
 abstract class DealDatabase : RoomDatabase() {
     abstract fun dealDao(): DealDao
+    abstract fun userDao(): UserDao  // Add this
+
 
     companion object {
         // ✅ Migration from version 3 to 4 (adds indices)
@@ -68,6 +74,127 @@ abstract class DealDatabase : RoomDatabase() {
                 // Add index for fast filtering of active vs archived deals
                 database.execSQL("CREATE INDEX IF NOT EXISTS `index_deals_isArchived` ON `deals` (`isArchived`)")
                 Log.d("DealDatabase", "✅ Migration 8→9: Added isArchived column & index (SPRINT 1: Archive Feature)")
+            }
+        }
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                // Create users table
+
+                database.execSQL("""
+
+            CREATE TABLE IF NOT EXISTS users (
+
+                id TEXT PRIMARY KEY NOT NULL,
+
+                email TEXT NOT NULL,
+
+                username TEXT NOT NULL,
+
+                device_id TEXT,
+
+                email_verified INTEGER NOT NULL DEFAULT 0,
+
+                role TEXT NOT NULL DEFAULT 'user',
+
+                auto_approve INTEGER NOT NULL DEFAULT 0,
+
+                approved_deals_count INTEGER NOT NULL DEFAULT 0,
+
+                created_at TEXT,
+
+                last_login_at TEXT
+
+            )
+
+        """)
+
+
+
+                // Add new columns to deals table
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN submitted_by_user_id TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN approved_by TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN approved_at TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deleted_at TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deleted_by TEXT")
+
+                database.execSQL("ALTER TABLE deals ADD COLUMN deletion_reason TEXT")
+
+
+
+                // Create indices
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_submitted_by_user_id ON deals(submitted_by_user_id)")
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_approved_by ON deals(approved_by)")
+
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_deleted_at ON deals(deleted_at)")
+
+            }
+
+        }
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                // SQLite doesn't support modifying column constraints directly
+                // We need to recreate the table with nullable email/username
+                // 1. Create new table with nullable email and username
+                database.execSQL("""
+
+                    CREATE TABLE IF NOT EXISTS users_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        email TEXT,
+                        username TEXT,
+                        device_id TEXT,
+                        email_verified INTEGER NOT NULL DEFAULT 0,
+                        role TEXT NOT NULL DEFAULT 'user',
+                        auto_approve INTEGER NOT NULL DEFAULT 0,
+                        approved_deals_count INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT,
+                        last_login_at TEXT
+                    )
+                """)
+                // 2. Copy data from old table to new table
+
+                database.execSQL("""
+                    INSERT INTO users_new (id, email, username, device_id, email_verified,
+                                          role, auto_approve, approved_deals_count,
+                                          created_at, last_login_at)
+                    SELECT id, email, username, device_id, email_verified,
+                           role, auto_approve, approved_deals_count,
+                           created_at, last_login_at
+                    FROM users
+                """)
+                // 3. Drop old table
+                database.execSQL("DROP TABLE users")
+                // 4. Rename new table to original name
+                database.execSQL("ALTER TABLE users_new RENAME TO users")
+                Log.d("DealDatabase", "✅ Migration 10→11: Made email and username nullable in users table")
+
+            }
+
+        }
+        // ========================================
+        // ✅ NEW: MIGRATION 11 to 12
+        // (Adds rejection fields separate from deletion fields)
+        // ========================================
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add rejection fields (separate from deletion)
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejection_reason TEXT")
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejected_at TEXT")
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejected_by TEXT")
+                // Create index for rejected_at for fast filtering
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_rejected_at ON deals(rejected_at)")
+                Log.d("DealDatabase", "✅ Migration 11→12: Added rejection_reason, rejected_at, rejected_by columns")
             }
         }
     }

@@ -30,10 +30,14 @@ import androidx.room.PrimaryKey
         Index(value = ["createdAt"]),
         Index(value = ["status"]),
         Index(value = ["category"]),
-        Index(value = ["isArchived"])  // ✅ SPRINT 1: Index for archive filtering
-
+        Index(value = ["isArchived"]),  // ✅ SPRINT 1: Index for archive filtering
+        Index(value = ["submittedByUserId"]),  // NEW: For user's deals lookup
+        Index(value = ["approvedBy"]),          // NEW: For approval tracking
+        Index(value = ["deletedAt"]),            // NEW: For filtering deleted deals
+        Index(value = ["rejectedAt"])            // NEW: For filtering rejected deals
     ]
 )
+
 data class DealEntity(
     @PrimaryKey val id: String,
     val title: String,
@@ -47,19 +51,19 @@ data class DealEntity(
     val location: String? = null,
     val category: String = "other",
     val postedBy: String = "Anonymous",  // ✨ NEW: Username attribution (default for old deals)
-
-    // ========================================
-    // ✅ NEW: Added field for auto-approval
-    // This field requires a Room Migration.
-    // ========================================
     val autoApproved: Boolean = false,
     val promoCode: String? = null,
-    // ========================================
-    // SPRINT 1: Archive Feature
-    // Field to track if deal is archived (auto-archived after 10 days)
-    // Default: false (all existing deals remain active)
-    // Migration: 8-9 adds this column with default false
-    // ========================================
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    val submittedByUserId: String? = null,
+    val approvedBy: String? = null,
+    val approvedAt: String? = null,
+    val reportCount: Int = 0,
+    val deletedAt: String? = null,
+    val deletedBy: String? = null,
+    val deletionReason: String? = null,
+    // ✅ NEW: Rejection fields (separate from deletion)
+    val rejectionReason: String? = null,
+    val rejectedAt: String? = null,
+    val rejectedBy: String? = null
 
 )

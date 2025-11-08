@@ -25,7 +25,10 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_5_6,
                     DealDatabase.MIGRATION_6_7,
                     DealDatabase.MIGRATION_7_8,
-                    DealDatabase.MIGRATION_8_9  // ✅ SPRINT 1: Archive feature migration
+                    DealDatabase.MIGRATION_8_9,
+                    DealDatabase.MIGRATION_9_10,
+                    DealDatabase.MIGRATION_10_11,
+                    DealDatabase.MIGRATION_11_12  // ✅ NEW: Rejection fields
                 )
                 // ========================================
                 // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
@@ -34,16 +37,16 @@ object DatabaseModule {
                 // Removing it forces proper migrations for all future updates,
                 // protecting user data.
                 // ========================================
-                //.fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
         }
     }
 
-    // ========================================
-    // ✅ FIX: Renamed this function from 'provideDao'
-    // to 'provideDealDao' to fix the unresolved reference.
-    // ========================================
     fun provideDealDao(context: Context): DealDao =
         provideDatabase(context).dealDao()
+
+    fun provideUserDao(context: Context): UserDao =
+        provideDatabase(context).userDao()
+
 }

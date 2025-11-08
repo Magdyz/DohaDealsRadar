@@ -143,4 +143,133 @@ interface SupabaseApiService {
     suspend fun registerUsername(
         @Body request: UsernameRequest
     ): UsernameResponse
+
+
+
+    // ========================================
+
+    // ✅ MODERATOR & ADMIN ENDPOINTS
+
+    // ========================================
+
+
+
+    /**
+
+     * Get pending deals (moderator/admin only)
+
+     * @param request Contains user_id, page, limit
+
+     * @return List of pending deals with pagination
+
+     */
+
+    @POST("get_pending_deals")
+
+    suspend fun getPendingDeals(
+
+        @Body request: GetPendingDealsRequest
+
+    ): ApiEnvelope<List<DealDto>>
+
+
+
+    /**
+
+     * Approve a pending deal (moderator/admin only)
+
+     * @param request Contains moderator_user_id and deal_id
+
+     * @return Updated deal with approved status
+
+     */
+
+    @POST("approve_deal")
+
+    suspend fun approveDeal(
+
+        @Body request: ApproveDealRequest
+
+    ): ModeratorActionResponse
+
+
+
+    /**
+
+     * Soft delete a deal (moderator/admin can delete any, users can delete own)
+
+     * @param request Contains moderator_user_id, deal_id, reason
+
+     * @return Updated deal with deleted_at timestamp
+
+     */
+
+    @POST("delete_deal")
+
+    suspend fun deleteDeal(
+
+        @Body request: DeleteDealRequest
+
+    ): ModeratorActionResponse
+
+
+
+    /**
+
+     * Reject a pending deal (moderator/admin only)
+
+     * @param request Contains moderator_user_id, deal_id, reason
+
+     * @return Updated deal with rejected status
+
+     */
+
+    @POST("reject_deal")
+
+    suspend fun rejectDeal(
+
+        @Body request: RejectDealRequest
+
+    ): ModeratorActionResponse
+
+
+
+    /**
+
+     * Get all deals by a specific user
+
+     * @param request Contains user_id (caller), target_user_id (optional), page, limit
+
+     * @return List of deals submitted by the user
+
+     */
+
+    @POST("get_user_deals")
+
+    suspend fun getUserDeals(
+
+        @Body request: GetUserDealsRequest
+
+    ): ApiEnvelope<List<DealDto>>
+
+
+
+    /**
+
+     * Get user profile by ID
+
+     * @param request Contains user_id
+
+     * @return User profile data
+
+     */
+
+    @POST("get_user_profile")
+
+    suspend fun getUserProfile(
+
+        @Body request: GetUserProfileRequest
+
+    ): ApiEnvelope<UserDto>
+
 }
