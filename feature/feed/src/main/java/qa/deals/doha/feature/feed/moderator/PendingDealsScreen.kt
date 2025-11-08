@@ -65,7 +65,7 @@ fun PendingDealsScreen(
     Scaffold(
         topBar = {
             // ✅ Purple gradient header (matches Archive styling)
-            
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -203,8 +203,9 @@ fun PendingDealsScreen(
                             )
                         }
 
-                        // Loading more indicator
-                        if (uiState.isLoadingMore) {
+                        // Loading more indicator (only during pagination, not initial load)
+
+                        if (uiState.isLoadingMore && !uiState.loading) {
                             item {
                                 Box(
                                     modifier = Modifier
