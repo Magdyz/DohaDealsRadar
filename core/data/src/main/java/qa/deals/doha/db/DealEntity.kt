@@ -33,10 +33,11 @@ import androidx.room.PrimaryKey
         Index(value = ["isArchived"]),  // ✅ SPRINT 1: Index for archive filtering
         Index(value = ["submittedByUserId"]),  // NEW: For user's deals lookup
         Index(value = ["approvedBy"]),          // NEW: For approval tracking
-        Index(value = ["deletedAt"])            // NEW: For filtering deleted deals
-
+        Index(value = ["deletedAt"]),            // NEW: For filtering deleted deals
+        Index(value = ["rejectedAt"])            // NEW: For filtering rejected deals
     ]
 )
+
 data class DealEntity(
     @PrimaryKey val id: String,
     val title: String,
@@ -59,6 +60,10 @@ data class DealEntity(
     val reportCount: Int = 0,
     val deletedAt: String? = null,
     val deletedBy: String? = null,
-    val deletionReason: String? = null
+    val deletionReason: String? = null,
+    // ✅ NEW: Rejection fields (separate from deletion)
+    val rejectionReason: String? = null,
+    val rejectedAt: String? = null,
+    val rejectedBy: String? = null
 
 )

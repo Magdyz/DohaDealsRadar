@@ -721,6 +721,16 @@ private fun DealCard(
                     fontSize = 14.sp,
                     color = Color(0xFF6B7280)
                 )
+                // ✅ NEW: Show rejection reason if deal is rejected
+                if (deal.status == "rejected" && !deal.rejectionReason.isNullOrBlank()) {
+                    Text(
+                        text = "Reason: ${deal.rejectionReason}",
+                        fontSize = 13.sp,
+                        color = Color(0xFFDC2626),  // Red color to match rejected badge
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
 
 

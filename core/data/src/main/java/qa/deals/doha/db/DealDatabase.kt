@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserEntity::class
     ],
 
-    version = 11,  // Change from 10 to 11
+    version = 12,  // Incremented for rejection fields
     exportSchema = false
 )
 
@@ -182,7 +182,20 @@ abstract class DealDatabase : RoomDatabase() {
             }
 
         }
-
-
+        // ========================================
+        // ✅ NEW: MIGRATION 11 to 12
+        // (Adds rejection fields separate from deletion fields)
+        // ========================================
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add rejection fields (separate from deletion)
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejection_reason TEXT")
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejected_at TEXT")
+                database.execSQL("ALTER TABLE deals ADD COLUMN rejected_by TEXT")
+                // Create index for rejected_at for fast filtering
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_rejected_at ON deals(rejected_at)")
+                Log.d("DealDatabase", "✅ Migration 11→12: Added rejection_reason, rejected_at, rejected_by columns")
+            }
+        }
     }
 }

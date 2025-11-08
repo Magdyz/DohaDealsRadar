@@ -48,6 +48,13 @@ data class DealDto(
     @SerializedName("deleted_at") val deletedAt: String? = null,
     @SerializedName("deleted_by") val deletedBy: String? = null,
     @SerializedName("deletion_reason") val deletionReason: String? = null,
+    // ========================================
+    // ✅ NEW: Rejection fields (separate from deletion)
+    // ========================================
+    @SerializedName("rejection_reason") val rejectionReason: String? = null,
+    @SerializedName("rejected_at") val rejectedAt: String? = null,
+    @SerializedName("rejected_by") val rejectedBy: String? = null,
+    // ========================================
     @SerializedName("is_archived") val isArchived: Boolean? = false
 )
 
@@ -100,6 +107,10 @@ fun DealDto.toEntity(): DealEntity {
         reportCount = this.reportCount ?: 0,
         deletedAt = this.deletedAt,
         deletedBy = this.deletedBy,
-        deletionReason = this.deletionReason
+        deletionReason = this.deletionReason,
+        // ✅ NEW: Map rejection fields
+        rejectionReason = this.rejectionReason,
+        rejectedAt = this.rejectedAt,
+        rejectedBy = this.rejectedBy
     )
 }

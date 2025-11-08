@@ -27,7 +27,8 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_7_8,
                     DealDatabase.MIGRATION_8_9,
                     DealDatabase.MIGRATION_9_10,
-                    DealDatabase.MIGRATION_10_11
+                    DealDatabase.MIGRATION_10_11,
+                    DealDatabase.MIGRATION_11_12  // ✅ NEW: Rejection fields
                 )
                 // ========================================
                 // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
