@@ -639,11 +639,12 @@ private fun DealDetailsContent(
                     // ========================================
 
                     // ✅ Show inline link button if both location and link exist
+                    // ✅ UPDATED: Always enabled (even for archived deals) so users can check if deal is still active
                     if (deal.link.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
-                            onClick = { if (!uiState.isArchived) onOpenLink(deal.link) },
-                            enabled = !uiState.isArchived,  // Add this line
+                            onClick = { onOpenLink(deal.link) },
+                            enabled = true,  // ✅ Always enabled to check if deal is still active
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -676,12 +677,13 @@ private fun DealDetailsContent(
 
         // ========================================
         // ✨ FLOATING "VIEW DEAL" BUTTON
-        // Only for online deals (has link, no location)
+        // ✅ UPDATED: Always enabled (even for archived deals) so users can check if deal is still active
         // ========================================
+
         if (hasLink && deal.location.isNullOrBlank()) {
             Button(
-                onClick = {  if (!uiState.isArchived) onOpenLink(deal.link) },
-                enabled = !uiState.isArchived,  // Add this line
+                onClick = { onOpenLink(deal.link) },
+                enabled = true,  // ✅ Always enabled to check if deal is still active
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 16.dp)

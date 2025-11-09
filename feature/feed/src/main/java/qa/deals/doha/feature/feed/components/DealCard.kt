@@ -68,7 +68,10 @@ fun DealCard(
     hasVoted: Boolean = false,           // Keep for backwards compatibility
     userVoteType: String? = null,        // Keep for backwards compatibility
     optimisticHotCount: Int? = null,
-    optimisticColdCount: Int? = null
+    optimisticColdCount: Int? = null,
+    // ✅ NEW: Admin-only button for archived deals
+    showAdminButton: Boolean = false,    // Whether to show "Return to Feed" button
+    onAdminAction: (() -> Unit)? = null  // Callback for admin button click
 ) {
     val TAG = "DealCard"
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -118,7 +121,10 @@ fun DealCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(2.dp),
-        onClick = { onClick?.invoke() },
+        onClick = {
+            Log.d(TAG, "🃏 Card clicked for deal: ${deal.id}, archived: $isArchived")
+            onClick?.invoke()
+        },
         shape = MaterialTheme.shapes.medium, // ✅ Rounded edges
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -296,21 +302,21 @@ fun DealCard(
 
                 // ========================================
                 // View Deal Button - Full width, prominent
+                // ✅ UPDATED: Re-enabled for archived deals to check if deal is still active
                 // ========================================
+
                 Button(
                     onClick = {
-                        if (!isArchived) {  // ✅ NEW: Check archive status
-                            onClick?.invoke()
-                        }
+                        Log.d(TAG, "🔘 View Deal button clicked for deal: ${deal.id}, archived: $isArchived")
+                        onClick?.invoke()
                     },
-                    enabled = !isArchived,  // ✅ MODIFIED: Disable if archived
+                    enabled = true,  // ✅ Always enabled (even for archived deals)
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp), // Taller, not squashed
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF9046CF),
-                        contentColor = Color(0xFFF3F3F4),
-                        disabledContainerColor = Color.Gray  // ✅ Gray when disabled
+                        contentColor = Color(0xFFF3F3F4)
                     ),
                     shape = MaterialTheme.shapes.large, // Rounded edges
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
@@ -330,7 +336,51 @@ fun DealCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isArchived) "Archived" else "View Deal",  // ✅ Change text when archived
+                            text = "View Deal",  // ✅ Always "View Deal" (to check if still active)
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            // ========================================
+            // ✅ ADMIN-ONLY: Return to Feed Button (for archived deals)
+            // ========================================
+
+            if (showAdminButton && isArchived && onAdminAction != null) {
+                Button(
+                    onClick = {
+                        Log.d(TAG, "🔄 Return to Feed button clicked for deal: ${deal.id}")
+                        onAdminAction.invoke()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF059669),  // Green (different from purple)
+                        contentColor = Color.White
+                    ),
+                    shape = MaterialTheme.shapes.large,
+                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 2.dp,
+                        pressedElevation = 4.dp
+                    )
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🔄",
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Return to Feed (10 days)",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp

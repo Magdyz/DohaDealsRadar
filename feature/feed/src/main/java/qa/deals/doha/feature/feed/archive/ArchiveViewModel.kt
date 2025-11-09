@@ -16,8 +16,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import qa.deals.doha.db.DealEntity
 import qa.deals.domain.DealCategory
-import qa.deals.doha.network.PaginationMeta
 import qa.deals.doha.repository.DealRepository
+import qa.deals.doha.repository.UserRepository
+import qa.deals.doha.datastore.DeviceIdManager
+import kotlinx.coroutines.flow.map
 
 /**
  * ========================================
@@ -49,7 +51,9 @@ data class ArchiveUiState(
  */
 class ArchiveViewModel(
     private val context: Context,
-    private val repo: DealRepository = DealRepository()
+    private val repo: DealRepository = DealRepository(),
+    private val userRepo: UserRepository = UserRepository(),
+    private val deviceIdManager: DeviceIdManager = DeviceIdManager.getInstance(context)
 ) : ViewModel() {
 
     // ✅ Search Query State
@@ -59,6 +63,30 @@ class ArchiveViewModel(
     // ✅ Category Filter State
     private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
     val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
+
+    // ✅ Admin Detection (for Return to Feed button)
+
+    val isAdmin: StateFlow<Boolean> = deviceIdManager.userIdFlow
+        .map { userId ->
+            if (userId != null) {
+                userRepo.isAdmin(userId)
+            } else {
+                false
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    // ✅ Current User ID
+    val currentUserId: StateFlow<String?> = deviceIdManager.userIdFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     // ========================================
     // ✅ ARCHIVED DEALS with Search + Category Filtering
@@ -188,6 +216,53 @@ class ArchiveViewModel(
             } catch (t: Throwable) {
                 Log.e("Archive", "💥 Failed to load more archived deals", t)
                 uiState = uiState.copy(isLoadingMore = false)
+            }
+        }
+    }
+
+    // ========================================
+    // ✅ RETURN DEAL TO FEED (Admin Only)
+    // Un-archives deal and extends expiry by 10 days
+    // ========================================
+
+    fun returnDealToFeed(dealId: String) {
+        viewModelScope.launch {
+            try {
+                // ✅ FIX: Get userId directly from deviceIdManager instead of StateFlow
+                val userId = deviceIdManager.getUserId()
+                if (userId == null) {
+                    Log.e("Archive", "❌ Cannot return deal to feed: User not logged in")
+                    uiState = uiState.copy(error = "Please log in to use this feature")
+                    return@launch
+                }
+
+                // Check if user is admin
+                val userIsAdmin = userRepo.isAdmin(userId)
+                if (!userIsAdmin) {
+                    Log.e("Archive", "❌ Cannot return deal to feed: User is not admin (role check failed)")
+                    uiState = uiState.copy(error = "Only admins can return deals to feed")
+                    return@launch
+                }
+
+                Log.d("Archive", "🔄 Returning deal to feed: $dealId by admin: $userId")
+
+                val result = repo.returnDealToFeed(
+                    dealId = dealId,
+                    userId = userId
+                )
+
+                result.onSuccess {
+                    Log.d("Archive", "✅ Deal $dealId returned to feed successfully")
+
+                    // Refresh archive to remove the deal from list
+                    refreshArchivedDeals()
+                }.onFailure { error ->
+                    Log.e("Archive", "💥 Failed to return deal to feed", error)
+                    uiState = uiState.copy(error = error.message)
+                }
+            } catch (t: Throwable) {
+                Log.e("Archive", "💥 Error returning deal to feed", t)
+                uiState = uiState.copy(error = t.message)
             }
         }
     }

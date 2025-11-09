@@ -619,4 +619,46 @@ class DealRepository {
     fun getCachedApprovedActiveDeals(): Flow<List<DealEntity>> {
         return dealDao.getApprovedActiveDeals()
     }
+
+    /**
+     * Return an archived deal back to feed (admin only)
+     * - Un-archives the deal (isArchived = false)
+     * - Extends expiry by 10 days from now
+     * - Keeps original createdAt intact for accurate age display
+     *
+     * @param dealId Deal ID to return to feed
+     * @param userId Admin user ID
+     * @return Result with success/error
+     */
+
+    suspend fun returnDealToFeed(
+        dealId: String,
+        userId: String
+    ): Result<DealDto> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "🔄 Returning deal to feed: $dealId by admin: $userId")
+
+            val response = api.returnDealToFeed(
+                ReturnToFeedRequest(
+                    userId = userId,
+                    dealId = dealId
+                )
+            )
+
+            if (response.success && response.data != null) {
+                // Update local cache with un-archived deal
+                val entity = response.data.toEntity()
+                dealDao.insertDeal(entity)
+
+                Log.d("Repository", "✅ Deal returned to feed and cache updated: $dealId")
+                Result.success(response.data)
+            } else {
+                Log.e("Repository", "❌ Failed to return deal to feed: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to return deal to feed"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error returning deal to feed", e)
+            Result.failure(e)
+        }
+    }
 }

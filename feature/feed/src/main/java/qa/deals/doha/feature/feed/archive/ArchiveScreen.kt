@@ -83,6 +83,7 @@ fun ArchiveScreen(
     val state = viewModel.uiState
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()  // ✅ NEW: Admin detection
 
     // ✅ Grid state for lazy loading
     val gridState = rememberLazyGridState()
@@ -437,6 +438,11 @@ fun ArchiveScreen(
                                     userVoteType = null,
                                     optimisticHotCount = null,
                                     optimisticColdCount = null,
+                                    // ✅ NEW: Admin-only button to return deal to feed
+                                    showAdminButton = isAdmin,
+                                    onAdminAction = {
+                                        viewModel.returnDealToFeed(deal.id)
+                                    },
                                     modifier = Modifier.animateItem()
                                 )
                             }

@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14 // New onboarding screen and background loading
-        versionName = "1.1.4"
+        versionCode = 15 // New Account and admin button, rejection reasons
+        versionName = "1.1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
