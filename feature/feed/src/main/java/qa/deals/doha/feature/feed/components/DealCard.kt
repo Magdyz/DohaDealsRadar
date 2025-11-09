@@ -121,7 +121,10 @@ fun DealCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(2.dp),
-        onClick = { onClick?.invoke() },
+        onClick = {
+            Log.d(TAG, "🃏 Card clicked for deal: ${deal.id}, archived: $isArchived")
+            onClick?.invoke()
+        },
         shape = MaterialTheme.shapes.medium, // ✅ Rounded edges
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -303,7 +306,10 @@ fun DealCard(
                 // ========================================
 
                 Button(
-                    onClick = { onClick?.invoke() },
+                    onClick = {
+                        Log.d(TAG, "🔘 View Deal button clicked for deal: ${deal.id}, archived: $isArchived")
+                        onClick?.invoke()
+                    },
                     enabled = true,  // ✅ Always enabled (even for archived deals)
                     modifier = Modifier
                         .fillMaxWidth()
@@ -346,7 +352,10 @@ fun DealCard(
 
             if (showAdminButton && isArchived && onAdminAction != null) {
                 Button(
-                    onClick = onAdminAction,
+                    onClick = {
+                        Log.d(TAG, "🔄 Return to Feed button clicked for deal: ${deal.id}")
+                        onAdminAction.invoke()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),

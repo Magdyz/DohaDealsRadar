@@ -228,20 +228,23 @@ class ArchiveViewModel(
     fun returnDealToFeed(dealId: String) {
         viewModelScope.launch {
             try {
-                val userId = currentUserId.value
+                // ✅ FIX: Get userId directly from deviceIdManager instead of StateFlow
+                val userId = deviceIdManager.getUserId()
                 if (userId == null) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User not logged in")
+                    uiState = uiState.copy(error = "Please log in to use this feature")
                     return@launch
                 }
 
                 // Check if user is admin
-                if (!isAdmin.value) {
-                    Log.e("Archive", "❌ Cannot return deal to feed: User is not admin")
+                val userIsAdmin = userRepo.isAdmin(userId)
+                if (!userIsAdmin) {
+                    Log.e("Archive", "❌ Cannot return deal to feed: User is not admin (role check failed)")
                     uiState = uiState.copy(error = "Only admins can return deals to feed")
                     return@launch
                 }
 
-                Log.d("Archive", "🔄 Returning deal to feed: $dealId")
+                Log.d("Archive", "🔄 Returning deal to feed: $dealId by admin: $userId")
 
                 val result = repo.returnDealToFeed(
                     dealId = dealId,
