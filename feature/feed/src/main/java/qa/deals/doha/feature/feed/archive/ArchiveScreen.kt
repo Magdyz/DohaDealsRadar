@@ -92,6 +92,9 @@ fun ArchiveScreen(
     // ✅ Search bar state
     var searchActive by remember { mutableStateOf(false) }
 
+    // ✅ NEW: Delete confirmation dialog state
+    var dealToDelete by remember { mutableStateOf<String?>(null) }
+
     // ========================================
     // ✅ CATEGORY FILTER CHIPS
     // Horizontal scrolling chips for category filtering
@@ -438,11 +441,15 @@ fun ArchiveScreen(
                                     userVoteType = null,
                                     optimisticHotCount = null,
                                     optimisticColdCount = null,
-                                    // ✅ NEW: Admin-only button to return deal to feed
+                                    // ✅ Admin-only button to return deal to feed
                                     showAdminButton = isAdmin,
                                     onAdminAction = {
                                         viewModel.returnDealToFeed(deal.id)
                                     },
+
+                                    // ✅ NEW: Admin-only delete button
+                                    showDeleteButton = isAdmin,
+                                    onDelete = { dealToDelete = deal.id },
                                     modifier = Modifier.animateItem()
                                 )
                             }
@@ -470,5 +477,40 @@ fun ArchiveScreen(
                 }
             }
         }
+    }
+
+    // ========================================
+    // ✅ NEW: Delete Confirmation Dialog
+    // =======================================
+
+    dealToDelete?.let { dealId ->
+        AlertDialog(
+            onDismissRequest = { dealToDelete = null },
+            title = { Text("Delete Deal Permanently") },
+            text = {
+                Text(
+                    "This will permanently delete the deal and its image from the database. " +
+                            "This action cannot be undone. Are you sure?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.permanentDeleteDeal(dealId)
+                        dealToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626)  // Red
+                    )
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dealToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

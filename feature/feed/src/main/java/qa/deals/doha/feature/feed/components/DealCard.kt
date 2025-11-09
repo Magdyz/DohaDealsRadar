@@ -26,6 +26,7 @@ import java.util.*
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
+import androidx.compose.material.icons.filled.Close
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -69,9 +70,12 @@ fun DealCard(
     userVoteType: String? = null,        // Keep for backwards compatibility
     optimisticHotCount: Int? = null,
     optimisticColdCount: Int? = null,
-    // ✅ NEW: Admin-only button for archived deals
+    // ✅ Admin-only button for archived deals (Return to Feed)
     showAdminButton: Boolean = false,    // Whether to show "Return to Feed" button
-    onAdminAction: (() -> Unit)? = null  // Callback for admin button click
+    onAdminAction: (() -> Unit)? = null,  // Callback for admin button click
+    // ✅ NEW: Admin-only delete button (permanent delete)
+    showDeleteButton: Boolean = false,   // Whether to show delete X button
+    onDelete: (() -> Unit)? = null       // Callback for delete button click
 ) {
     val TAG = "DealCard"
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -204,7 +208,8 @@ fun DealCard(
 // 🆕 NEW: "New" Badge (Top-Right Corner)
 // Only shows for deals posted within 48 hours
 // ========================================
-                    if (isNewDeal) {
+
+                    if (isNewDeal && !showDeleteButton) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -223,6 +228,35 @@ fun DealCard(
                                     letterSpacing = 0.5.sp
                                 ),
                                 color = Color.White
+                            )
+                        }
+                    }
+
+                    // ========================================
+                    // ✅ NEW: Admin Delete Button (Top-Right Corner)
+                    // Permanently deletes deal and image from database
+                    // ========================================
+
+                    if (showDeleteButton && onDelete != null) {
+                        IconButton(
+                            onClick = {
+                                Log.d(TAG, "🗑️ Delete button clicked for deal: ${deal.id}")
+                                onDelete.invoke()
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(32.dp)
+                                .background(
+                                    color = Color(0xFFDC2626).copy(alpha = 0.95f), // Red with high opacity
+                                    shape = CircleShape
+                                )
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                                contentDescription = "Delete deal",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

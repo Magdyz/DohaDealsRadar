@@ -661,4 +661,45 @@ class DealRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Permanently delete a deal and its image from database (admin only)
+     * - Deletes the deal record from database
+     * - Deletes the image file from Supabase storage
+     * - Cannot be undone
+     *
+     * @param dealId Deal ID to permanently delete
+     * @param userId Admin user ID
+     * @return Result with success/error
+     */
+
+    suspend fun permanentDeleteDeal(
+        dealId: String,
+        userId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "🗑️ Permanently deleting deal: $dealId by admin: $userId")
+
+            val response = api.permanentDeleteDeal(
+                PermanentDeleteDealRequest(
+                    userId = userId,
+                    dealId = dealId
+                )
+            )
+
+            if (response.success) {
+                // Remove from local cache
+                dealDao.deleteDealById(dealId)
+
+                Log.d("Repository", "✅ Deal permanently deleted and removed from cache: $dealId")
+                Result.success(Unit)
+            } else {
+                Log.e("Repository", "❌ Failed to permanently delete deal: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to permanently delete deal"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error permanently deleting deal", e)
+            Result.failure(e)
+        }
+    }
 }

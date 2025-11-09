@@ -266,4 +266,49 @@ class ArchiveViewModel(
             }
         }
     }
+
+    // ========================================
+    // ✅ NEW: Permanently Delete Deal (Admin Only)
+    // Deletes deal and image from database - cannot be undone
+    // ========================================
+
+    fun permanentDeleteDeal(dealId: String) {
+        viewModelScope.launch {
+            try {
+                val userId = deviceIdManager.getUserId()
+                if (userId == null) {
+                    Log.e("Archive", "❌ Cannot delete deal: User not logged in")
+                    uiState = uiState.copy(error = "Please log in to delete deals")
+                    return@launch
+                }
+
+                // Check if user is admin
+                val userIsAdmin = userRepo.isAdmin(userId)
+                if (!userIsAdmin) {
+                    Log.e("Archive", "❌ Cannot delete deal: User is not admin")
+                    uiState = uiState.copy(error = "Only admins can permanently delete deals")
+                    return@launch
+                }
+
+                Log.d("Archive", "🗑️ Permanently deleting deal: $dealId by admin: $userId")
+
+                val result = repo.permanentDeleteDeal(
+                    dealId = dealId,
+                    userId = userId
+                )
+
+                result.onSuccess {
+                    Log.d("Archive", "✅ Deal $dealId permanently deleted successfully")
+                    // Refresh archive to remove the deal from list
+                    refreshArchivedDeals()
+                }.onFailure { error ->
+                    Log.e("Archive", "💥 Failed to permanently delete deal", error)
+                    uiState = uiState.copy(error = error.message)
+                }
+            } catch (t: Throwable) {
+                Log.e("Archive", "💥 Error permanently deleting deal", t)
+                uiState = uiState.copy(error = t.message)
+            }
+        }
+    }
 }
