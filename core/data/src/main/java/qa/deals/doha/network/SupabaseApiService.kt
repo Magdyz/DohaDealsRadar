@@ -272,4 +272,19 @@ interface SupabaseApiService {
 
     ): ApiEnvelope<UserDto>
 
+    /**
+     * Return an archived deal back to feed (admin only)
+     * - Un-archives the deal (isArchived = false)
+     * - Extends expiry by 10 days from now
+     * - Keeps original createdAt (for real age display)
+     *
+     * @param request Contains admin_user_id and deal_id
+     * @return Updated deal
+     */
+
+    @POST("return_to_feed")
+    suspend fun returnDealToFeed(
+        @Body request: ReturnToFeedRequest
+    ): ModeratorActionResponse
+
 }
