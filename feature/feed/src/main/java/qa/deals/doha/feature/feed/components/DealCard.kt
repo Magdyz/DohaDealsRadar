@@ -235,6 +235,7 @@ fun DealCard(
                     // ========================================
                     // ✅ NEW: Admin Delete Button (Top-Right Corner)
                     // Permanently deletes deal and image from database
+                    // 2025 Design: Smaller, more refined and proportional
                     // ========================================
 
                     if (showDeleteButton && onDelete != null) {
@@ -245,8 +246,8 @@ fun DealCard(
                             },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .size(32.dp)
+                                .padding(6.dp)
+                                .size(28.dp)
                                 .background(
                                     color = Color(0xFFDC2626).copy(alpha = 0.95f), // Red with high opacity
                                     shape = CircleShape
@@ -256,7 +257,7 @@ fun DealCard(
                                 imageVector = androidx.compose.material.icons.Icons.Default.Close,
                                 contentDescription = "Delete deal",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
