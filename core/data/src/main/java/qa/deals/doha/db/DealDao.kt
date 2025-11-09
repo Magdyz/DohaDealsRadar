@@ -114,5 +114,9 @@ interface DealDao {
     @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun getApprovedActiveDeals(): Flow<List<DealEntity>>
 
+    // Permanently delete a deal from database (admin only)
+    @Query("DELETE FROM deals WHERE id = :dealId")
+    suspend fun deleteDealById(dealId: String)
+
 
 }
