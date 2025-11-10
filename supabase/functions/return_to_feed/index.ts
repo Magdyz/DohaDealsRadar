@@ -226,7 +226,7 @@ serve(async (req) => {
 
         message: "Deal returned to feed successfully",
 
-        deal: dealData,
+        data: dealData,
 
       }),
 

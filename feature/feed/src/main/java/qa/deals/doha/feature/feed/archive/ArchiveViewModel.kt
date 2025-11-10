@@ -301,28 +301,19 @@ class ArchiveViewModel(
                 result.onSuccess {
                     Log.d("Archive", "✅ Deal $dealId returned to feed successfully")
 
-                    // Refresh both archive AND main feed to reflect the change everywhere
-                    try {
-                        // Refresh archive (remove the deal from archive list)
-                        val archiveResult = repo.refreshArchivedDeals(page = 1, append = false)
+                    // ✅ FIX: No need to manually refresh - Room's reactive Flows will
+                    // automatically update the UI when the deal's isArchived status changes.
+                    // The repo.returnDealToFeed() already updated the local cache, so the
+                    // archivedDeals and deals Flows will emit the updated lists automatically.
+                    // Manual refresh calls were causing issues by:
+                    // 1. Fetching potentially stale data from the API
+                    // 2. Replacing the cache before the backend had fully updated
+                    // 3. Removing the deal from cache if it wasn't in the first page of results
 
-                        // Refresh main feed (add the deal to active feed)
-                        val feedResult = repo.refreshDeals(page = 1, append = false)
+                    Log.d("Archive", "🔄 Local cache updated - UI will update automatically via Room Flows")
 
-                        archiveResult.onSuccess {
-                            Log.d("Archive", "✅ Archive refreshed - deal removed from archive")
-                        }
-
-                        feedResult.onSuccess {
-                            Log.d("Archive", "✅ Feed refreshed - deal added to active feed")
-                        }
-
-                        // Clear loading state
-                        uiState = uiState.copy(loading = false)
-                    } catch (e: Exception) {
-                        Log.e("Archive", "💥 Error refreshing after return to feed", e)
-                        uiState = uiState.copy(loading = false, error = e.message)
-                    }
+                    // Clear loading state
+                    uiState = uiState.copy(loading = false)
 
                 }.onFailure { error ->
                     Log.e("Archive", "💥 Failed to return deal to feed", error)
