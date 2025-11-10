@@ -301,11 +301,29 @@ class ArchiveViewModel(
                 result.onSuccess {
                     Log.d("Archive", "✅ Deal $dealId returned to feed successfully")
 
-                    // Refresh archive to remove the deal from list
-                    refreshArchivedDeals()
+                    // Refresh both archive AND main feed to reflect the change everywhere
+                    try {
+                        // Refresh archive (remove the deal from archive list)
+                        val archiveResult = repo.refreshArchivedDeals(page = 1, append = false)
 
-                    // Clear loading
-                    uiState = uiState.copy(loading = false)
+                        // Refresh main feed (add the deal to active feed)
+                        val feedResult = repo.refreshDeals(page = 1, append = false)
+
+                        archiveResult.onSuccess {
+                            Log.d("Archive", "✅ Archive refreshed - deal removed from archive")
+                        }
+
+                        feedResult.onSuccess {
+                            Log.d("Archive", "✅ Feed refreshed - deal added to active feed")
+                        }
+
+                        // Clear loading state
+                        uiState = uiState.copy(loading = false)
+                    } catch (e: Exception) {
+                        Log.e("Archive", "💥 Error refreshing after return to feed", e)
+                        uiState = uiState.copy(loading = false, error = e.message)
+                    }
+
                 }.onFailure { error ->
                     Log.e("Archive", "💥 Failed to return deal to feed", error)
                     uiState = uiState.copy(
