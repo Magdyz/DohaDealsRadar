@@ -34,7 +34,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.ExperimentalFoundationApi // For animateItem
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.ui.text.input.KeyboardType
 
 /**
  * ========================================
@@ -91,6 +93,9 @@ fun ArchiveScreen(
 
     // ✅ Search bar state
     var searchActive by remember { mutableStateOf(false) }
+
+    // ✅ NEW: Delete confirmation dialog state
+    var dealToDelete by remember { mutableStateOf<String?>(null) }
 
     // ========================================
     // ✅ CATEGORY FILTER CHIPS
@@ -438,11 +443,15 @@ fun ArchiveScreen(
                                     userVoteType = null,
                                     optimisticHotCount = null,
                                     optimisticColdCount = null,
-                                    // ✅ NEW: Admin-only button to return deal to feed
+                                    // ✅ Admin-only button to return deal to feed
                                     showAdminButton = isAdmin,
                                     onAdminAction = {
-                                        viewModel.returnDealToFeed(deal.id)
+                                        viewModel.showReturnToFeedDialog(deal.id)
                                     },
+
+                                    // ✅ NEW: Admin-only delete button
+                                    showDeleteButton = isAdmin,
+                                    onDelete = { dealToDelete = deal.id },
                                     modifier = Modifier.animateItem()
                                 )
                             }
@@ -469,6 +478,147 @@ fun ArchiveScreen(
                     }
                 }
             }
+
+            // ✨ NEW: Return to Feed Dialog
+
+            if (state.showReturnToFeedDialog) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.hideReturnToFeedDialog() },
+                    title = { Text("Return Deal to Feed") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Expires in",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    "${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            }
+
+                            Slider(
+                                value = state.expiresInDays.toFloat(),
+                                onValueChange = { newValue ->
+                                    viewModel.updateExpiresInDays(newValue.toInt())
+                                },
+                                valueRange = 1f..30f,
+                                steps = 28,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "1 day",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "30 days",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = { viewModel.returnDealToFeed() }) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.hideReturnToFeedDialog() }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // ✨ NEW: Loading overlay when returning deal to feed
+            if (state.loading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        modifier = Modifier.size(120.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(50.dp),
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.primary  // Purple
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Returning...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    // ========================================
+    // ✅ NEW: Delete Confirmation Dialog
+    // =======================================
+
+    dealToDelete?.let { dealId ->
+        AlertDialog(
+            onDismissRequest = { dealToDelete = null },
+            title = { Text("Delete Deal Permanently") },
+            text = {
+                Text(
+                    "This will permanently delete the deal and its image from the database. " +
+                            "This action cannot be undone. Are you sure?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.permanentDeleteDeal(dealId)
+                        dealToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626)  // Red
+                    )
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dealToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

@@ -287,4 +287,18 @@ interface SupabaseApiService {
         @Body request: ReturnToFeedRequest
     ): ModeratorActionResponse
 
+    /**
+     * Permanently delete a deal and its image from database (admin only)
+     * - Deletes the deal record from database
+     * - Deletes the image file from Supabase storage
+     * - Cannot be undone
+     *
+     * @param request Contains admin_user_id and deal_id
+     * @return Success response
+     */
+
+    @POST("permanent_delete_deal")
+    suspend fun permanentDeleteDeal(
+        @Body request: PermanentDeleteDealRequest
+    ): ModeratorActionResponse
 }

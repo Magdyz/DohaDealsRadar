@@ -9,7 +9,9 @@ import qa.deals.doha.core.data.BuildConfig // ✅ THIS IS THE FIX
 
 object NetworkModule {
 
-    // TODO: Move to BuildConfig or gradle.properties for security
+    // ✅ SECURITY IMPROVEMENT COMPLETED: Now using BuildConfig loaded from local.properties
+    // Credentials are no longer hardcoded in source code or committed to git
+
     private const val SUPABASE_URL = BuildConfig.SUPABASE_URL
     internal const val SUPABASE_ANON_KEY = BuildConfig.SUPABASE_ANON_KEY
 

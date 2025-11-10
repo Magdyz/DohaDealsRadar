@@ -286,15 +286,21 @@ fun FeedScreen(
     val state = viewModel.uiState
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()  // ✨ NEW: Category state
+    val isAdmin by viewModel.isAdmin.collectAsState()  // ✅ NEW: Admin detection for delete button
 
     // ✅ PRESERVED: Grid and pull-to-refresh states
     val gridState = rememberLazyGridState()
     val pullToRefreshState = rememberPullToRefreshState()
+
 // ========================================
     // ✅ FIX (1.3): Get a lifecycle-aware CoroutineScope
     // We will use this for the FAB's click animation.
-    // ========================================
+    // =======================================
+
     val scope = rememberCoroutineScope()
+
+    // ✅ NEW: Delete confirmation dialog state
+    var dealToDelete by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -486,6 +492,10 @@ fun FeedScreen(
                                     userVoteType = viewModel.getVoteType(deal.id),
                                     optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
                                     optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
+                                    // ✅ NEW: Admin-only delete button
+                                    showDeleteButton = isAdmin,
+                                    onDelete = { dealToDelete = deal.id },
+
                                     // ✅ 2025: Hardware acceleration for buttery smooth 60fps
                                     modifier = Modifier
                                         .animateItem()
@@ -630,4 +640,39 @@ fun FeedScreen(
         }
         }  // End of Box (this is correct placement)
     }  // End of Scaffold
+
+    // ========================================
+    // ✅ NEW: Delete Confirmation Dialog
+    // ========================================
+
+    dealToDelete?.let { dealId ->
+        AlertDialog(
+            onDismissRequest = { dealToDelete = null },
+            title = { Text("Delete Deal Permanently") },
+            text = {
+                Text(
+                    "This will permanently delete the deal and its image from the database. " +
+                            "This action cannot be undone. Are you sure?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.permanentDeleteDeal(dealId)
+                        dealToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626)  // Red
+                    )
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dealToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }  // End of FeedScreen

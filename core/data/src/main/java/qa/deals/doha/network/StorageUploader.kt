@@ -8,15 +8,20 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import qa.deals.doha.core.data.BuildConfig
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 object StorageUploader {
 
-    private const val STORAGE_URL = "https://nzchbnshkrkdqpcawohu.supabase.co/storage/v1/object/deals/images"
-    private const val ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Y2hibnNoa3JrZHFwY2F3b2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxODE3ODMsImV4cCI6MjA3NTc1Nzc4M30.rBl_9k6kd3ICQCD0Th8ysUu6YGozYGC12Pjl_Ra01l0"
+    // ✅ SECURITY IMPROVEMENT: Credentials now loaded from BuildConfig (configured in build.gradle.kts)
+    // Previously these were hardcoded here - now they come from local.properties (not committed to git)
+    // NO LOGIC CHANGE: Same values, just different source for better security
 
+    private val STORAGE_URL = BuildConfig.SUPABASE_STORAGE_URL
+    private val ANON_KEY = BuildConfig.SUPABASE_ANON_KEY
+    private val PUBLIC_BASE_URL = BuildConfig.SUPABASE_PUBLIC_URL
     // ✅ NO LOGGING - Clean logs
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -56,7 +61,8 @@ object StorageUploader {
             Log.d("StorageUploader", "📥 IS SUCCESSFUL: ${response.isSuccessful}")
 
             if (response.isSuccessful) {
-                val publicUrl = "https://nzchbnshkrkdqpcawohu.supabase.co/storage/v1/object/public/deals/images/$fileName"
+                // ✅ SECURITY IMPROVEMENT: Using configurable PUBLIC_BASE_URL instead of hardcoded value
+                val publicUrl = "$PUBLIC_BASE_URL/$fileName"
                 Log.d("StorageUploader", "✅ SUCCESS! URL: $publicUrl")
                 publicUrl
             } else {

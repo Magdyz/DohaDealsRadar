@@ -86,7 +86,6 @@ class FeedViewModel(
         )
 
 
-
     val currentUserId: StateFlow<String?> = deviceIdManager.userIdFlow
 
         .stateIn(
@@ -98,7 +97,6 @@ class FeedViewModel(
             initialValue = null
 
         )
-
 
 
     val currentUserRole: StateFlow<String> = deviceIdManager.userIdFlow
@@ -143,10 +141,27 @@ class FeedViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
+    // ✅ NEW: Admin status detection (for delete button)
+
+    val isAdmin: StateFlow<Boolean> = deviceIdManager.userIdFlow
+        .map { userId ->
+            if (userId != null) {
+                userRepo.isAdmin(userId)
+            } else {
+                false
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering
+// ✅ FIX: Use getCachedApprovedActiveDeals() to ensure only approved deals show
+// This prevents pending/rejected deals from appearing in the feed
     val deals: StateFlow<List<DealEntity>> = combine(
-        repo.getCachedActiveDeals(),
+        repo.getCachedApprovedActiveDeals(),
         _searchQuery,
         _selectedCategory
     ) { allDeals, query, category ->
@@ -221,7 +236,10 @@ class FeedViewModel(
                 Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 Log.d("FeedViewModel", "🔍 CHECKING USER PROFILE CACHE")
                 Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                Log.d("FeedViewModel", "👤 UserId from DeviceIdManager: ${userId?.take(8) ?: "NULL"}")
+                Log.d(
+                    "FeedViewModel",
+                    "👤 UserId from DeviceIdManager: ${userId?.take(8) ?: "NULL"}"
+                )
 
                 if (userId != null) {
                     Log.d("FeedViewModel", "✅ User is logged in, checking cache...")
@@ -229,7 +247,10 @@ class FeedViewModel(
                     // Check if user is cached locally
                     val cachedUser = userRepo.getCachedUser(userId)
                     if (cachedUser == null) {
-                        Log.d("FeedViewModel", "📥 User NOT cached in Room, fetching from backend...")
+                        Log.d(
+                            "FeedViewModel",
+                            "📥 User NOT cached in Room, fetching from backend..."
+                        )
                         try {
                             val result = userRepo.fetchUserProfile(userId)
                             if (result.isSuccess) {
@@ -239,7 +260,10 @@ class FeedViewModel(
                                 Log.d("FeedViewModel", "   Role: ${user?.role}")
                                 Log.d("FeedViewModel", "   AutoApprove: ${user?.autoApprove}")
                             } else {
-                                Log.e("FeedViewModel", "❌ Failed to fetch user profile: ${result.exceptionOrNull()?.message}")
+                                Log.e(
+                                    "FeedViewModel",
+                                    "❌ Failed to fetch user profile: ${result.exceptionOrNull()?.message}"
+                                )
                             }
                         } catch (e: Exception) {
                             Log.e("FeedViewModel", "💥 Error fetching user profile", e)
@@ -449,6 +473,50 @@ class FeedViewModel(
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote cold", t)
+            }
+        }
+    }
+
+    // ========================================
+    // ✅ NEW: Permanently Delete Deal (Admin Only)
+    // Deletes deal and image from database - cannot be undone
+    // ========================================
+    fun permanentDeleteDeal(dealId: String) {
+        viewModelScope.launch {
+            try {
+                val userId = deviceIdManager.getUserId()
+                if (userId == null) {
+                    Log.e("FeedViewModel", "❌ Cannot delete deal: User not logged in")
+                    uiState = uiState.copy(error = "Please log in to delete deals")
+                    return@launch
+                }
+
+                // Check if user is admin
+                val userIsAdmin = userRepo.isAdmin(userId)
+                if (!userIsAdmin) {
+                    Log.e("FeedViewModel", "❌ Cannot delete deal: User is not admin")
+                    uiState = uiState.copy(error = "Only admins can permanently delete deals")
+                    return@launch
+                }
+
+                Log.d("FeedViewModel", "🗑️ Permanently deleting deal: $dealId by admin: $userId")
+
+                val result = repo.permanentDeleteDeal(
+                    dealId = dealId,
+                    userId = userId
+                )
+
+                result.onSuccess {
+                    Log.d("FeedViewModel", "✅ Deal $dealId permanently deleted successfully")
+                    // Refresh feed to remove the deal from list
+                    refreshDeals()
+                }.onFailure { error ->
+                    Log.e("FeedViewModel", "💥 Failed to permanently delete deal", error)
+                    uiState = uiState.copy(error = error.message)
+                }
+            } catch (t: Throwable) {
+                Log.e("FeedViewModel", "💥 Error permanently deleting deal", t)
+                uiState = uiState.copy(error = t.message)
             }
         }
     }

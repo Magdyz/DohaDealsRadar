@@ -25,16 +25,26 @@ import kotlinx.coroutines.flow.map
  * ========================================
  * ✅ SPRINT 4: ARCHIVE UI STATE
  * Mirrors FeedUiState for consistency
+ * ✨ NEW: Added return to feed dialog state
  * ========================================
  */
+
 data class ArchiveUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
+
     // ✅ Pagination state
+
     val currentPage: Int = 1,
     val hasMorePages: Boolean = true,
-    val isLoadingMore: Boolean = false
+    val isLoadingMore: Boolean = false,
+
+    // ✨ NEW: Return to Feed dialog state
+
+    val showReturnToFeedDialog: Boolean = false,
+    val selectedDealId: String? = null,
+    val expiresInDays: Int = 10
 )
 
 /**
@@ -222,17 +232,49 @@ class ArchiveViewModel(
 
     // ========================================
     // ✅ RETURN DEAL TO FEED (Admin Only)
-    // Un-archives deal and extends expiry by 10 days
+    // Un-archives deal and extends expiry by specified days
     // ========================================
 
-    fun returnDealToFeed(dealId: String) {
+    fun showReturnToFeedDialog(dealId: String) {
+        uiState = uiState.copy(
+            showReturnToFeedDialog = true,
+            selectedDealId = dealId,
+            expiresInDays = 10
+        )
+    }
+
+    fun hideReturnToFeedDialog() {
+        uiState = uiState.copy(
+            showReturnToFeedDialog = false,
+            selectedDealId = null,
+            expiresInDays = 10
+        )
+    }
+
+    fun updateExpiresInDays(days: Int) {
+        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 30))
+    }
+
+    fun returnDealToFeed() {
+        val dealId = uiState.selectedDealId ?: return
+        val expiresInDays = uiState.expiresInDays
+
         viewModelScope.launch {
             try {
+                // Hide dialog and show loading
+                uiState = uiState.copy(
+                    showReturnToFeedDialog = false,
+                    loading = true
+                )
+
                 // ✅ FIX: Get userId directly from deviceIdManager instead of StateFlow
                 val userId = deviceIdManager.getUserId()
                 if (userId == null) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User not logged in")
-                    uiState = uiState.copy(error = "Please log in to use this feature")
+                    uiState = uiState.copy(
+                        error = "Please log in to use this feature",
+                        loading = false
+                    )
                     return@launch
                 }
 
@@ -240,28 +282,96 @@ class ArchiveViewModel(
                 val userIsAdmin = userRepo.isAdmin(userId)
                 if (!userIsAdmin) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User is not admin (role check failed)")
-                    uiState = uiState.copy(error = "Only admins can return deals to feed")
+                    uiState = uiState.copy(
+                        error = "Only admins can return deals to feed",
+                        loading = false
+                    )
                     return@launch
                 }
 
                 Log.d("Archive", "🔄 Returning deal to feed: $dealId by admin: $userId")
+                Log.d("Archive", "   Expires in: $expiresInDays days")
 
                 val result = repo.returnDealToFeed(
                     dealId = dealId,
-                    userId = userId
+                    userId = userId,
+                    expiresInDays = expiresInDays
                 )
 
                 result.onSuccess {
                     Log.d("Archive", "✅ Deal $dealId returned to feed successfully")
 
-                    // Refresh archive to remove the deal from list
-                    refreshArchivedDeals()
+                    // ✅ FIX: No need to manually refresh - Room's reactive Flows will
+                    // automatically update the UI when the deal's isArchived status changes.
+                    // The repo.returnDealToFeed() already updated the local cache, so the
+                    // archivedDeals and deals Flows will emit the updated lists automatically.
+                    // Manual refresh calls were causing issues by:
+                    // 1. Fetching potentially stale data from the API
+                    // 2. Replacing the cache before the backend had fully updated
+                    // 3. Removing the deal from cache if it wasn't in the first page of results
+
+                    Log.d("Archive", "🔄 Local cache updated - UI will update automatically via Room Flows")
+
+                    // Clear loading state
+                    uiState = uiState.copy(loading = false)
+
                 }.onFailure { error ->
                     Log.e("Archive", "💥 Failed to return deal to feed", error)
-                    uiState = uiState.copy(error = error.message)
+                    uiState = uiState.copy(
+                        error = error.message,
+                        loading = false
+                    )
                 }
             } catch (t: Throwable) {
                 Log.e("Archive", "💥 Error returning deal to feed", t)
+                uiState = uiState.copy(
+                    error = t.message,
+                    loading = false
+                )
+            }
+        }
+    }
+
+    // ========================================
+    // ✅ NEW: Permanently Delete Deal (Admin Only)
+    // Deletes deal and image from database - cannot be undone
+    // ========================================
+
+    fun permanentDeleteDeal(dealId: String) {
+        viewModelScope.launch {
+            try {
+                val userId = deviceIdManager.getUserId()
+                if (userId == null) {
+                    Log.e("Archive", "❌ Cannot delete deal: User not logged in")
+                    uiState = uiState.copy(error = "Please log in to delete deals")
+                    return@launch
+                }
+
+                // Check if user is admin
+                val userIsAdmin = userRepo.isAdmin(userId)
+                if (!userIsAdmin) {
+                    Log.e("Archive", "❌ Cannot delete deal: User is not admin")
+                    uiState = uiState.copy(error = "Only admins can permanently delete deals")
+                    return@launch
+                }
+
+                Log.d("Archive", "🗑️ Permanently deleting deal: $dealId by admin: $userId")
+
+                val result = repo.permanentDeleteDeal(
+                    dealId = dealId,
+                    userId = userId
+                )
+
+                result.onSuccess {
+                    Log.d("Archive", "✅ Deal $dealId permanently deleted successfully")
+                    // Refresh archive to remove the deal from list
+                    refreshArchivedDeals()
+                }.onFailure { error ->
+                    Log.e("Archive", "💥 Failed to permanently delete deal", error)
+                    uiState = uiState.copy(error = error.message)
+                }
+            } catch (t: Throwable) {
+                Log.e("Archive", "💥 Error permanently deleting deal", t)
                 uiState = uiState.copy(error = t.message)
             }
         }

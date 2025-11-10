@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserEntity::class
     ],
 
-    version = 12,  // Incremented for rejection fields
+    version = 13,  // Expired at
     exportSchema = false
 )
 
@@ -77,55 +77,32 @@ abstract class DealDatabase : RoomDatabase() {
             }
         }
         val MIGRATION_9_10 = object : Migration(9, 10) {
-
             override fun migrate(database: SupportSQLiteDatabase) {
 
                 // Create users table
-
                 database.execSQL("""
-
             CREATE TABLE IF NOT EXISTS users (
-
                 id TEXT PRIMARY KEY NOT NULL,
-
                 email TEXT NOT NULL,
-
                 username TEXT NOT NULL,
-
                 device_id TEXT,
-
                 email_verified INTEGER NOT NULL DEFAULT 0,
-
                 role TEXT NOT NULL DEFAULT 'user',
-
                 auto_approve INTEGER NOT NULL DEFAULT 0,
-
                 approved_deals_count INTEGER NOT NULL DEFAULT 0,
-
                 created_at TEXT,
-
                 last_login_at TEXT
-
             )
-
         """)
-
-
 
                 // Add new columns to deals table
 
                 database.execSQL("ALTER TABLE deals ADD COLUMN submitted_by_user_id TEXT")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN approved_by TEXT")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN approved_at TEXT")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN deleted_at TEXT")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN deleted_by TEXT")
-
                 database.execSQL("ALTER TABLE deals ADD COLUMN deletion_reason TEXT")
 
 
@@ -195,6 +172,18 @@ abstract class DealDatabase : RoomDatabase() {
                 // Create index for rejected_at for fast filtering
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_deals_rejected_at ON deals(rejected_at)")
                 Log.d("DealDatabase", "✅ Migration 11→12: Added rejection_reason, rejected_at, rejected_by columns")
+            }
+        }
+
+        // ========================================
+        // ✅ NEW: MIGRATION 12 to 13
+        // (Adds expires_at column for deal expiration logic)
+        // ========================================
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add expires_at column (nullable, will be populated via data migration)
+                database.execSQL("ALTER TABLE deals ADD COLUMN expiresAt TEXT DEFAULT NULL")
+                Log.d("DealDatabase", "✅ Migration 12→13: Added expiresAt column for deal expiration")
             }
         }
     }

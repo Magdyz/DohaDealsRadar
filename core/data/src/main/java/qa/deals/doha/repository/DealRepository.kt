@@ -180,7 +180,11 @@ class DealRepository {
         postedBy: String = "Anonymous",
         // NEW: Parameters for verified user submission
         userId: String? = null,
-        deviceId: String? = null
+        deviceId: String? = null,
+
+        // NEW: Expiration duration in days
+
+        expiresInDays: Int = 10
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         Log.d("Repository", "Submitting deal to backend")
         Log.d("Repository", "   Title: $title")
@@ -188,6 +192,7 @@ class DealRepository {
         Log.d("Repository", "   Posted by: $postedBy")
         Log.d("Repository", "   User ID: $userId")
         Log.d("Repository", "   Device ID: ${deviceId?.take(8)}...")
+        Log.d("Repository", "   Expires in: $expiresInDays days")
 
         val request = SubmitDealRequest(
             title = title,
@@ -199,7 +204,8 @@ class DealRepository {
             promoCode = promoCode,
             postedBy = postedBy,
             userId = userId,
-            deviceId = deviceId
+            deviceId = deviceId,
+            expiresInDays = expiresInDays
         )
 
         val response = api.submitDeal(request)
@@ -633,15 +639,18 @@ class DealRepository {
 
     suspend fun returnDealToFeed(
         dealId: String,
-        userId: String
+        userId: String,
+        expiresInDays: Int = 10
     ): Result<DealDto> = withContext(Dispatchers.IO) {
         try {
             Log.d("Repository", "🔄 Returning deal to feed: $dealId by admin: $userId")
+            Log.d("Repository", "   Expires in: $expiresInDays days")
 
             val response = api.returnDealToFeed(
                 ReturnToFeedRequest(
                     userId = userId,
-                    dealId = dealId
+                    dealId = dealId,
+                    expiresInDays = expiresInDays
                 )
             )
 
@@ -658,6 +667,47 @@ class DealRepository {
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error returning deal to feed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Permanently delete a deal and its image from database (admin only)
+     * - Deletes the deal record from database
+     * - Deletes the image file from Supabase storage
+     * - Cannot be undone
+     *
+     * @param dealId Deal ID to permanently delete
+     * @param userId Admin user ID
+     * @return Result with success/error
+     */
+
+    suspend fun permanentDeleteDeal(
+        dealId: String,
+        userId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "🗑️ Permanently deleting deal: $dealId by admin: $userId")
+
+            val response = api.permanentDeleteDeal(
+                PermanentDeleteDealRequest(
+                    userId = userId,
+                    dealId = dealId
+                )
+            )
+
+            if (response.success) {
+                // Remove from local cache
+                dealDao.deleteDealById(dealId)
+
+                Log.d("Repository", "✅ Deal permanently deleted and removed from cache: $dealId")
+                Result.success(Unit)
+            } else {
+                Log.e("Repository", "❌ Failed to permanently delete deal: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to permanently delete deal"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error permanently deleting deal", e)
             Result.failure(e)
         }
     }
