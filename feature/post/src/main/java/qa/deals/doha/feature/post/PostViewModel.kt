@@ -313,7 +313,7 @@ class PostViewModel(
     }
 
     fun updateExpiresInDays(days: Int) {
-        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 365), error = null)
+        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 30), error = null)
         Log.d("PostViewModel", "⏰ Expiration updated: $days days")
     }
 

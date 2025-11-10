@@ -487,27 +487,54 @@ fun ArchiveScreen(
                     title = { Text("Return Deal to Feed") },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Text("Set new expiration duration for this deal:")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Expires in",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    "${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            }
 
-                            OutlinedTextField(
-                                value = state.expiresInDays.toString(),
-                                onValueChange = { input ->
-                                    input.toIntOrNull()?.let { days ->
-                                        viewModel.updateExpiresInDays(days)
-                                    }
+                            Slider(
+                                value = state.expiresInDays.toFloat(),
+                                onValueChange = { newValue ->
+                                    viewModel.updateExpiresInDays(newValue.toInt())
                                 },
-                                label = { Text("Expires in (days)") },
-                                suffix = { Text("days") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth()
+                                valueRange = 1f..30f,
+                                steps = 28,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
                             )
 
-                            Text(
-                                "Deal will be active for ${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "1 day",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "30 days",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     },
                     confirmButton = {

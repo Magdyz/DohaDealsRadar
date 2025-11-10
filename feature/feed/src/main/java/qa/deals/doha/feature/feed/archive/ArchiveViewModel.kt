@@ -252,7 +252,7 @@ class ArchiveViewModel(
     }
 
     fun updateExpiresInDays(days: Int) {
-        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 365))
+        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 30))
     }
 
     fun returnDealToFeed() {
