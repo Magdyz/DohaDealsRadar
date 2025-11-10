@@ -19,7 +19,7 @@ serve(async (req)=>{
         persistSession: false
       }
     });
-    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null } = await req.json();
+    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null } = await req.json();
     // Validate required fields
     if (!title || !image_url) {
       return new Response(JSON.stringify({
@@ -55,6 +55,12 @@ serve(async (req)=>{
       'other'
     ];
     const finalCategory = validCategories.includes(category) ? category : 'other';
+
+    // ✨ NEW: Calculate expiration date
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expires_in_days);
+console.log(`✅ Deal will expire at: ${expiresAt.toISOString()} (in ${expires_in_days} days)`);
+
     // AUTO-APPROVAL LOGIC
     let dealStatus = 'pending';
     let autoApproved = false;
@@ -68,6 +74,7 @@ serve(async (req)=>{
         userRole = user.role;
         userAutoApprove = user.auto_approve;
         console.log(`User: ${posted_by} | Role: ${userRole} | Auto-approve: ${userAutoApprove}`);
+
         // RULE 1: ADMINS ALWAYS AUTO-APPROVE
         if (userRole === 'admin') {
           dealStatus = 'approved';
@@ -116,6 +123,7 @@ serve(async (req)=>{
       category: finalCategory,
       promo_code: promo_code || null,
       posted_by: posted_by || 'Anonymous',
+      expires_at: expiresAt.toISOString(),  // ✨ NEW: Added this line
       status: dealStatus,
       auto_approved: autoApproved,
       requires_review: requiresReview,

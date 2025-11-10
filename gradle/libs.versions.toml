@@ -20,7 +20,8 @@ appcompat = "1.7.1"
 material = "1.13.0"
 accompanist = "0.34.0"
 ui-graphics = "1.9.3"
-lifecycle = "2.8.3" # Version for lifecycle-viewmodel-compose
+lifecycle = "2.8.3"
+foundation = "1.9.4" # Version for lifecycle-viewmodel-compose
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -72,3 +73,4 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "ui-graphics" }
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
