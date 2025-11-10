@@ -28,8 +28,10 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_8_9,
                     DealDatabase.MIGRATION_9_10,
                     DealDatabase.MIGRATION_10_11,
-                    DealDatabase.MIGRATION_11_12  // ✅ NEW: Rejection fields
+                    DealDatabase.MIGRATION_11_12,  // ✅ Rejection fields
+                    DealDatabase.MIGRATION_12_13   // ✅ NEW: Deal expiration (expires_at)
                 )
+
                 // ========================================
                 // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
                 // This line would delete the user's entire database (including
@@ -37,7 +39,7 @@ object DatabaseModule {
                 // Removing it forces proper migrations for all future updates,
                 // protecting user data.
                 // ========================================
-                .fallbackToDestructiveMigration()
+                //.fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
         }

@@ -1,137 +1,180 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
-'Access-Control-Allow-Origin': '*',
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-serve(async (req) => {
-  // Handle CORS preflight
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+};
+serve(async (req)=>{
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', {
+      headers: corsHeaders
+    });
   }
-
   try {
-    // ✅ CRITICAL: Use SERVICE_ROLE_KEY instead of ANON_KEY
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
-    })
-
-    // ✨ CATEGORY CHANGE 1: Parse request body including new fields
-    const {
-      title,
-      description,
-      link,
-      image_url,
-      location,
-      category = 'other',      // ✨ NEW: Category field with default fallback
-      promo_code = null,        // ✨ NEW: Promo code field (optional)
-  posted_by = 'Anonymous'  // ✨ NEW: Accept posted_by from request
-    } = await req.json()
-
+    });
+    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null } = await req.json();
     // Validate required fields
     if (!title || !image_url) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Missing required fields: title, image_url'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-)
-}
-
-// Must have either link OR location
-if (!link && !location) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Must provide either link or location'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-)
-}
-
-// ✨ CATEGORY CHANGE 2: Validate category value (optional but recommended)
-const validCategories = ['food_dining', 'shopping_fashion', 'entertainment', 'home_services', 'other']
-const finalCategory = validCategories.includes(category) ? category : 'other'
-
-// ✨ CATEGORY CHANGE 3: Insert deal with category and promo_code
-const { data, error } = await supabase
-.from('deals')
-      .insert({
-        title,
-        description,
-        link: link || null,
-        image_url,
-        location: location || null,
-        category: finalCategory,        // ✨ NEW: Include category in INSERT
-        promo_code: promo_code || null, // ✨ NEW: Include promo_code in INSERT
-    posted_by: posted_by || 'Anonymous',  // ✨ NEW: Include posted_by
-        status: 'pending',
-        hot_count: 0,
-        cold_count: 0
-      })
-      .select()
-
-console.log(`✅ Deal submitted with category: ${finalCategory}`)
-console.log(`👤 Posted by: ${posted_by}`)  // ✨ NEW: Log username
-
-    if (error) {
-      console.error('Database error:', error)
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to submit deal',
-          details: error.message
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-)
-}
-
-// ✨ CATEGORY CHANGE 4: Log successful submission with category
-console.log(`✅ Deal submitted: "${title}" | Category: ${finalCategory}`)
-
-    // Return success response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '✅ Deal submitted',
-        data
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-)
-
-} catch (error) {
-console.error('Error:', error)
-    return new Response(
-      JSON.stringify({
+      return new Response(JSON.stringify({
         success: false,
-        error: 'Server error',
-        details: error.message
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        error: 'Missing required fields: title, image_url'
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // Must have either link OR location
+    if (!link && !location) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Must provide either link or location'
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // Validate category
+    const validCategories = [
+      'food_dining',
+      'shopping_fashion',
+      'entertainment',
+      'home_services',
+      'other'
+    ];
+    const finalCategory = validCategories.includes(category) ? category : 'other';
+    // AUTO-APPROVAL LOGIC
+    let dealStatus = 'pending';
+    let autoApproved = false;
+    let requiresReview = true;
+    let userRole = 'user';
+    let userAutoApprove = false;
+    // If userId provided, check user's role and auto_approve privilege
+    if (user_id) {
+      const { data: user, error: userError } = await supabase.from('users').select('role, auto_approve').eq('id', user_id).single();
+      if (user && !userError) {
+        userRole = user.role;
+        userAutoApprove = user.auto_approve;
+        console.log(`User: ${posted_by} | Role: ${userRole} | Auto-approve: ${userAutoApprove}`);
+        // RULE 1: ADMINS ALWAYS AUTO-APPROVE
+        if (userRole === 'admin') {
+          dealStatus = 'approved';
+          autoApproved = true;
+          requiresReview = false;
+          console.log('ADMIN: Deal auto-approved');
+        } else if (userRole === 'moderator') {
+          dealStatus = 'approved';
+          autoApproved = true;
+          requiresReview = false;
+          console.log('MODERATOR: Deal auto-approved');
+        } else if (userAutoApprove === true) {
+          const randomReviewChance = Math.random();
+          if (randomReviewChance < 0.15) {
+            // 15% chance: Send to review even for trusted users
+            dealStatus = 'pending';
+            autoApproved = false;
+            requiresReview = true;
+            console.log('TRUSTED USER: Random review triggered (15% chance)');
+          } else {
+            // 85% chance: Auto-approve
+            dealStatus = 'approved';
+            autoApproved = true;
+            requiresReview = false;
+            console.log('TRUSTED USER: Deal auto-approved');
+          }
+        } else {
+          dealStatus = 'pending';
+          autoApproved = false;
+          requiresReview = true;
+          console.log('NEW USER: Deal requires review');
+        }
+      } else {
+        console.warn('User not found, defaulting to pending');
       }
-)
-}
-})
+    } else {
+      console.log('No user_id provided, defaulting to pending');
+    }
+    // INSERT DEAL WITH PROPER STATUS
+    const dealData = {
+      title,
+      description,
+      link: link || null,
+      image_url,
+      location: location || null,
+      category: finalCategory,
+      promo_code: promo_code || null,
+      posted_by: posted_by || 'Anonymous',
+      status: dealStatus,
+      auto_approved: autoApproved,
+      requires_review: requiresReview,
+      hot_count: 0,
+      cold_count: 0
+    };
+    // Add user tracking if userId provided
+    if (user_id) {
+      dealData.submitted_by_user_id = user_id;
+    }
+    if (device_id) {
+      dealData.submitted_by_device = device_id;
+    }
+    // If auto-approved, set approved_at timestamp
+    if (autoApproved) {
+      dealData.approved_at = new Date().toISOString();
+      if (user_id) {
+        dealData.approved_by = user_id;
+      }
+    }
+    const { data, error } = await supabase.from('deals').insert(dealData).select();
+    if (error) {
+      console.error('Database error:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Failed to submit deal',
+        details: error.message
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    console.log(`Deal submitted: "${title}" | Status: ${dealStatus} | Category: ${finalCategory}`);
+    return new Response(JSON.stringify({
+      success: true,
+      message: autoApproved ? 'Deal submitted and approved!' : 'Deal submitted for review',
+      data
+    }), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Server error',
+      details: error.message
+    }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  }
+});

@@ -25,6 +25,7 @@ data class DealDto(
     @SerializedName("image_url") val imageUrl: String?,
     val status: String?,
     @SerializedName("created_at") val createdAt: String?,
+    @SerializedName("expires_at") val expiresAt: String? = null,
     @SerializedName("hot_count") val hotCount: Int?,
     @SerializedName("cold_count") val coldCount: Int?,
     val location: String? = null,
@@ -81,6 +82,7 @@ fun DealDto.toEntity(): DealEntity {
         imageUrl = this.imageUrl,
         status = this.status,
         createdAt = this.createdAt,
+        expiresAt = this.expiresAt,
         hotCount = this.hotCount ?: 0,
         coldCount = this.coldCount ?: 0,
         description = this.description,
@@ -100,7 +102,6 @@ fun DealDto.toEntity(): DealEntity {
         // ========================================
         // ✅ SPRINT 5: Map user tracking fields
         // ========================================
-
         submittedByUserId = this.submittedByUserId,
         approvedBy = this.approvedBy,
         approvedAt = this.approvedAt,

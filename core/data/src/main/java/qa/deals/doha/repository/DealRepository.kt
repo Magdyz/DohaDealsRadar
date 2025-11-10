@@ -180,7 +180,11 @@ class DealRepository {
         postedBy: String = "Anonymous",
         // NEW: Parameters for verified user submission
         userId: String? = null,
-        deviceId: String? = null
+        deviceId: String? = null,
+
+        // NEW: Expiration duration in days
+
+        expiresInDays: Int = 10
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         Log.d("Repository", "Submitting deal to backend")
         Log.d("Repository", "   Title: $title")
@@ -188,6 +192,7 @@ class DealRepository {
         Log.d("Repository", "   Posted by: $postedBy")
         Log.d("Repository", "   User ID: $userId")
         Log.d("Repository", "   Device ID: ${deviceId?.take(8)}...")
+        Log.d("Repository", "   Expires in: $expiresInDays days")
 
         val request = SubmitDealRequest(
             title = title,
@@ -199,7 +204,8 @@ class DealRepository {
             promoCode = promoCode,
             postedBy = postedBy,
             userId = userId,
-            deviceId = deviceId
+            deviceId = deviceId,
+            expiresInDays = expiresInDays
         )
 
         val response = api.submitDeal(request)
@@ -633,15 +639,18 @@ class DealRepository {
 
     suspend fun returnDealToFeed(
         dealId: String,
-        userId: String
+        userId: String,
+        expiresInDays: Int = 10
     ): Result<DealDto> = withContext(Dispatchers.IO) {
         try {
             Log.d("Repository", "🔄 Returning deal to feed: $dealId by admin: $userId")
+            Log.d("Repository", "   Expires in: $expiresInDays days")
 
             val response = api.returnDealToFeed(
                 ReturnToFeedRequest(
                     userId = userId,
-                    dealId = dealId
+                    dealId = dealId,
+                    expiresInDays = expiresInDays
                 )
             )
 

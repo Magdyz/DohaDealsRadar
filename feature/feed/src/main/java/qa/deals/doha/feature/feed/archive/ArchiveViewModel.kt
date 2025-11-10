@@ -25,16 +25,26 @@ import kotlinx.coroutines.flow.map
  * ========================================
  * ✅ SPRINT 4: ARCHIVE UI STATE
  * Mirrors FeedUiState for consistency
+ * ✨ NEW: Added return to feed dialog state
  * ========================================
  */
+
 data class ArchiveUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
+
     // ✅ Pagination state
+
     val currentPage: Int = 1,
     val hasMorePages: Boolean = true,
-    val isLoadingMore: Boolean = false
+    val isLoadingMore: Boolean = false,
+
+    // ✨ NEW: Return to Feed dialog state
+
+    val showReturnToFeedDialog: Boolean = false,
+    val selectedDealId: String? = null,
+    val expiresInDays: Int = 10
 )
 
 /**
@@ -222,13 +232,40 @@ class ArchiveViewModel(
 
     // ========================================
     // ✅ RETURN DEAL TO FEED (Admin Only)
-    // Un-archives deal and extends expiry by 10 days
+    // Un-archives deal and extends expiry by specified days
     // ========================================
 
-    fun returnDealToFeed(dealId: String) {
+    fun showReturnToFeedDialog(dealId: String) {
+        uiState = uiState.copy(
+            showReturnToFeedDialog = true,
+            selectedDealId = dealId,
+            expiresInDays = 10
+        )
+    }
+
+    fun hideReturnToFeedDialog() {
+        uiState = uiState.copy(
+            showReturnToFeedDialog = false,
+            selectedDealId = null,
+            expiresInDays = 10
+        )
+    }
+
+    fun updateExpiresInDays(days: Int) {
+        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 365))
+    }
+
+    fun returnDealToFeed() {
+        val dealId = uiState.selectedDealId ?: return
+        val expiresInDays = uiState.expiresInDays
+
         viewModelScope.launch {
             try {
+                // Hide dialog first
+                hideReturnToFeedDialog()
+
                 // ✅ FIX: Get userId directly from deviceIdManager instead of StateFlow
+
                 val userId = deviceIdManager.getUserId()
                 if (userId == null) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User not logged in")
@@ -237,6 +274,7 @@ class ArchiveViewModel(
                 }
 
                 // Check if user is admin
+
                 val userIsAdmin = userRepo.isAdmin(userId)
                 if (!userIsAdmin) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User is not admin (role check failed)")
@@ -245,10 +283,12 @@ class ArchiveViewModel(
                 }
 
                 Log.d("Archive", "🔄 Returning deal to feed: $dealId by admin: $userId")
+                Log.d("Archive", "   Expires in: $expiresInDays days")
 
                 val result = repo.returnDealToFeed(
                     dealId = dealId,
-                    userId = userId
+                    userId = userId,
+                    expiresInDays = expiresInDays
                 )
 
                 result.onSuccess {

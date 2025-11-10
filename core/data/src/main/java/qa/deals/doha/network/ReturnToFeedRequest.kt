@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
  * Request to return an archived deal back to feed
  * Admin-only endpoint that:
  * - Sets isArchived = false
- * - Extends expiresAt by 10 days from now
+ * - Extends expiresAt by [expiresInDays] days from now
  * - Keeps original createdAt (real age)
  */
 
@@ -15,5 +15,8 @@ data class ReturnToFeedRequest(
     val userId: String,
 
     @SerializedName("deal_id")
-    val dealId: String
+    val dealId: String,
+
+    @SerializedName("expires_in_days")
+    val expiresInDays: Int = 10
 )

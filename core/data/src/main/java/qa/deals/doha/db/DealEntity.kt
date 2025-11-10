@@ -45,6 +45,7 @@ data class DealEntity(
     val imageUrl: String?,
     val status: String?,
     val createdAt: String?,
+    val expiresAt: String? = null,
     val hotCount: Int?,
     val coldCount: Int?,
     val description: String? = null,

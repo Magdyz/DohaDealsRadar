@@ -44,8 +44,10 @@ sealed interface EmailVerificationState {
 
 /**
  * UI State for Post Screen
- * ✅ PRESERVED: No changes to existing fields
+ * ✅ UPDATED: Added expiresInDays field for deal expiration
+
  */
+
 data class PostUiState(
     val title: String = "",
     val description: String = "",
@@ -56,6 +58,7 @@ data class PostUiState(
     val category: DealCategory = DealCategory.FOOD_DINING,
     val imageUrl: String = "",
     val selectedImageUri: Uri? = null,
+    val expiresInDays: Int = 10,  // ✨ NEW: Expiration duration (default: 10 days)
     val loading: Boolean = false,
     val error: String? = null,
     val message: String? = null,
@@ -309,6 +312,11 @@ class PostViewModel(
         uiState = uiState.copy(promoCode = promoCode.trim().ifBlank { null }, error = null)
     }
 
+    fun updateExpiresInDays(days: Int) {
+        uiState = uiState.copy(expiresInDays = days.coerceIn(1, 365), error = null)
+        Log.d("PostViewModel", "⏰ Expiration updated: $days days")
+    }
+
     fun updateImageUrl(imageUrl: String) {
         uiState = uiState.copy(imageUrl = imageUrl, error = null, selectedImageUri = null)
     }
@@ -486,7 +494,9 @@ class PostViewModel(
                         uiState = uiState.copy(message = "📤 Posting deal...")
                     }
 
-                    // ✅ SPRINT 5: userId and deviceId already included (NO CHANGES NEEDED)
+                    // ✅ SPRINT 5: userId and deviceId already included
+                    // ✅ NEW: expiresInDays parameter added
+
                     val result = repo.submitDeal(
                         title = uiState.title.trim(),
                         description = uiState.description.trim().ifBlank { null },
@@ -497,7 +507,8 @@ class PostViewModel(
                         promoCode = uiState.promoCode?.trim()?.ifBlank { null },
                         postedBy = uiState.username ?: "Anonymous",
                         userId = uiState.verifiedUserId,           // ✅ SPRINT 5: Already included
-                        deviceId = deviceIdManager.getDeviceId()   // ✅ SPRINT 5: Already included
+                        deviceId = deviceIdManager.getDeviceId(),  // ✅ SPRINT 5: Already included
+                        expiresInDays = uiState.expiresInDays      // ✨ NEW: Expiration duration
                     )
 
                     Log.d("Post", "📥 API Response success: ${result.success}")

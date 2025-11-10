@@ -444,7 +444,7 @@ fun ArchiveScreen(
                                     // ✅ Admin-only button to return deal to feed
                                     showAdminButton = isAdmin,
                                     onAdminAction = {
-                                        viewModel.returnDealToFeed(deal.id)
+                                        viewModel.showReturnToFeedDialog(deal.id)
                                     },
 
                                     // ✅ NEW: Admin-only delete button
@@ -475,6 +475,50 @@ fun ArchiveScreen(
                         }
                     }
                 }
+            }
+
+            // ✨ NEW: Return to Feed Dialog
+
+            if (state.showReturnToFeedDialog) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.hideReturnToFeedDialog() },
+                    title = { Text("Return Deal to Feed") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("Set new expiration duration for this deal:")
+
+                            OutlinedTextField(
+                                value = state.expiresInDays.toString(),
+                                onValueChange = { input ->
+                                    input.toIntOrNull()?.let { days ->
+                                        viewModel.updateExpiresInDays(days)
+                                    }
+                                },
+                                label = { Text("Expires in (days)") },
+                                suffix = { Text("days") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Text(
+                                "Deal will be active for ${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = { viewModel.returnDealToFeed() }) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.hideReturnToFeedDialog() }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }

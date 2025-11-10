@@ -598,6 +598,61 @@ fun PostScreen(
                     }
                 }
 
+                // ✨ NEW: Expiration Duration Field
+
+                Spacer(Modifier.height(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Expires in",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = state.expiresInDays.toString(),
+                            onValueChange = { input ->
+                                input.toIntOrNull()?.let { days ->
+                                    viewModel.updateExpiresInDays(days)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("10") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            suffix = { Text("days") },
+                            singleLine = true,
+                            maxLines = 1,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                }
+                            )
+                        )
+                    }
+
+                    Text(
+                        "Deal will be active for ${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 // ✅ PRESERVED: Conditional Physical Store Field (using existing method)
                 if (state.dealType == DealType.PHYSICAL) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

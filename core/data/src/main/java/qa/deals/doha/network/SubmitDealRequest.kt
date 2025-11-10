@@ -35,5 +35,11 @@ data class SubmitDealRequest(
     // ✅ NEW: Added fields for verification
     // ========================================
     @SerializedName("user_id") val userId: String? = null,
-    @SerializedName("device_id") val deviceId: String? = null
+    @SerializedName("device_id") val deviceId: String? = null,
+
+    // ========================================
+    // ✅ NEW: Expiration duration in days (default: 10)
+    // ========================================
+
+    @SerializedName("expires_in_days") val expiresInDays: Int = 10
 )
