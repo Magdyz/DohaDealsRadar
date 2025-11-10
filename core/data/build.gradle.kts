@@ -5,6 +5,44 @@ plugins {
 
 }
 
+// ✅ SECURITY: Load API credentials from local.properties (not committed to git)
+// This prevents hardcoded secrets in source code
+
+val localProperties = java.util.Properties()
+
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+// Helper function to get property with fallback to environment variables
+// Priority: local.properties -> environment variables -> error
+
+fun getPropertyOrEnv(propertyName: String): String {
+    // Try local.properties first
+    val localValue = localProperties.getProperty(propertyName)
+    if (localValue != null && localValue.isNotEmpty()) {
+        return localValue
+    }
+
+    // Try environment variable (for CI/CD)
+    val envValue = System.getenv("ORG_GRADLE_PROJECT_$propertyName")
+    if (envValue != null && envValue.isNotEmpty()) {
+        return envValue
+    }
+
+    // Property not found - provide helpful error message
+    throw GradleException(
+        """
+        ❌ Missing required property: $propertyName
+        Please create 'local.properties' in the project root with:
+        $propertyName=your_value_here
+        See 'local.properties.template' for a complete example.
+        For CI/CD, set environment variable: ORG_GRADLE_PROJECT_$propertyName
+        """.trimIndent()
+    )
+}
+
 android {
     namespace = "qa.deals.doha.core.data"
     compileSdk = 36
@@ -14,9 +52,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
 
-        // ✅ ADD THIS - BuildConfig fields
-        buildConfigField("String", "SUPABASE_URL", "\"https://nzchbnshkrkdqpcawohu.functions.supabase.co/\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Y2hibnNoa3JrZHFwY2F3b2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxODE3ODMsImV4cCI6MjA3NTc1Nzc4M30.rBl_9k6kd3ICQCD0Th8ysUu6YGozYGC12Pjl_Ra01l0\"")
+        // ✅ SECURITY IMPROVEMENT: BuildConfig fields now loaded from local.properties
+        // These values are no longer hardcoded in source code and won't be committed to git
+        // Original hardcoded values have been moved to local.properties for safety
+
+        buildConfigField("String", "SUPABASE_URL", "\"${getPropertyOrEnv("SUPABASE_URL")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${getPropertyOrEnv("SUPABASE_ANON_KEY")}\"")
+
+        // ✅ NEW: Storage URLs also configurable (previously hardcoded in StorageUploader.kt)
+
+        buildConfigField("String", "SUPABASE_STORAGE_URL", "\"${getPropertyOrEnv("SUPABASE_STORAGE_URL")}\"")
+        buildConfigField("String", "SUPABASE_PUBLIC_URL", "\"${getPropertyOrEnv("SUPABASE_PUBLIC_URL")}\"")
 
     }
 
