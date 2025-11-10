@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,9 +28,6 @@ import java.util.*
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
-
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -83,7 +82,7 @@ fun DealCard(
     val context = androidx.compose.ui.platform.LocalContext.current
     val isArchived = deal.isArchived
 
-        // ========================================
+    // ========================================
     // Vote count calculations
     // ========================================
     val displayHotCount = optimisticHotCount ?: (deal.hotCount ?: 0)
@@ -256,7 +255,7 @@ fun DealCard(
                                 )
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                                imageVector = Icons.Filled.Close,
                                 contentDescription = "Delete deal",
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)
@@ -337,48 +336,51 @@ fun DealCard(
                     modifier = Modifier.height(44.dp)  // ✅ More space
                 )
 
-                // =======================================
+                // ========================================
                 // View Deal Button - Full width, prominent
-                // ✅ UPDATED: Re-enabled for archived deals to check if deal is still active
+                // ✅ Show for: Main feed (all users) + Archive (non-admin only)
+                // ✅ Hide for: Archive (admin) - they see icon-only buttons instead
                 // ========================================
 
-                Button(
-                    onClick = {
-                        Log.d(TAG, "🔘 View Deal button clicked for deal: ${deal.id}, archived: $isArchived")
-                        onClick?.invoke()
-                    },
-                    enabled = true,  // ✅ Always enabled (even for archived deals)
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp), // Taller, not squashed
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF9046CF),
-                        contentColor = Color(0xFFF3F3F4)
-                    ),
-                    shape = MaterialTheme.shapes.large, // Rounded edges
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 2.dp,
-                        pressedElevation = 4.dp
-                    )
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                if (!(showAdminButton && isArchived)) {
+                    Button(
+                        onClick = {
+                            Log.d(TAG, "🔘 View Deal button clicked for deal: ${deal.id}, archived: $isArchived")
+                            onClick?.invoke()
+                        },
+                        enabled = true,  // ✅ Always enabled (even for archived deals)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp), // Taller, not squashed
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF9046CF),
+                            contentColor = Color(0xFFF3F3F4)
+                        ),
+                        shape = MaterialTheme.shapes.large, // Rounded edges
+                        contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp,
+                            pressedElevation = 4.dp
+                        )
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.RemoveRedEye,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "View Deal",  // ✅ Always "View Deal" (to check if still active)
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.RemoveRedEye,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
-                        )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "View Deal",  // ✅ Always "View Deal" (to check if still active)
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -396,7 +398,6 @@ fun DealCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     // View Deal Button (Eye Icon) - Purple
                     Button(
                         onClick = {
@@ -445,34 +446,6 @@ fun DealCard(
                         Icon(
                             imageVector = Icons.Filled.Refresh,
                             contentDescription = "Return to Feed",
-                            )
-                        }
-                    }
-                } else {
-
-                    // Single View Deal button for non-archived deals
-                    Button(
-                        onClick = {
-                            Log.d(TAG, "👁️ View Deal button clicked for deal: ${deal.id}")
-                            onClick?.invoke()
-                        },
-                        enabled = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF9046CF),
-                            contentColor = Color.White
-                        ),
-                        shape = MaterialTheme.shapes.large,
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 2.dp,
-                            pressedElevation = 4.dp
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.RemoveRedEye,
-                            contentDescription = "View Deal",
                             modifier = Modifier.size(24.dp)
                         )
                     }
