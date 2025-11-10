@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
@@ -8,7 +10,7 @@ plugins {
 // ✅ SECURITY: Load API credentials from local.properties (not committed to git)
 // This prevents hardcoded secrets in source code
 
-val localProperties = java.util.Properties()
+val localProperties = Properties()
 
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
