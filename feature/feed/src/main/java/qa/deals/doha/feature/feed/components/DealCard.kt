@@ -27,6 +27,8 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -335,7 +337,7 @@ fun DealCard(
                     modifier = Modifier.height(44.dp)  // ✅ More space
                 )
 
-                // ========================================
+                // =======================================
                 // View Deal Button - Full width, prominent
                 // ✅ UPDATED: Re-enabled for archived deals to check if deal is still active
                 // ========================================
@@ -382,44 +384,96 @@ fun DealCard(
             }
 
             // ========================================
-            // ✅ ADMIN-ONLY: Return to Feed Button (for archived deals)
+            // ✅ ADMIN-ONLY: Icon buttons for Archive (side-by-side)
+            // Eye icon (purple) for View Deal, Recycle icon (green) for Return to Feed
             // ========================================
 
             if (showAdminButton && isArchived && onAdminAction != null) {
-                Button(
-                    onClick = {
-                        Log.d(TAG, "🔄 Return to Feed button clicked for deal: ${deal.id}")
-                        onAdminAction.invoke()
-                    },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF059669),  // Green (different from purple)
-                        contentColor = Color.White
-                    ),
-                    shape = MaterialTheme.shapes.large,
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 2.dp,
-                        pressedElevation = 4.dp
-                    )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🔄",
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+
+                    // View Deal Button (Eye Icon) - Purple
+                    Button(
+                        onClick = {
+                            Log.d(TAG, "👁️ Admin View Deal button clicked for deal: ${deal.id}")
+                            onClick?.invoke()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF9046CF),  // Purple
+                            contentColor = Color.White
+                        ),
+                        shape = MaterialTheme.shapes.large,
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp,
+                            pressedElevation = 4.dp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Return to Feed (10 days)",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.RemoveRedEye,
+                            contentDescription = "View Deal",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Return to Feed Button (Recycle Icon) - Green
+                    Button(
+                        onClick = {
+                            Log.d(TAG, "♻️ Return to Feed button clicked for deal: ${deal.id}")
+                            onAdminAction.invoke()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF059669),  // Green (original color)
+                            contentColor = Color.White
+                        ),
+                        shape = MaterialTheme.shapes.large,
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp,
+                            pressedElevation = 4.dp
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "Return to Feed",
                             )
+                        }
+                    }
+                } else {
+
+                    // Single View Deal button for non-archived deals
+                    Button(
+                        onClick = {
+                            Log.d(TAG, "👁️ View Deal button clicked for deal: ${deal.id}")
+                            onClick?.invoke()
+                        },
+                        enabled = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF9046CF),
+                            contentColor = Color.White
+                        ),
+                        shape = MaterialTheme.shapes.large,
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp,
+                            pressedElevation = 4.dp
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.RemoveRedEye,
+                            contentDescription = "View Deal",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

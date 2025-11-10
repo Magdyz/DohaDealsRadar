@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15 // New Account and admin button, rejection reasons
-        versionName = "1.1.5"
+        versionCode = 16 // Admin Expirey date and returning deals.
+        versionName = "1.1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
