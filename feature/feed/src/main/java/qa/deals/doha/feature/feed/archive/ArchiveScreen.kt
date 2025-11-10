@@ -549,6 +549,41 @@ fun ArchiveScreen(
                     }
                 )
             }
+
+            // ✨ NEW: Loading overlay when returning deal to feed
+            if (state.loading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        modifier = Modifier.size(120.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(50.dp),
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.primary  // Purple
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Returning...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -261,24 +261,31 @@ class ArchiveViewModel(
 
         viewModelScope.launch {
             try {
-                // Hide dialog first
-                hideReturnToFeedDialog()
+                // Hide dialog and show loading
+                uiState = uiState.copy(
+                    showReturnToFeedDialog = false,
+                    loading = true
+                )
 
                 // ✅ FIX: Get userId directly from deviceIdManager instead of StateFlow
-
                 val userId = deviceIdManager.getUserId()
                 if (userId == null) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User not logged in")
-                    uiState = uiState.copy(error = "Please log in to use this feature")
+                    uiState = uiState.copy(
+                        error = "Please log in to use this feature",
+                        loading = false
+                    )
                     return@launch
                 }
 
                 // Check if user is admin
-
                 val userIsAdmin = userRepo.isAdmin(userId)
                 if (!userIsAdmin) {
                     Log.e("Archive", "❌ Cannot return deal to feed: User is not admin (role check failed)")
-                    uiState = uiState.copy(error = "Only admins can return deals to feed")
+                    uiState = uiState.copy(
+                        error = "Only admins can return deals to feed",
+                        loading = false
+                    )
                     return@launch
                 }
 
@@ -296,13 +303,22 @@ class ArchiveViewModel(
 
                     // Refresh archive to remove the deal from list
                     refreshArchivedDeals()
+
+                    // Clear loading
+                    uiState = uiState.copy(loading = false)
                 }.onFailure { error ->
                     Log.e("Archive", "💥 Failed to return deal to feed", error)
-                    uiState = uiState.copy(error = error.message)
+                    uiState = uiState.copy(
+                        error = error.message,
+                        loading = false
+                    )
                 }
             } catch (t: Throwable) {
                 Log.e("Archive", "💥 Error returning deal to feed", t)
-                uiState = uiState.copy(error = t.message)
+                uiState = uiState.copy(
+                    error = t.message,
+                    loading = false
+                )
             }
         }
     }
