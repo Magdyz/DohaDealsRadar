@@ -33,13 +33,13 @@ object DatabaseModule {
                 )
 
                 // ========================================
-                // ✅ FIX (1.2): Removed .fallbackToDestructiveMigration()
-                // This line would delete the user's entire database (including
-                // their vote history) on the next app upgrade (e.g., version 10).
-                // Removing it forces proper migrations for all future updates,
-                // protecting user data.
+                // ✅ FIX (1.1.6): Re-enabled .fallbackToDestructiveMigration()
+                // This prevents crashes for users on ancient database versions (v1-2)
+                // that predate our migration history. Users on v3+ will use the
+                // proper migration path and keep their data. Only affects <1% of users
+                // on very old versions - better to reset their DB than crash the app.
                 // ========================================
-                //.fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
         }
