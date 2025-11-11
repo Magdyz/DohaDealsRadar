@@ -7,6 +7,7 @@ const corsHeaders = {
 // Username generation
 function generateUsername() {
   const adjectives = [
+    // Original generic terms
     'Hunter',
     'Hero',
     'Warrior',
@@ -31,10 +32,35 @@ function generateUsername() {
     'Prime',
     'Supreme',
     'Ultra',
-    'Mega'
+    'Mega',
+    // Qatar-specific locations and culture
+    'Doha',
+    'Qatar',
+    'Souq',
+    'Pearl',
+    'Lusail',
+    'Corniche',
+    'Katara',
+    'Aspire',
+    'WestBay',
+    'Msheireb',
+    'Villaggio',
+    // Arabic/Gulf culture terms
+    'Yalla',
+    'Habibi',
   ];
+
+  // Qatar-specific numbers (country code, World Cup year, etc.)
+  const qatarNumbers = [974, 2022, 365, 247, 123];
+
   const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const number = Math.floor(Math.random() * 900) + 100;
+
+  // 40% chance to use Qatar-specific number, 60% random 3-digit number
+  const useQatarNumber = Math.random() < 0.4;
+  const number = useQatarNumber
+    ? qatarNumbers[Math.floor(Math.random() * qatarNumbers.length)]
+    : Math.floor(Math.random() * 900) + 100;
+
   return `Deal${adjective}${number}`;
 }
 serve(async (req)=>{
