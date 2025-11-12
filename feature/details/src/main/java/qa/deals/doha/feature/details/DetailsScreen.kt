@@ -106,6 +106,42 @@ private fun getRelativeTimeString(createdAt: String?): String {
     }
 }
 
+/**
+ * ✨ Calculate expiry time from expiresAt timestamp
+ * Format: "Expires in X days" or "Expires in less than 1 day"
+ */
+private fun getExpiryTimeString(expiresAt: String?): String {
+    if (expiresAt.isNullOrBlank()) return ""
+
+    try {
+        // Parse the timestamp (same format as createdAt)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = sdf.parse(expiresAt) ?: return ""
+
+        val now = System.currentTimeMillis()
+        val expiryTime = date.time
+        val diffMs = expiryTime - now
+
+        // If already expired, return empty string
+        if (diffMs < 0) return ""
+
+        val seconds = diffMs / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+
+        return when {
+            days > 1 -> "Expires in ${days} days"
+            days == 1L -> "Expires in 1 day"
+            else -> "Expires in less than 1 day"
+        }
+    } catch (e: Exception) {
+        Log.e("DetailsScreen", "Error parsing expiry date: $expiresAt", e)
+        return ""
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailsScreen(
@@ -494,14 +530,34 @@ private fun DealDetailsContent(
                     }
                 }
 
-                // Timestamp
-                deal.createdAt?.let { createdAt ->
-                    Text(
-                        text = "Posted ${getRelativeTimeString(createdAt)}",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                // Timestamp and Expiry
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Posted date (left side)
+                    deal.createdAt?.let { createdAt ->
+                        Text(
+                            text = "Posted ${getRelativeTimeString(createdAt)}",
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // Expiry date (right side)
+                    deal.expiresAt?.let { expiresAt ->
+                        val expiryText = getExpiryTimeString(expiresAt)
+                        if (expiryText.isNotEmpty()) {
+                            Text(
+                                text = expiryText,
+                                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
 
                 // ========================================
