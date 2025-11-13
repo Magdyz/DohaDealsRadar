@@ -25,6 +25,20 @@ import qa.deals.doha.repository.UserRepository  // ✅ SPRINT 5: NEW IMPORT
 
 /**
  * ========================================
+ * ✨ NEW: SORT OPTIONS FOR FEED
+ * ========================================
+ *
+ * Created: 2025-11-13
+ * - HOTTEST: Sort by vote count (highest to lowest) - DEFAULT
+ * - NEWEST: Sort by creation date (newest to oldest)
+ */
+enum class SortOption {
+    HOTTEST,  // Sort by hotCount descending (default)
+    NEWEST    // Sort by createdAt descending
+}
+
+/**
+ * ========================================
  * ✅ UPDATED: UI STATE WITH PAGINATION + MODERATOR
  * ========================================
  *
@@ -42,7 +56,9 @@ data class FeedUiState(
     val hasMorePages: Boolean = true,
     val isLoadingMore: Boolean = false,
     // ✅ SPRINT 5: Moderator UI state
-    val showModeratorButton: Boolean = false
+    val showModeratorButton: Boolean = false,
+    // ✨ NEW: Filtering/Sorting loading state
+    val isFilteringSorting: Boolean = false
 )
 
 /**
@@ -68,6 +84,10 @@ class FeedViewModel(
     // ✅ PRESERVED: Category Filter State
     private val _selectedCategory = MutableStateFlow<DealCategory?>(null)
     val selectedCategory: StateFlow<DealCategory?> = _selectedCategory.asStateFlow()
+
+    // ✨ NEW: Sort Option State (default: HOTTEST)
+    private val _sortOption = MutableStateFlow(SortOption.HOTTEST)
+    val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
 
     // ✅ SPRINT 5: Authentication state
 
@@ -157,14 +177,15 @@ class FeedViewModel(
             initialValue = false
         )
 
-    // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering
+    // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering + Sorting
 // ✅ FIX: Use getCachedApprovedActiveDeals() to ensure only approved deals show
 // This prevents pending/rejected deals from appearing in the feed
     val deals: StateFlow<List<DealEntity>> = combine(
         repo.getCachedApprovedActiveDeals(),
         _searchQuery,
-        _selectedCategory
-    ) { allDeals, query, category ->
+        _selectedCategory,
+        _sortOption  // ✨ NEW: Add sort option to the combine
+    ) { allDeals, query, category, sortOption ->
         var filteredDeals = allDeals
 
         // Apply search filter
@@ -183,8 +204,11 @@ class FeedViewModel(
             }
         }
 
-        // Sort by hot votes (highest to lowest)
-        filteredDeals.sortedByDescending { it.hotCount ?: 0 }
+        // ✨ NEW: Apply sorting based on selected option
+        when (sortOption) {
+            SortOption.HOTTEST -> filteredDeals.sortedByDescending { it.hotCount ?: 0 }
+            SortOption.NEWEST -> filteredDeals.sortedByDescending { it.createdAt }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -312,10 +336,67 @@ class FeedViewModel(
         _searchQuery.value = query
     }
 
-    // ✅ PRESERVED: Category Filter Update
-    fun filterByCategory(category: DealCategory?) {
-        Log.d("FeedViewModel", "🏷️ Filtering by category: ${category?.displayName ?: "All"}")
-        _selectedCategory.value = category
+    // ✅ UPDATED: Toggle Category Filter (press again to deselect)
+    fun toggleCategory(category: DealCategory?) {
+        Log.d("FeedViewModel", "🏷️ Toggling category: ${category?.displayName ?: "All"}")
+
+        // Show loading spinner
+        uiState = uiState.copy(isFilteringSorting = true)
+
+        viewModelScope.launch {
+            if (_selectedCategory.value == category) {
+                // Pressing same category again → deselect it
+                _selectedCategory.value = null
+                Log.d("FeedViewModel", "   → Category deselected, showing all")
+            } else {
+                // Selecting a different category
+                _selectedCategory.value = category
+                Log.d("FeedViewModel", "   → Category selected: ${category?.displayName}")
+            }
+
+            // Wait briefly for data to settle, then hide spinner
+            kotlinx.coroutines.delay(200)
+            uiState = uiState.copy(isFilteringSorting = false)
+        }
+    }
+
+    // ✨ NEW: Toggle between All (HOTTEST) and Newest
+    fun toggleSortToNewest() {
+        // Show loading spinner
+        uiState = uiState.copy(isFilteringSorting = true)
+
+        viewModelScope.launch {
+            if (_sortOption.value == SortOption.NEWEST) {
+                // Pressing Newest again → go back to All (HOTTEST)
+                _sortOption.value = SortOption.HOTTEST
+                Log.d("FeedViewModel", "🔄 Sort changed to: HOTTEST (All)")
+            } else {
+                // Switching from All to Newest
+                _sortOption.value = SortOption.NEWEST
+                Log.d("FeedViewModel", "🔄 Sort changed to: NEWEST")
+            }
+
+            // Wait briefly for data to settle, then hide spinner
+            kotlinx.coroutines.delay(200)
+            uiState = uiState.copy(isFilteringSorting = false)
+        }
+    }
+
+    // ✨ NEW: Set sort to All (HOTTEST) - used when pressing All chip
+    fun setSortToAll() {
+        if (_sortOption.value != SortOption.HOTTEST) {
+            // Show loading spinner
+            uiState = uiState.copy(isFilteringSorting = true)
+
+            viewModelScope.launch {
+                _sortOption.value = SortOption.HOTTEST
+                Log.d("FeedViewModel", "🔄 Sort changed to: HOTTEST (All)")
+
+                // Wait briefly for data to settle, then hide spinner
+                kotlinx.coroutines.delay(200)
+                uiState = uiState.copy(isFilteringSorting = false)
+            }
+        }
     }
 
     // ✅ UPDATED: Refresh Deals from Network (Pull-to-Refresh)

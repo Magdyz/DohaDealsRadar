@@ -38,10 +38,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.runtime.rememberCoroutineScope // ✅ NEW: Import
 import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by GlobalScope)
-// ========================================
-// ✅ NEW IMPORTS (for animateItem)
-// ========================================
-import androidx.compose.foundation.ExperimentalFoundationApi // ✅ NEW: Required for animateItem
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,31 +49,37 @@ import androidx.compose.ui.graphics.graphicsLayer
  * ========================================
  *
  * Created: 2025-10-19 19:48:28 UTC by @Magdyz
+ * Updated: 2025-11-13 - Replaced dropdown with toggleable All/Newest chips
  *
  * FEATURES:
- * - Horizontal scrolling category chips
- * - "All" + individual category filters
+ * - Horizontal scrolling category chips (smaller, 3-4 fit on screen)
+ * - All + Newest (mutually exclusive sort options)
+ * - Individual category filters (toggleable, only one at a time)
  * - Selected state with purple filled background
  * - Unselected state with light grey outline
  * - Smooth animations on selection
- * - Modern pill-shaped design (matches Vinted style)
  *
  * DESIGN:
+ * - Smaller chips: 32dp height, 13sp font for better density
  * - Selected: Purple (#9C27B0) filled with white text + 2dp border
  * - Unselected: Transparent with light grey outline + dark text
  * - Category emoji + name for visual identification
- * - Auto-scroll to selected chip (future enhancement)
  *
- * @param selectedCategory Currently selected category (null = "All")
- * @param onCategorySelected Callback when category is selected
+ * @param selectedCategory Currently selected category (null = none)
+ * @param onCategoryToggle Callback when category is toggled
+ * @param sortOption Current sort option (HOTTEST = All, NEWEST = Newest)
+ * @param onAllClick Callback when All chip is pressed
+ * @param onNewestToggle Callback when Newest chip is toggled
  * @param modifier Optional modifier for the chip row
  */
 @Composable
 private fun CategoryFilterChips(
     selectedCategory: DealCategory?,
-    onCategorySelected: (DealCategory?) -> Unit,
+    onCategoryToggle: (DealCategory) -> Unit,
+    sortOption: SortOption,
+    onAllClick: () -> Unit,
+    onNewestToggle: () -> Unit,
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
-    onModeratorClick: () -> Unit = {},  // SPRINT 5: Navigate to moderator dashboard
     modifier: Modifier = Modifier
 ) {
     // ✅ PRESERVED: Scroll state for horizontal scrolling
@@ -87,78 +89,113 @@ private fun CategoryFilterChips(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // ========================================
-        // ✨ NEW: "All" CHIP (Always First)
-        // Shows all categories when selected
+        // ✨ NEW: "ALL" CHIP (Sort by Hottest)
+        // Selected when sortOption = HOTTEST
         // ========================================
         FilterChip(
-            selected = selectedCategory == null,
-            onClick = { onCategorySelected(null) },
+            selected = sortOption == SortOption.HOTTEST,
+            onClick = onAllClick,
             label = {
                 Text(
                     text = "All",
-                    style = MaterialTheme.typography.labelLarge.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
+                        fontSize = 13.sp
                     )
                 )
             },
             colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = Color(0xFF9C27B0),  // ✨ Purple (brand color)
+                selectedContainerColor = Color(0xFF9C27B0),
                 selectedLabelColor = Color.White,
                 containerColor = Color.Transparent,
                 labelColor = MaterialTheme.colorScheme.onSurface
             ),
             border = FilterChipDefaults.filterChipBorder(
                 enabled = true,
-                selected = selectedCategory == null,
-                borderColor = if (selectedCategory == null)
+                selected = sortOption == SortOption.HOTTEST,
+                borderColor = if (sortOption == SortOption.HOTTEST)
                     Color(0xFF9C27B0)
                 else
                     MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                 selectedBorderColor = Color(0xFF9C27B0),
-                borderWidth = 1.5.dp,
-                selectedBorderWidth = 2.dp
+                borderWidth = 1.dp,
+                selectedBorderWidth = 1.5.dp
             ),
-            modifier = Modifier
-                .height(40.dp)
+            modifier = Modifier.height(32.dp)
         )
 
         // ========================================
-        // ✨ NEW: CATEGORY CHIPS
+        // ✨ NEW: "NEWEST" CHIP (Sort by Newest)
+        // Mutually exclusive with "All"
+        // ========================================
+        FilterChip(
+            selected = sortOption == SortOption.NEWEST,
+            onClick = onNewestToggle,
+            label = {
+                Text(
+                    text = "Newest",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                )
+            },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = Color(0xFF9C27B0),
+                selectedLabelColor = Color.White,
+                containerColor = Color.Transparent,
+                labelColor = MaterialTheme.colorScheme.onSurface
+            ),
+            border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = sortOption == SortOption.NEWEST,
+                borderColor = if (sortOption == SortOption.NEWEST)
+                    Color(0xFF9C27B0)
+                else
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                selectedBorderColor = Color(0xFF9C27B0),
+                borderWidth = 1.dp,
+                selectedBorderWidth = 1.5.dp
+            ),
+            modifier = Modifier.height(32.dp)
+        )
+
+        // ========================================
+        // ✨ UPDATED: CATEGORY CHIPS (Smaller, Toggleable)
         // One chip for each DealCategory enum value
         // ========================================
         DealCategory.values().forEach { category ->
             FilterChip(
                 selected = selectedCategory == category,
-                onClick = { onCategorySelected(category) },
+                onClick = { onCategoryToggle(category) },
                 label = {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Category emoji (visual identifier)
                         Text(
                             text = category.emoji,
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = 16.sp
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = 14.sp
                             )
                         )
                         // Category name
                         Text(
                             text = category.displayName,
-                            style = MaterialTheme.typography.labelLarge.copy(
+                            style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
+                                fontSize = 13.sp
                             )
                         )
                     }
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFF9C27B0),  // ✨ Purple
+                    selectedContainerColor = Color(0xFF9C27B0),
                     selectedLabelColor = Color.White,
                     containerColor = Color.Transparent,
                     labelColor = MaterialTheme.colorScheme.onSurface
@@ -171,16 +208,16 @@ private fun CategoryFilterChips(
                     else
                         MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     selectedBorderColor = Color(0xFF9C27B0),
-                    borderWidth = 1.5.dp,
-                    selectedBorderWidth = 2.dp
+                    borderWidth = 1.dp,
+                    selectedBorderWidth = 1.5.dp
                 ),
                 modifier = Modifier
-                    .height(40.dp)
-                    .animateContentSize()  // ✨ Smooth size transitions
+                    .height(32.dp)
+                    .animateContentSize()
             )
         }
         // ========================================
-        // ✅ SPRINT 6: "ARCHIVE" CHIP
+        // ✅ SPRINT 6: "ARCHIVE" CHIP (Kept as-is, but smaller)
         // Navigate to archive screen to view old deals
         // ========================================
         FilterChip(
@@ -188,18 +225,18 @@ private fun CategoryFilterChips(
             onClick = onArchiveClick,
             label = {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "📦",
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp)
                     )
                     Text(
                         text = "Archive",
-                        style = MaterialTheme.typography.labelLarge.copy(
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
+                            fontSize = 13.sp
                         )
                     )
                 }
@@ -215,11 +252,11 @@ private fun CategoryFilterChips(
                 selected = false,
                 borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                 selectedBorderColor = Color(0xFF9C27B0),
-                borderWidth = 1.5.dp,
-                selectedBorderWidth = 2.dp
+                borderWidth = 1.dp,
+                selectedBorderWidth = 1.5.dp
             ),
             modifier = Modifier
-                .height(40.dp)
+                .height(32.dp)
                 .animateContentSize()
         )
 
@@ -260,7 +297,7 @@ private fun CategoryFilterChips(
  * @param onDealClick Callback when deal card is clicked
  * @param onPostClick Callback when FAB is clicked to post deal
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     onDealClick: (String) -> Unit = {},
@@ -286,6 +323,7 @@ fun FeedScreen(
     val state = viewModel.uiState
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()  // ✨ NEW: Category state
+    val sortOption by viewModel.sortOption.collectAsState()  // ✨ NEW: Sort option state
     val isAdmin by viewModel.isAdmin.collectAsState()  // ✅ NEW: Admin detection for delete button
 
     // ✅ PRESERVED: Grid and pull-to-refresh states
@@ -348,21 +386,44 @@ fun FeedScreen(
             ) {
 
             // ========================================
-            // ✨ NEW: CATEGORY FILTER CHIPS
+            // ✨ UPDATED: CATEGORY FILTER CHIPS (Toggleable)
             // Horizontal scrolling chips below search bar
-            // Allows filtering by category
+            // All, Newest, Categories (3-4 fit on screen)
             // ========================================
             CategoryFilterChips(
                 selectedCategory = selectedCategory,
-                onCategorySelected = { category ->
-                    viewModel.filterByCategory(category)
+                onCategoryToggle = { category ->
+                    viewModel.toggleCategory(category)
                 },
-                onArchiveClick = onArchiveClick,  // ✅ SPRINT 6: Pass archive click handler
+                sortOption = sortOption,
+                onAllClick = {
+                    viewModel.setSortToAll()
+                },
+                onNewestToggle = {
+                    viewModel.toggleSortToNewest()
+                },
+                onArchiveClick = onArchiveClick,
                 modifier = Modifier.fillMaxWidth()
             )
 
 
             when {
+                // ========================================
+                // ✨ NEW CASE 0: Filtering/Sorting in Progress
+                // Show big centered purple spinner
+                // ========================================
+                state.isFilteringSorting -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(64.dp),
+                            strokeWidth = 6.dp,
+                            color = Color(0xFF9C27B0)  // ✨ Big purple spinner
+                        )
+                    }
+                }
 
                 // ========================================
                 // CASE 1: Initial Loading State (Empty with Loading)
@@ -496,12 +557,11 @@ fun FeedScreen(
                                     showDeleteButton = isAdmin,
                                     onDelete = { dealToDelete = deal.id },
 
-                                    // ✅ 2025: Hardware acceleration for buttery smooth 60fps
+                                    // ✅ UPDATED: Removed animateItem() to prevent lag during category switches
+                                    // Hardware acceleration still applied for smooth scrolling
                                     modifier = Modifier
-                                        .animateItem()
                                         .graphicsLayer {
                                             // Hardware-accelerated rendering - prevents layout on scroll
-                                            // This is THE key to Instagram-like smoothness
                                         }
                                 )
                             }
