@@ -114,7 +114,7 @@ fun ArchiveScreen(
                 .fillMaxWidth()
                 .horizontalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // "All" chip
             FilterChip(
@@ -123,9 +123,9 @@ fun ArchiveScreen(
                 label = {
                     Text(
                         text = "All",
-                        style = MaterialTheme.typography.labelLarge.copy(
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
+                            fontSize = 13.sp
                         )
                     )
                 },
@@ -143,12 +143,10 @@ fun ArchiveScreen(
                     else
                         MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     selectedBorderColor = Color(0xFF9C27B0),
-                    borderWidth = 1.5.dp,
-                    selectedBorderWidth = 2.dp
+                    borderWidth = 1.dp,
+                    selectedBorderWidth = 1.5.dp
                 ),
-                modifier = Modifier
-                    .height(40.dp)
-                    .animateContentSize()
+                modifier = Modifier.height(32.dp)
             )
 
             // Category chips
@@ -158,18 +156,18 @@ fun ArchiveScreen(
                     onClick = { onCategorySelected(category) },
                     label = {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = category.emoji,
-                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+                                style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp)
                             )
                             Text(
                                 text = category.displayName,
-                                style = MaterialTheme.typography.labelLarge.copy(
+                                style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 15.sp
+                                    fontSize = 13.sp
                                 )
                             )
                         }
@@ -188,11 +186,11 @@ fun ArchiveScreen(
                         else
                             MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                         selectedBorderColor = Color(0xFF9C27B0),
-                        borderWidth = 1.5.dp,
-                        selectedBorderWidth = 2.dp
+                        borderWidth = 1.dp,
+                        selectedBorderWidth = 1.5.dp
                     ),
                     modifier = Modifier
-                        .height(40.dp)
+                        .height(32.dp)
                         .animateContentSize()
                 )
             }
