@@ -410,14 +410,14 @@ private fun DealDetailsContent(
             }
 
             // ========================================
-            // Content Section
+            // Content Section - 2025 Enhanced Spacing & Typography
             // ========================================
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(horizontal = 20.dp, vertical = 24.dp),  // ✨ More generous vertical padding
+                verticalArrangement = Arrangement.spacedBy(24.dp)  // ✨ Increased spacing for better breathing room
             ) {
                 // ========================================
                 // Voting & Report Buttons (unchanged)
@@ -530,11 +530,11 @@ private fun DealDetailsContent(
                     }
                 }
 
-                // Timestamp and Expiry
+                // Timestamp and Expiry - 2025 Enhanced
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 4.dp),  // ✨ Reduced top padding
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -542,8 +542,11 @@ private fun DealDetailsContent(
                     deal.createdAt?.let { createdAt ->
                         Text(
                             text = "Posted ${getRelativeTimeString(createdAt)}",
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = 12.sp,  // ✨ Slightly smaller for subtlety
+                                letterSpacing = 0.3.sp  // ✨ Better readability
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)  // ✨ More subtle
                         )
                     }
 
@@ -553,38 +556,43 @@ private fun DealDetailsContent(
                         if (expiryText.isNotEmpty()) {
                             Text(
                                 text = expiryText,
-                                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 12.sp,  // ✨ Slightly smaller for subtlety
+                                    letterSpacing = 0.3.sp  // ✨ Better readability
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)  // ✨ More subtle
                             )
                         }
                     }
                 }
 
                 // ========================================
-                // Title (unchanged)
+                // Title - 2025 Enhanced Typography
                 // ========================================
                 Text(
                     text = deal.title.replace("\n", " "),
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        lineHeight = 32.sp
+                        fontSize = 22.sp,
+                        lineHeight = 28.sp,
+                        letterSpacing = (-0.5).sp  // ✨ Tighter letter spacing for headlines (2025 trend)
                     ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 // ========================================
-                // ✨ UPDATED: Expandable Description
+                // ✨ UPDATED: Expandable Description - 2025 Enhanced
                 // ========================================
                 if (!deal.description.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {  // ✨ Increased spacing
                         Text(
                             text = deal.description!!,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 lineHeight = 24.sp,
-                                fontSize = 15.sp
+                                fontSize = 15.sp,
+                                letterSpacing = 0.15.sp  // ✨ Better readability for body text
                             ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),  // ✨ Slightly stronger contrast
                             maxLines = descriptionMaxLines,
                             overflow = if (isDescriptionLong && !isDescriptionExpanded) {
                                 TextOverflow.Ellipsis  // ✅ Long text: show "..." when collapsed
@@ -593,28 +601,28 @@ private fun DealDetailsContent(
                             }
                         )
 
-                        // ✨ "See more" / "See less" button
+                        // ✨ "See more" / "See less" button - 2025 Clean Design
                         if (deal.description!!.length > 100) {  // Only show if description is long
                             Text(
-                                text = if (isDescriptionExpanded) "See less ▲" else "See more ▼",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold
+                                text = if (isDescriptionExpanded) "Show less" else "Show more",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    letterSpacing = 0.3.sp  // ✨ Better spacing
                                 ),
-                                color = Color(0xFF8B7BA8),  // App primary color (purple)
-                                modifier = Modifier.clickable {
-                                    isDescriptionExpanded = !isDescriptionExpanded
-                                }
-                                    .padding(top = 4.dp)  // Extra spacing from description
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),  // ✨ Subtle primary color
+                                modifier = Modifier
+                                    .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                                    .padding(top = 2.dp)  // ✨ Reduced spacing
                             )
                         }
                     }
                 }
 
                 // ========================================
-                // Category Display (unchanged)
+                // Category Display - 2025 Enhanced
                 // ========================================
                 deal.category?.let { categoryId ->
-                    Spacer(modifier = Modifier.height(12.dp))
                     val categoryInfo = when (categoryId) {
                         "food_dining" -> "🍔" to "Food & Dining"
                         "shopping_fashion" -> "🛍️" to "Shopping & Fashion"
@@ -728,6 +736,33 @@ private fun DealDetailsContent(
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
+
+                // ========================================
+                // LIABILITY DISCLAIMER - 2025 Clean Design
+                // Aligned with description, no background, subtle
+                // ========================================
+                Spacer(modifier = Modifier.height(20.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Disclaimer",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = "All deals are posted by users and are the sole responsibility of the original poster. DohaDealsRadar is not responsible for the accuracy, validity, or availability of any deals. By clicking on deal links, you will be redirected to third-party websites. DohaDealsRadar is not liable for any transactions, issues, or disputes that may arise from these external sites. Please verify all deal details independently before making any purchase.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
             }
         }
 

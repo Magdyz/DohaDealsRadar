@@ -89,7 +89,7 @@ private fun CategoryFilterChips(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),  // ✨ Increased vertical padding for breathing space
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // ========================================

@@ -328,8 +328,8 @@ fun DealCard(
                     text = deal.title,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,  // ✅ More prominent
-                        fontSize = 13.sp,              // ✅ Font size title
-                        lineHeight = 20.sp             // ✅ Optimal 1.43x ratio
+                        fontSize = 12.sp,              // ✨ Slightly reduced for better density
+                        lineHeight = 18.sp             // ✅ Adjusted line height proportionally
                     ),
                     maxLines = 2,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -377,7 +377,7 @@ fun DealCard(
                                 text = "View Deal",  // ✅ Always "View Deal" (to check if still active)
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp  // ✨ Slightly reduced for better density
                                 )
                             )
                         }
