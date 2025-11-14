@@ -56,8 +56,6 @@ fun PendingDealsScreen(
         val userId = deviceIdManager.getUserId()
         if (userId != null) {
             viewModel.setCurrentUser(userId)
-        } else {
-            android.util.Log.w("PendingDeals", "⚠️ No userId found in DeviceIdManager")
         }
     }
 

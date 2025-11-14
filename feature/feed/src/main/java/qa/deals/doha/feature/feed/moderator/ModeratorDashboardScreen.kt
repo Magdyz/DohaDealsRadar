@@ -57,8 +57,6 @@ fun ModeratorDashboardScreen(
         val userId = deviceIdManager.getUserId()
         if (userId != null) {
             viewModel.setCurrentUser(userId)
-        } else {
-            android.util.Log.w("ModeratorDashboard", "⚠️ No userId found in DeviceIdManager")
         }
     }
 

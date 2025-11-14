@@ -21,9 +21,46 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# YOUR DATA CLASSES - Most important!
--keep class qa.deals.doha.** { *; }
--keep class qa.deals.domain.** { *; }
+# DATA CLASSES - Only keep what's needed for serialization
+-keep class qa.deals.doha.network.** { *; }  # API DTOs (needed by Retrofit/Gson)
+-keep class qa.deals.doha.db.** { *; }       # Database entities (needed by Room)
+-keep class qa.deals.domain.** { *; }        # Domain models (small, safe to keep)
+
+# ViewModels - Keep class names (used by reflection in ViewModelProvider.Factory)
+-keep class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+-keep class **.*ViewModel { *; }
+-keep class **.*ViewModelFactory { *; }
+
+# BuildConfig - Keep class name (used by Class.forName in ImageLoaderConfig)
+-keep class **.BuildConfig { *; }
+
+# Obfuscate everything else for security
+-keepclassmembers class qa.deals.doha.** {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Remove ALL logging in release builds (including errors and warnings)
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** wtf(...);
+    public static *** println(...);
+}
+
+# Remove ALL SecureLogger methods in release builds
+-assumenosideeffects class qa.deals.doha.util.SecureLogger {
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** pii(...);
+    public static *** network(...);
+}
 
 # Room Database
 -keep class * extends androidx.room.RoomDatabase

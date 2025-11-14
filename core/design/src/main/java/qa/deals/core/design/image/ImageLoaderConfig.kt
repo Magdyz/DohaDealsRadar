@@ -2,7 +2,6 @@ package qa.deals.doha.design.image
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
@@ -34,8 +33,6 @@ import okio.Path.Companion.toOkioPath
  */
 object ImageLoaderConfig {
 
-    private const val TAG = "ImageLoader"
-
     // ========================================
     // 🔧 CONFIGURATION CONSTANTS
     // ========================================
@@ -60,9 +57,6 @@ object ImageLoaderConfig {
      * @return Fully configured ImageLoader instance
      */
     fun create(context: Context): ImageLoader {
-
-        logInitialization()
-
         return ImageLoader.Builder(context)
             .configureMemoryCache(context)
             .configureDiskCache(context)
@@ -70,7 +64,6 @@ object ImageLoaderConfig {
             .configureCachePolicies()
             .configureDebugLogging(context)
             .build()
-            .also { logConfiguration() }
     }
 
     // ========================================
@@ -142,7 +135,6 @@ object ImageLoaderConfig {
             // Hardware bitmaps use GPU memory = 2x faster rendering
             // Since minSdk is 26, this is always enabled
             add(coil3.decode.BitmapFactoryDecoder.Factory())
-            Log.d(TAG, "   ✅ Hardware bitmaps enabled (2x faster rendering)")
         }
     }
 
@@ -195,34 +187,7 @@ object ImageLoaderConfig {
 
             if (isDebugBuild) {
                 logger(DebugLogger())
-                Log.d(TAG, "   ℹ️ Debug logging enabled")
-            } else {
-                Log.d(TAG, "   ℹ️ Debug logging disabled (release build)")
             }
         }
-    }
-
-    // ========================================
-    // 📊 LOGGING UTILITIES
-    // ========================================
-
-    /**
-     * Logs initialization start.
-     */
-    private fun logInitialization() {
-        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        Log.d(TAG, "🖼️ Initializing Optimized Image Loader")
-    }
-
-    /**
-     * Logs final configuration details.
-     */
-    private fun logConfiguration() {
-        Log.d(TAG, "✅ Image Loader initialized successfully")
-        Log.d(TAG, "   📊 Memory cache: ${(MEMORY_CACHE_PERCENT * 100).toInt()}% of RAM")
-        Log.d(TAG, "   💾 Disk cache: ${DISK_CACHE_SIZE_BYTES / (1024 * 1024)}MB")
-        Log.d(TAG, "   🖼️ Hardware bitmaps: enabled (minSdk 26)")
-        Log.d(TAG, "   📱 Android version: ${Build.VERSION.SDK_INT}")
-        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 }
