@@ -594,8 +594,32 @@ fun FeedScreen(
             }  // End of Column
 
         // ========================================
+        // ✨ 2025 UBER EATS STYLE: Bottom Gradient Backdrop
+        // Vertical gradient that fades from solid grey (bottom) to transparent (top)
+        // Creates pleasing depth effect behind the FAB buttons
+        // ========================================
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(120.dp) // Height covers buttons + fade area
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,                              // Top: fully transparent
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.3f), // Fade starts
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), // Mid fade
+                            MaterialTheme.colorScheme.surface                // Bottom: solid grey (same as top bar)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
+
+        // ========================================
         // ✅ 2025 DESIGN: Account FAB - Bottom Left
-        // Reversed gradient (pink/purple) for visual distinction
+        // Now floating on top of gradient backdrop
         // ========================================
         var isAccountPressed by remember { mutableStateOf(false) }
 
@@ -611,9 +635,9 @@ fun FeedScreen(
             containerColor = Color.Transparent,
             contentColor = Color.White,
             elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 6.dp,
-                pressedElevation = 10.dp,
-                hoveredElevation = 8.dp
+                defaultElevation = 8.dp,  // Enhanced elevation for better depth
+                pressedElevation = 12.dp,
+                hoveredElevation = 10.dp
             ),
             shape = CircleShape,
             modifier = Modifier
@@ -648,7 +672,7 @@ fun FeedScreen(
 
         // ========================================
         // ✅ 2025 DESIGN: Post FAB - Bottom Right
-        // Original gradient (purple/pink)
+        // Now floating on top of gradient backdrop
         // ========================================
         var isPostPressed by remember { mutableStateOf(false) }
 
@@ -664,9 +688,9 @@ fun FeedScreen(
             containerColor = Color.Transparent,
             contentColor = Color.White,
             elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 6.dp,
-                pressedElevation = 10.dp,
-                hoveredElevation = 8.dp
+                defaultElevation = 8.dp,  // Enhanced elevation for better depth
+                pressedElevation = 12.dp,
+                hoveredElevation = 10.dp
             ),
             shape = CircleShape,
             modifier = Modifier
