@@ -602,7 +602,7 @@ fun FeedScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(120.dp) // Height covers buttons + fade area
+                .height(96.dp) // Reduced height for more compact gradient
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
