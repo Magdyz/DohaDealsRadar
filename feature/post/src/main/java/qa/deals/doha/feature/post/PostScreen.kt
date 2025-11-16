@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.imeNestedScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.text.KeyboardOptions
@@ -76,7 +77,7 @@ import androidx.core.net.toUri
  * ✅ ALL LOGGING PRESERVED
  * ✅ ALL EXISTING VIEWMODEL METHODS PRESERVED (updateTitle, updateLocation, etc.)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PostScreen(
     onBackClick: () -> Unit = {},
