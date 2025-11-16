@@ -183,8 +183,10 @@ fun PostScreen(
         return FileProvider.getUriForFile(context, "${context.packageName}.provider", imageFile)
     }
 
-    Scaffold(
-        snackbarHost = {
+    // Wrap main content and overlays in a Box for proper layering
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = {
                 SnackbarHost(hostState = snackbarHostState) {
                     Snackbar(
                         snackbarData = it,
@@ -831,68 +833,69 @@ fun PostScreen(
             }
         }
 
-    // ✅ PRESERVED: Loading overlay
-    if (state.loading) {
-        UploadLoadingOverlay(message = state.message)
-    }
-
-    // ✅ PRESERVED: Success animation
-    if (state.submitted) {
-        SuccessScreen(
-            onDismiss = {
-                Log.d("PostScreen", "✅ Success, navigating to feed")
-                onSuccess()
-            }
-        )
-    }
-
-    // ========================================
-    // ⚠️ CHANGED: EMAIL VERIFICATION SCREEN (Replaces UsernameDialog)
-    // ========================================
-    // ✅ FIXED: This section was bugged.
-    // 1. Now correctly calls EmailVerificationScreen with proper parameters.
-    // 2. Uses LaunchedEffect to observe the VM state for success.
-    // 3. Wires up callbacks (onSendCode, onVerifyCode) to the VM.
-    // ========================================
-
-    if (state.showEmailVerification) {
-        Log.d("PostScreen", "📧 Showing email verification screen")
-
-        // Observe the VM state for the "Verified" event
-        LaunchedEffect(state.emailVerificationState) {
-            if (state.emailVerificationState is EmailVerificationState.Verified) {
-                val user = state.emailVerificationState.user
-                Log.d("PostScreen", "✅ Email verified: ${user.username} (${user.email})")
-                // Call the VM's handler to update state and auto-submit
-                viewModel.onEmailVerified(user.id, user.username, user.email, user.isNew)
-            }
+        // ✅ PRESERVED: Loading overlay
+        if (state.loading) {
+            UploadLoadingOverlay(message = state.message)
         }
 
-        // Extract loading and error states for the dumb composable
-        val isLoading = state.emailVerificationState is EmailVerificationState.Loading
-        val error = (state.emailVerificationState as? EmailVerificationState.Error)?.message
+        // ✅ PRESERVED: Success animation
+        if (state.submitted) {
+            SuccessScreen(
+                onDismiss = {
+                    Log.d("PostScreen", "✅ Success, navigating to feed")
+                    onSuccess()
+                }
+            )
+        }
 
-        EmailVerificationScreen(
-            // Note: onVerified is unused by EmailVerificationScreen,
-            // logic is handled by LaunchedEffect above.
-            onVerified = { _, _, _ -> },
-            onCancel = {
-                Log.d("PostScreen", "📧 Email verification cancelled")
-                viewModel.hideEmailVerification()
-            },
-            // Treat skip as cancel for this flow
-            onSkip = {
-                Log.d("PostScreen", "📧 Email verification skipped")
-                viewModel.hideEmailVerification()
-            },
-            // Wire up VM methods
-            onSendCode = viewModel::sendVerificationCode,
-            onVerifyCode = viewModel::verifyCode,
-            // Pass down state
-            isLoading = isLoading,
-            error = error
-        )
-    }
+        // ========================================
+        // ⚠️ CHANGED: EMAIL VERIFICATION SCREEN (Replaces UsernameDialog)
+        // ========================================
+        // ✅ FIXED: This section was bugged.
+        // 1. Now correctly calls EmailVerificationScreen with proper parameters.
+        // 2. Uses LaunchedEffect to observe the VM state for success.
+        // 3. Wires up callbacks (onSendCode, onVerifyCode) to the VM.
+        // ========================================
+
+        if (state.showEmailVerification) {
+            Log.d("PostScreen", "📧 Showing email verification screen")
+
+            // Observe the VM state for the "Verified" event
+            LaunchedEffect(state.emailVerificationState) {
+                if (state.emailVerificationState is EmailVerificationState.Verified) {
+                    val user = state.emailVerificationState.user
+                    Log.d("PostScreen", "✅ Email verified: ${user.username} (${user.email})")
+                    // Call the VM's handler to update state and auto-submit
+                    viewModel.onEmailVerified(user.id, user.username, user.email, user.isNew)
+                }
+            }
+
+            // Extract loading and error states for the dumb composable
+            val isLoading = state.emailVerificationState is EmailVerificationState.Loading
+            val error = (state.emailVerificationState as? EmailVerificationState.Error)?.message
+
+            EmailVerificationScreen(
+                // Note: onVerified is unused by EmailVerificationScreen,
+                // logic is handled by LaunchedEffect above.
+                onVerified = { _, _, _ -> },
+                onCancel = {
+                    Log.d("PostScreen", "📧 Email verification cancelled")
+                    viewModel.hideEmailVerification()
+                },
+                // Treat skip as cancel for this flow
+                onSkip = {
+                    Log.d("PostScreen", "📧 Email verification skipped")
+                    viewModel.hideEmailVerification()
+                },
+                // Wire up VM methods
+                onSendCode = viewModel::sendVerificationCode,
+                onVerifyCode = viewModel::verifyCode,
+                // Pass down state
+                isLoading = isLoading,
+                error = error
+            )
+        }
+    }  // Close Box wrapper
 
     // ========================================
     // ✅ PRESERVED: Success navigation
