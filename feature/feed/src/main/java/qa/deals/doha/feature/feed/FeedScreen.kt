@@ -80,6 +80,7 @@ private fun CategoryFilterChips(
     onAllClick: () -> Unit,
     onNewestToggle: () -> Unit,
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
+    isAdmin: Boolean = false,  // ✅ NEW: Admin-only archive access
     modifier: Modifier = Modifier
 ) {
     // ✅ PRESERVED: Scroll state for horizontal scrolling
@@ -217,48 +218,50 @@ private fun CategoryFilterChips(
             )
         }
         // ========================================
-        // ✅ SPRINT 6: "ARCHIVE" CHIP (Kept as-is, but smaller)
-        // Navigate to archive screen to view old deals
+        // ✅ ADMIN-ONLY: "ARCHIVE" CHIP
+        // Navigate to archive screen to view old deals (admins only)
         // ========================================
-        FilterChip(
-            selected = false,  // Never selected (it's a navigation button)
-            onClick = onArchiveClick,
-            label = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "📦",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp)
-                    )
-                    Text(
-                        text = "Archive",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
+        if (isAdmin) {
+            FilterChip(
+                selected = false,  // Never selected (it's a navigation button)
+                onClick = onArchiveClick,
+                label = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📦",
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp)
                         )
-                    )
-                }
-            },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = Color(0xFF9C27B0),
-                selectedLabelColor = Color.White,
-                containerColor = Color.Transparent,
-                labelColor = MaterialTheme.colorScheme.onSurface
-            ),
-            border = FilterChipDefaults.filterChipBorder(
-                enabled = true,
-                selected = false,
-                borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                selectedBorderColor = Color(0xFF9C27B0),
-                borderWidth = 1.dp,
-                selectedBorderWidth = 1.5.dp
-            ),
-            modifier = Modifier
-                .height(32.dp)
-                .animateContentSize()
-        )
+                        Text(
+                            text = "Archive",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF9C27B0),
+                    selectedLabelColor = Color.White,
+                    containerColor = Color.Transparent,
+                    labelColor = MaterialTheme.colorScheme.onSurface
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = false,
+                    borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    selectedBorderColor = Color(0xFF9C27B0),
+                    borderWidth = 1.dp,
+                    selectedBorderWidth = 1.5.dp
+                ),
+                modifier = Modifier
+                    .height(32.dp)
+                    .animateContentSize()
+            )
+        }
 
     }
 }
@@ -403,6 +406,7 @@ fun FeedScreen(
                     viewModel.toggleSortToNewest()
                 },
                 onArchiveClick = onArchiveClick,
+                isAdmin = isAdmin,  // ✅ Pass admin status to show/hide Archive chip
                 modifier = Modifier.fillMaxWidth()
             )
 
