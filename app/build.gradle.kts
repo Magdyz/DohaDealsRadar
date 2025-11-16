@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17 // Styling, added Newest
-        versionName = "1.1.7"
+        versionCode = 18 // Added price for post and view
+        versionName = "1.1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
