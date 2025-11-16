@@ -316,35 +316,30 @@ fun DealCard(
 
             // ========================================
             // Content Section: Title + Price + View Deal Button
+            // ✨ 2025 SOLUTION: Fixed heights = Uniform cards
             // ========================================
-            val hasPrice = deal.originalPrice != null || deal.discountedPrice != null
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),  // ✨ Reduced padding slightly
-                verticalArrangement = if (hasPrice) {
-                    Arrangement.spacedBy(8.dp)  // Normal spacing when price exists
-                } else {
-                    Arrangement.Center  // Center vertically when no price
-                }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Title (3 lines max - UPDATED from 2)
+                // Title (3 lines max)
                 Text(
                     text = deal.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,  // ✅ More prominent
-                        fontSize = 12.sp,              // ✨ Slightly reduced for better density
-                        lineHeight = 16.sp             // ✨ Tighter line height for 3 lines
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
                     ),
-                    maxLines = 3,  // ✨ UPDATED: From 2 to 3 lines
+                    maxLines = 3,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.heightIn(min = 48.dp, max = 54.dp)  // ✨ Height for 3 lines
+                    modifier = Modifier.heightIn(min = 48.dp, max = 54.dp)
                 )
 
                 // ========================================
-                // ✨ NEW: Price Display (2025-11-16)
-                // Only shows if prices exist, otherwise invisible
+                // ✨ FIXED HEIGHT PRICE SECTION (40dp)
+                // Maintains uniform card height regardless of content
                 // ========================================
                 DealCardPrice(
                     originalPrice = deal.originalPrice,
@@ -567,83 +562,105 @@ private fun CompactVoteButton(
 // ✨ NEW: Price Display Component (2025-11-16)
 // ========================================
 /**
- * Displays deal prices with proper formatting:
- * - Both prices: QR 1,995 (pink) ~~QR 2,745~~ (grey strikethrough) -27% (green)
- * - Only original: QR 2,745 (normal text)
- * - Only discounted: QR 1,995 (pink)
+ * ✨ 2025 MODERN SOLUTION: Fixed-height price section for uniform cards
+ *
+ * Display logic:
+ * - Both prices: TWO LINES
+ *   Line 1: QR 1,995 (pink, 14sp, bold)
+ *   Line 2: QR 2,745 -27% (grey + green, 11sp)
+ * - One price: SINGLE LINE (centered vertically)
+ * - No price: EMPTY (but height maintained)
+ *
+ * CRITICAL: Always 40dp height to keep all cards uniform
  */
 @Composable
 private fun DealCardPrice(
     originalPrice: Double?,
     discountedPrice: Double?
 ) {
-    // Don't show anything if both prices are null
-    if (originalPrice == null && discountedPrice == null) return
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // Always show the container with fixed height for consistency
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp),  // 🎯 FIXED HEIGHT = Uniform cards
+        contentAlignment = Alignment.CenterStart
     ) {
         when {
-            // Case 1: Both prices exist - show DISCOUNTED + original (strikethrough) + discount%
+            // Case 1: Both prices exist - TWO LINES
             originalPrice != null && discountedPrice != null -> {
                 val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
 
-                // Discounted price FIRST (pink highlight color)
-                Text(
-                    text = formatPrice(discountedPrice),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color(0xFFE91E63)  // Pink highlight (category color)
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Line 1: Discounted price (prominent, pink)
+                    Text(
+                        text = formatPrice(discountedPrice),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 18.sp
+                        ),
+                        color = Color(0xFFE91E63)  // Pink highlight
+                    )
 
-                // Original price (strikethrough, grey, smaller)
-                Text(
-                    text = formatPrice(originalPrice),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 10.sp,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    ),
-                    color = Color.Gray
-                )
+                    // Line 2: Original price + percentage (smaller, grey + green)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatPrice(originalPrice),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp,
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                            ),
+                            color = Color.Gray
+                        )
 
-                // Discount percentage (green, last)
-                Text(
-                    text = "-$discountPercent%",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color(0xFF10B981)  // SuccessGreen
-                )
+                        Text(
+                            text = "-$discountPercent%",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 14.sp
+                            ),
+                            color = Color(0xFF10B981)  // Green
+                        )
+                    }
+                }
             }
 
-            // Case 2: Only original price
+            // Case 2: Only original price - CENTERED
             originalPrice != null -> {
                 Text(
                     text = formatPrice(originalPrice),
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.align(Alignment.CenterStart)
                 )
             }
 
-            // Case 3: Only discounted price (show in pink)
+            // Case 3: Only discounted price - CENTERED (pink)
             discountedPrice != null -> {
                 Text(
                     text = formatPrice(discountedPrice),
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFFE91E63)  // Pink highlight
+                    color = Color(0xFFE91E63),  // Pink highlight
+                    modifier = Modifier.align(Alignment.CenterStart)
                 )
             }
+
+            // Case 4: No price - EMPTY but maintains 40dp height
+            // This keeps all cards the same height for uniform grid
         }
     }
 }
