@@ -1076,10 +1076,13 @@ private fun PromoCodeCard(
 // ✨ NEW: Price Display Component (2025-11-16)
 // ========================================
 /**
- * Displays deal prices with proper formatting in the details screen:
- * - Both prices: QR 1,995 (pink) ~~QR 2,745~~ (grey strikethrough) -27% (green)
- * - Only original: QR 2,745 (normal text)
- * - Only discounted: QR 1,995 (pink)
+ * ✨ 2025 MODERN SOLUTION: Two-line price display for details screen
+ *
+ * Display logic:
+ * - Both prices: TWO LINES
+ *   Line 1: QR 1,995 (pink, 24sp, bold)
+ *   Line 2: QR 2,745 -27% (grey + green, 16sp)
+ * - One price: SINGLE LINE
  */
 @Composable
 private fun DealDetailsPrice(
@@ -1089,67 +1092,73 @@ private fun DealDetailsPrice(
     // Don't show anything if both prices are null
     if (originalPrice == null && discountedPrice == null) return
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         when {
-            // Case 1: Both prices exist - show DISCOUNTED + original (strikethrough) + discount%
+            // Case 1: Both prices exist - TWO LINES
             originalPrice != null && discountedPrice != null -> {
                 val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
 
-                // Discounted price FIRST (pink highlight color)
+                // Line 1: Discounted price (prominent, pink)
                 Text(
                     text = formatPrice(discountedPrice),
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 32.sp
                     ),
-                    color = Color(0xFFE91E63)  // Pink highlight (category color)
+                    color = Color(0xFFE91E63)  // Pink highlight
                 )
 
-                // Original price (strikethrough, grey, smaller)
-                Text(
-                    text = formatPrice(originalPrice),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 16.sp,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    ),
-                    color = Color.Gray
-                )
+                // Line 2: Original price + percentage (grey + green)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatPrice(originalPrice),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 16.sp,
+                            lineHeight = 20.sp,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                        ),
+                        color = Color.Gray
+                    )
 
-                // Discount percentage (green, last)
-                Text(
-                    text = "-$discountPercent%",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color(0xFF10B981)  // SuccessGreen
-                )
+                    Text(
+                        text = "-$discountPercent%",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 20.sp
+                        ),
+                        color = Color(0xFF10B981)  // Green
+                    )
+                }
             }
 
-            // Case 2: Only original price
+            // Case 2: Only original price - SINGLE LINE
             originalPrice != null -> {
                 Text(
                     text = formatPrice(originalPrice),
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 22.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            // Case 3: Only discounted price (show in pink)
+            // Case 3: Only discounted price - SINGLE LINE (pink)
             discountedPrice != null -> {
                 Text(
                     text = formatPrice(discountedPrice),
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 24.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold
                     ),
                     color = Color(0xFFE91E63)  // Pink highlight
