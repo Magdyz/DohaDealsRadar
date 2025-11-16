@@ -321,7 +321,7 @@ fun PostScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)  // Scaffold provides padding for bottomBar automatically
+                    // Removed .padding(padding) - we apply it manually via Spacer at bottom
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -828,8 +828,9 @@ fun PostScreen(
                     }
                 }
 
-                // ✅ Small spacer for aesthetics
-                Spacer(Modifier.height(16.dp))
+                // ✅ Dynamic spacer: bottomBar height + visual gap
+                // This creates the perfect Snoonu-style spacing and works with imeNestedScroll()
+                Spacer(Modifier.height(padding.calculateBottomPadding() + 16.dp))
             }
         }
 
