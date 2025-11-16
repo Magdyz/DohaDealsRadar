@@ -13,6 +13,9 @@ import com.google.gson.annotations.SerializedName
  * - Added promo_code field
  * - Added posted_by field for username attribution
  *
+ * ✅ UPDATED: 2025-11-16
+ * - Added originalPrice and discountedPrice fields for price display
+ *
  * @param title Deal title (required)
  * @param description Deal description (optional)
  * @param link Deal URL (required for online deals)
@@ -31,6 +34,13 @@ data class SubmitDealRequest(
     val category: String = "other",
     @SerializedName("promo_code") val promoCode: String? = null,
     @SerializedName("posted_by") val postedBy: String = "Anonymous",
+
+    // ========================================
+    // ✅ NEW: Price fields (2025-11-16)
+    // ========================================
+    @SerializedName("original_price") val originalPrice: Double? = null,
+    @SerializedName("discounted_price") val discountedPrice: Double? = null,
+
     // ========================================
     // ✅ NEW: Added fields for verification
     // ========================================

@@ -369,6 +369,60 @@ fun PostScreen(
                     )
                 }
 
+                // ✨ NEW: Price Fields (2025-11-16) - Optional original and discounted prices
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Price (Optional)",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Original Price Field
+                        OutlinedTextField(
+                            value = state.originalPrice,
+                            onValueChange = {
+                                viewModel.updateOriginalPrice(it)
+                            },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("QR 100") },
+                            label = { Text("Original Price") },
+                            singleLine = true,
+                            maxLines = 1,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Next,
+                                keyboardType = KeyboardType.Decimal
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Right) }
+                            )
+                        )
+
+                        // Discounted Price Field
+                        OutlinedTextField(
+                            value = state.discountedPrice,
+                            onValueChange = {
+                                viewModel.updateDiscountedPrice(it)
+                            },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("QR 80") },
+                            label = { Text("Discounted Price") },
+                            singleLine = true,
+                            maxLines = 1,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Next,
+                                keyboardType = KeyboardType.Decimal
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                            )
+                        )
+                    }
+                }
+
                 // ✅ PRESERVED: Description Field (using existing method: updateDescription)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(

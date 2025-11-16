@@ -184,7 +184,11 @@ class DealRepository {
 
         // NEW: Expiration duration in days
 
-        expiresInDays: Int = 10
+        expiresInDays: Int = 10,
+
+        // ✨ NEW: Price fields (2025-11-16)
+        originalPrice: Double? = null,
+        discountedPrice: Double? = null
     ): ApiEnvelope<List<DealDto>> = withContext(Dispatchers.IO) {
         Log.d("Repository", "Submitting deal to backend")
         Log.d("Repository", "   Title: $title")
@@ -205,7 +209,9 @@ class DealRepository {
             postedBy = postedBy,
             userId = userId,
             deviceId = deviceId,
-            expiresInDays = expiresInDays
+            expiresInDays = expiresInDays,
+            originalPrice = originalPrice,        // ✨ NEW: Original price (2025-11-16)
+            discountedPrice = discountedPrice     // ✨ NEW: Discounted price (2025-11-16)
         )
 
         val response = api.submitDeal(request)

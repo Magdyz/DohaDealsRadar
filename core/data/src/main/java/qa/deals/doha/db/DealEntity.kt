@@ -17,6 +17,9 @@ import androidx.room.PrimaryKey
  * ✅ UPDATED: 2025-10-23
  * - Added autoApproved field to match API response
  *
+ * ✅ UPDATED: 2025-11-16
+ * - Added originalPrice and discountedPrice fields for price display
+ *
  * Indices for performance:
  * - title: Fast text search
  * - createdAt: Fast date sorting
@@ -54,6 +57,8 @@ data class DealEntity(
     val postedBy: String = "Anonymous",  // ✨ NEW: Username attribution (default for old deals)
     val autoApproved: Boolean = false,
     val promoCode: String? = null,
+    val originalPrice: Double? = null,        // ✨ NEW: Original price before discount (e.g., 2745.00)
+    val discountedPrice: Double? = null,      // ✨ NEW: Discounted price (e.g., 1995.00)
     val isArchived: Boolean = false,
     val submittedByUserId: String? = null,
     val approvedBy: String? = null,

@@ -581,6 +581,14 @@ private fun DealDetailsContent(
                 )
 
                 // ========================================
+                // ✨ NEW: Price Display (2025-11-16)
+                // ========================================
+                DealDetailsPrice(
+                    originalPrice = deal.originalPrice,
+                    discountedPrice = deal.discountedPrice
+                )
+
+                // ========================================
                 // ✨ UPDATED: Expandable Description - 2025 Enhanced
                 // ========================================
                 if (!deal.description.isNullOrBlank()) {
@@ -1061,5 +1069,109 @@ private fun PromoCodeCard(
                 }
             }
         }
+    }
+}
+
+// ========================================
+// ✨ NEW: Price Display Component (2025-11-16)
+// ========================================
+/**
+ * Displays deal prices with proper formatting in the details screen:
+ * - Both prices: ~~QR 2,745~~ (grey) -27% (green) QR 1,995 (purple gradient)
+ * - Only original: QR 2,745 (normal text)
+ * - Only discounted: QR 1,995 (green)
+ */
+@Composable
+private fun DealDetailsPrice(
+    originalPrice: Double?,
+    discountedPrice: Double?
+) {
+    // Don't show anything if both prices are null
+    if (originalPrice == null && discountedPrice == null) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        when {
+            // Case 1: Both prices exist - show strikethrough original + discount% + discounted price
+            originalPrice != null && discountedPrice != null -> {
+                val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
+
+                // Original price (strikethrough, grey)
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 18.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    ),
+                    color = Color.Gray
+                )
+
+                // Discount percentage (green)
+                Text(
+                    text = "-$discountPercent%",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
+                )
+
+                // Discounted price (purple gradient color)
+                Text(
+                    text = formatPrice(discountedPrice),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF9046CF)  // Purple gradient
+                )
+            }
+
+            // Case 2: Only original price
+            originalPrice != null -> {
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Case 3: Only discounted price (show in green)
+            discountedPrice != null -> {
+                Text(
+                    text = formatPrice(discountedPrice),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Formats a price value to display with QR prefix and comma separators
+ * Examples:
+ * - 1995.0 -> "QR 1,995"
+ * - 1995.50 -> "QR 1,995.50"
+ * - 19.99 -> "QR 19.99"
+ */
+private fun formatPrice(price: Double): String {
+    return if (price % 1.0 == 0.0) {
+        // Whole number - no decimals
+        "QR ${"%,.0f".format(price)}"
+    } else {
+        // Has decimals
+        "QR ${"%,.2f".format(price)}"
     }
 }
