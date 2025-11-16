@@ -236,6 +236,7 @@ fun PostScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()  // CRITICAL: Makes the bar move up with keyboard
+                    .padding(top = 16.dp)  // ✅ Snoonu gap: space above button when keyboard is open
                     .padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -321,7 +322,7 @@ fun PostScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding) 
+                    .padding(padding)
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
