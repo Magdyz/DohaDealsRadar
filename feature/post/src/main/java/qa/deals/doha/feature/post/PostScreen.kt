@@ -389,7 +389,7 @@ fun PostScreen(
                             },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("QR 100") },
-                            label = { Text("Original Price") },
+                            label = { Text("Original") },
                             singleLine = true,
                             maxLines = 1,
                             keyboardOptions = KeyboardOptions(
@@ -409,7 +409,7 @@ fun PostScreen(
                             },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("QR 80") },
-                            label = { Text("Discounted Price") },
+                            label = { Text("Discounted") },
                             singleLine = true,
                             maxLines = 1,
                             keyboardOptions = KeyboardOptions(

@@ -317,11 +317,17 @@ fun DealCard(
             // ========================================
             // Content Section: Title + Price + View Deal Button
             // ========================================
+            val hasPrice = deal.originalPrice != null || deal.discountedPrice != null
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 10.dp),  // ✨ Reduced padding slightly
-                verticalArrangement = Arrangement.spacedBy(8.dp)  // ✨ Tighter spacing
+                verticalArrangement = if (hasPrice) {
+                    Arrangement.spacedBy(8.dp)  // Normal spacing when price exists
+                } else {
+                    Arrangement.Center  // Center vertically when no price
+                }
             ) {
                 // Title (3 lines max - UPDATED from 2)
                 Text(
@@ -338,6 +344,7 @@ fun DealCard(
 
                 // ========================================
                 // ✨ NEW: Price Display (2025-11-16)
+                // Only shows if prices exist, otherwise invisible
                 // ========================================
                 DealCardPrice(
                     originalPrice = deal.originalPrice,
@@ -561,9 +568,9 @@ private fun CompactVoteButton(
 // ========================================
 /**
  * Displays deal prices with proper formatting:
- * - Both prices: ~~QR 2,745~~ (grey) -27% (green) QR 1,995 (purple gradient)
+ * - Both prices: QR 1,995 (pink) ~~QR 2,745~~ (grey strikethrough) -27% (green)
  * - Only original: QR 2,745 (normal text)
- * - Only discounted: QR 1,995 (green)
+ * - Only discounted: QR 1,995 (pink)
  */
 @Composable
 private fun DealCardPrice(
@@ -579,38 +586,38 @@ private fun DealCardPrice(
         verticalAlignment = Alignment.CenterVertically
     ) {
         when {
-            // Case 1: Both prices exist - show strikethrough original + discount% + discounted price
+            // Case 1: Both prices exist - show DISCOUNTED + original (strikethrough) + discount%
             originalPrice != null && discountedPrice != null -> {
                 val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
 
-                // Original price (strikethrough, grey)
-                Text(
-                    text = formatPrice(originalPrice),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    ),
-                    color = Color.Gray
-                )
-
-                // Discount percentage (green)
-                Text(
-                    text = "-$discountPercent%",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color(0xFF10B981)  // SuccessGreen
-                )
-
-                // Discounted price (purple gradient color)
+                // Discounted price FIRST (pink highlight color)
                 Text(
                     text = formatPrice(discountedPrice),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFF9046CF)  // Purple gradient
+                    color = Color(0xFFE91E63)  // Pink highlight (category color)
+                )
+
+                // Original price (strikethrough, grey, smaller)
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 10.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    ),
+                    color = Color.Gray
+                )
+
+                // Discount percentage (green, last)
+                Text(
+                    text = "-$discountPercent%",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
                 )
             }
 
@@ -626,7 +633,7 @@ private fun DealCardPrice(
                 )
             }
 
-            // Case 3: Only discounted price (show in green)
+            // Case 3: Only discounted price (show in pink)
             discountedPrice != null -> {
                 Text(
                     text = formatPrice(discountedPrice),
@@ -634,7 +641,7 @@ private fun DealCardPrice(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFF10B981)  // SuccessGreen
+                    color = Color(0xFFE91E63)  // Pink highlight
                 )
             }
         }
