@@ -3,6 +3,7 @@ package qa.deals.doha.feature.report
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -161,7 +162,7 @@ fun ReportScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Removed .padding(padding) - we apply it manually via Spacer at bottom
+                    .padding(padding)
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
@@ -188,7 +189,7 @@ fun ReportScreen(
 
                 // ✅ Dynamic spacer: bottomBar height + visual gap
                 // This creates the perfect Snoonu-style spacing and works with imeNestedScroll()
-                Spacer(Modifier.height(padding.calculateBottomPadding() + 16.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
 }
