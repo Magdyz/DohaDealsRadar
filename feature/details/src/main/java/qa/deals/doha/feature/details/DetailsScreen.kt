@@ -1077,9 +1077,9 @@ private fun PromoCodeCard(
 // ========================================
 /**
  * Displays deal prices with proper formatting in the details screen:
- * - Both prices: ~~QR 2,745~~ (grey) -27% (green) QR 1,995 (purple gradient)
+ * - Both prices: QR 1,995 (pink) ~~QR 2,745~~ (grey strikethrough) -27% (green)
  * - Only original: QR 2,745 (normal text)
- * - Only discounted: QR 1,995 (green)
+ * - Only discounted: QR 1,995 (pink)
  */
 @Composable
 private fun DealDetailsPrice(
@@ -1097,38 +1097,38 @@ private fun DealDetailsPrice(
         verticalAlignment = Alignment.CenterVertically
     ) {
         when {
-            // Case 1: Both prices exist - show strikethrough original + discount% + discounted price
+            // Case 1: Both prices exist - show DISCOUNTED + original (strikethrough) + discount%
             originalPrice != null && discountedPrice != null -> {
                 val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
 
-                // Original price (strikethrough, grey)
-                Text(
-                    text = formatPrice(originalPrice),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 18.sp,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    ),
-                    color = Color.Gray
-                )
-
-                // Discount percentage (green)
-                Text(
-                    text = "-$discountPercent%",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color(0xFF10B981)  // SuccessGreen
-                )
-
-                // Discounted price (purple gradient color)
+                // Discounted price FIRST (pink highlight color)
                 Text(
                     text = formatPrice(discountedPrice),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFF9046CF)  // Purple gradient
+                    color = Color(0xFFE91E63)  // Pink highlight (category color)
+                )
+
+                // Original price (strikethrough, grey, smaller)
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 16.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    ),
+                    color = Color.Gray
+                )
+
+                // Discount percentage (green, last)
+                Text(
+                    text = "-$discountPercent%",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
                 )
             }
 
@@ -1144,7 +1144,7 @@ private fun DealDetailsPrice(
                 )
             }
 
-            // Case 3: Only discounted price (show in green)
+            // Case 3: Only discounted price (show in pink)
             discountedPrice != null -> {
                 Text(
                     text = formatPrice(discountedPrice),
@@ -1152,7 +1152,7 @@ private fun DealDetailsPrice(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFF10B981)  // SuccessGreen
+                    color = Color(0xFFE91E63)  // Pink highlight
                 )
             }
         }
