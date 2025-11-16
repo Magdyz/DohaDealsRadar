@@ -826,8 +826,144 @@ fun PostScreen(
                     }
                 }
 
-                // ✅ Small spacer for aesthetics
-                Spacer(Modifier.height(16.dp))
+                // ✅ CRITICAL: Large bottom spacer ensures text fields scroll high enough above floating button
+                // This creates actual scrollable content (not just padding) so imeNestedScroll()
+                // can scroll fields into a visible position above the 56dp button
+                Spacer(Modifier.height(100.dp))
+            }
+        }
+
+        // 🔧 NEW: Error display above button
+        if (state.error != null) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 88.dp),  // Above the button
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        state.error!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // ========================================
+        // ✅ PRESERVED: FLOATING BUTTON OVERLAY
+        // Positioned at bottom center, floats over content
+        // ========================================
+        Button(
+            onClick = {
+                viewModel.submitDeal()  // ✅ PRESERVED: Existing method
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                // ========================================
+                // This makes the button "float" above the keyboard
+                // when a text field is focused.
+                // ========================================
+                .imePadding()
+                .padding(bottom = 24.dp)
+                .width(280.dp)
+                .height(56.dp),
+            enabled = isFormValid && !state.loading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFF4B5563),
+                disabledContentColor = Color(0xFF9CA3AF)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 8.dp,
+                pressedElevation = 12.dp,
+                disabledElevation = 0.dp
+            ),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = if (isFormValid && !state.loading) {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFE91E63),  // Pink
+                                    Color(0xFF9C27B0)   // Purple
+                                )
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF4B5563),
+                                    Color(0xFF4B5563)
+                                )
+                            )
+                        },
+                        shape = RoundedCornerShape(16.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (state.loading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Posting...",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
+                } else {
+                    Text(
+                        "Post Deal",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    )
+                }
             }
         }
 
