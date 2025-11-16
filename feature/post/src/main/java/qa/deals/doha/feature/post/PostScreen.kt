@@ -183,9 +183,8 @@ fun PostScreen(
         return FileProvider.getUriForFile(context, "${context.packageName}.provider", imageFile)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            snackbarHost = {
+    Scaffold(
+        snackbarHost = {
                 SnackbarHost(hostState = snackbarHostState) {
                     Snackbar(
                         snackbarData = it,
@@ -227,14 +226,100 @@ fun PostScreen(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
+            },
+        // ✅ NEW 2025: Use Scaffold bottomBar - the proper, standard approach
+        bottomBar = {
+            // This container sticks the button to the keyboard (Snoonu-style)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()  // CRITICAL: Makes the bar move up with keyboard
+                    .padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.submitDeal()
+                    },
+                    modifier = Modifier
+                        .width(280.dp)
+                        .height(56.dp),
+                    enabled = isFormValid && !state.loading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF4B5563),
+                        disabledContentColor = Color(0xFF9CA3AF)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 8.dp,
+                        pressedElevation = 12.dp,
+                        disabledElevation = 0.dp
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = if (isFormValid && !state.loading) {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFFE91E63),  // Pink
+                                            Color(0xFF9C27B0)   // Purple
+                                        )
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF4B5563),
+                                            Color(0xFF4B5563)
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (state.loading) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    "Posting...",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+                        } else {
+                            Text(
+                                "Post Deal",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
             }
-            // ✅ NO bottomBar - button will float over content (PRESERVED)
-        ) { padding ->
+        }
+    ) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .imePadding()  // ✅ Automatic padding when keyboard appears
+                    .padding(padding)  // Scaffold provides padding for bottomBar automatically
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -881,7 +966,6 @@ fun PostScreen(
                 }
             }
         }
-    }
 
     // ✅ PRESERVED: Loading overlay
     if (state.loading) {
