@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserEntity::class
     ],
 
-    version = 13,  // Expired at
+    version = 14,  // ✨ NEW: Added price fields (original_price, discounted_price)
     exportSchema = false
 )
 
@@ -184,6 +184,20 @@ abstract class DealDatabase : RoomDatabase() {
                 // Add expires_at column (nullable, will be populated via data migration)
                 database.execSQL("ALTER TABLE deals ADD COLUMN expiresAt TEXT DEFAULT NULL")
                 Log.d("DealDatabase", "✅ Migration 12→13: Added expiresAt column for deal expiration")
+            }
+        }
+
+        // ========================================
+        // ✨ NEW: MIGRATION 13 to 14 (2025-11-16)
+        // (Adds originalPrice and discountedPrice columns for price display)
+        // ========================================
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add originalPrice column (nullable REAL type for Double in SQLite)
+                database.execSQL("ALTER TABLE deals ADD COLUMN originalPrice REAL DEFAULT NULL")
+                // Add discountedPrice column (nullable REAL type for Double in SQLite)
+                database.execSQL("ALTER TABLE deals ADD COLUMN discountedPrice REAL DEFAULT NULL")
+                Log.d("DealDatabase", "✅ Migration 13→14: Added originalPrice and discountedPrice columns for price feature")
             }
         }
     }

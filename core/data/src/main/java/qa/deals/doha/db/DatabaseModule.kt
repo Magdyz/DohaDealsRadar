@@ -29,7 +29,8 @@ object DatabaseModule {
                     DealDatabase.MIGRATION_9_10,
                     DealDatabase.MIGRATION_10_11,
                     DealDatabase.MIGRATION_11_12,  // ✅ Rejection fields
-                    DealDatabase.MIGRATION_12_13   // ✅ NEW: Deal expiration (expires_at)
+                    DealDatabase.MIGRATION_12_13,  // ✅ Deal expiration (expires_at)
+                    DealDatabase.MIGRATION_13_14   // ✨ NEW: Price fields (originalPrice, discountedPrice)
                 )
 
                 // ========================================
