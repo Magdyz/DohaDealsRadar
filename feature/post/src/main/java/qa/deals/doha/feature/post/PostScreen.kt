@@ -238,7 +238,7 @@ fun PostScreen(
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .padding(bottom = 88.dp),  // Extra space for floating button
+                    .padding(bottom = 200.dp),  // ✅ Ample clearance above floating button (56dp button + 24dp margin + 120dp visible space)
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // ========================================
