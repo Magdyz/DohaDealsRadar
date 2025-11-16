@@ -3,6 +3,7 @@ package qa.deals.doha.feature.report
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,26 +29,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.network.ReportReason
 // ========================================
-// ✅ NEW IMPORTS to fix errors
+// ✅ IMPORTS for modern 2025 keyboard handling
 // ========================================
-import androidx.compose.foundation.ExperimentalFoundationApi // For BringIntoViewRequester
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.ui.focus.onFocusEvent
-import kotlinx.coroutines.delay // For the 'delay' function
-import kotlinx.coroutines.launch // For 'scope.launch'
+import androidx.compose.foundation.layout.imeNestedScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.mutableFloatStateOf
 
 /**
  * Report Screen - Clean, minimal Vinted-inspired design
  * ✅ ENHANCED: Now validates high-severity reports require details
  * ✅ ENHANCED: Animated sending/sent graphics for better UX
- * ✅ FIXED: Keyboard handling with imePadding()
+ * ✅ FIXED: Modern Snoonu-style keyboard handling with Scaffold bottomBar (2025)
  * ✅ UPDATED: Increased minimum character requirement to 30
  * ✅ UPDATED: Modern purple checkmark success screen (2025)
- * ✅ UPDATED: Floating button matches PostScreen and DetailsScreen (2025-01-20)
+ * ✅ UPDATED: Matches PostScreen keyboard behavior exactly
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ReportScreen(
     dealId: String,
@@ -90,18 +88,84 @@ fun ReportScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        // ✅ NEW 2025: Use Scaffold bottomBar - proper standard approach (matches PostScreen)
+        bottomBar = {
+            // Only show button when form is visible (not loading/success/error states)
+            if (!uiState.loading && !uiState.success && !uiState.alreadyReported && !uiState.dailyLimitReached) {
+                // This container sticks the button to the keyboard (Snoonu-style)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .imePadding()  // CRITICAL: Makes the bar move up with keyboard
+                        .padding(top = 16.dp)  // ✅ Snoonu gap: space above button when keyboard is open
+                        .padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Button(
+                        onClick = { viewModel.submitReport() },
+                        modifier = Modifier
+                            .width(280.dp)
+                            .height(56.dp),
+                        enabled = uiState.selectedReason != null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF4B5563),
+                            disabledContentColor = Color(0xFF9CA3AF)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 8.dp,
+                            pressedElevation = 12.dp,
+                            disabledElevation = 0.dp
+                        ),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = if (uiState.selectedReason != null) {
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color(0xFFE91E63),  // Pink
+                                                Color(0xFF9C27B0)   // Purple
+                                            )
+                                        )
+                                    } else {
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color(0xFF4B5563),
+                                                Color(0xFF4B5563)
+                                            )
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(16.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Submit Report",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
     ) { padding ->
-        // ✅ CHANGE 1: Wrap in Box to enable floating button overlay
-        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imePadding() // ✅ Keyboard handling
+                    .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
-                    .padding(bottom = 88.dp), // ✅ CHANGE 2: Extra padding for floating button
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 when {
@@ -122,77 +186,12 @@ fun ReportScreen(
                         onSubmit = { viewModel.submitReport() }
                     )
                 }
-            }
 
-            // ========================================
-            // ✅ CHANGE 3: FLOATING SUBMIT BUTTON
-            // Matches PostScreen and DetailsScreen exactly
-            // Only shown when form is visible (not loading/success/error states)
-            // ========================================
-            if (!uiState.loading && !uiState.success && !uiState.alreadyReported && !uiState.dailyLimitReached) {
-                Button(
-                    onClick = { viewModel.submitReport() },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)  // ✅ Center at bottom
-                        // ========================================
-                        // ✅ FIX: Added .imePadding()
-                        // This makes the button "float" above the keyboard
-                        // when the "Additional details" text field is focused.
-                        // ========================================
-                        .imePadding()
-                        .padding(bottom = 24.dp)         // ✅ 16dp from edge (matches others)
-                        .width(280.dp)                   // ✅ Fixed width (matches others)
-                        .height(56.dp),                  // ✅ 56dp height (matches others)
-                        enabled = uiState.selectedReason != null,
-                        colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White,
-                        disabledContainerColor = Color(0xFF4B5563),
-                        disabledContentColor = Color(0xFF9CA3AF)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 8.dp,
-                        pressedElevation = 12.dp,
-                        disabledElevation = 0.dp
-                    ),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = if (uiState.selectedReason != null) {                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFFE91E63),  // ✅ Pink (matches others)
-                                            Color(0xFF9C27B0)   // ✅ Purple (matches others)
-                                        )
-                                    )
-                                } else {
-                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFF4B5563),  // Disabled state
-                                            Color(0xFF4B5563)
-                                        )
-                                    )
-                                },
-                                shape = RoundedCornerShape(16.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "Submit Report",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
+                // ✅ Dynamic spacer: bottomBar height + visual gap
+                // This creates the perfect Snoonu-style spacing and works with imeNestedScroll()
+                Spacer(Modifier.height(16.dp))
             }
         }
-    }
 }
 
 /**
@@ -540,12 +539,6 @@ private fun ReportFormContent(
     onNoteChanged: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
-    // ========================================
-    // ✅ FIX: Setup for automatic scrolling
-    // ========================================
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
-    val scope = rememberCoroutineScope()
-
     Column(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -683,21 +676,7 @@ private fun ReportFormContent(
             onValueChange = onNoteChanged,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 140.dp)
-            // ========================================
-            // ✅ FIX: Add these 2 modifiers to the text field
-            // This tells the parent scrollable Column to move
-            // this field into view when it is focused.
-            // ========================================
-            .bringIntoViewRequester(bringIntoViewRequester)
-            .onFocusEvent {
-                if (it.isFocused) {
-                    scope.launch {
-                        delay(200) // Small delay to let keyboard animate in
-                        bringIntoViewRequester.bringIntoView()
-                    }
-                }
-            },
+                .heightIn(min = 140.dp),
             placeholder = {
                 Text(
                     when (uiState.selectedReason) {
