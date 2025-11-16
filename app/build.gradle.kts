@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16 // Admin Expirey date and returning deals.
-        versionName = "1.1.6"
+        versionCode = 17 // Styling, added Newest
+        versionName = "1.1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
