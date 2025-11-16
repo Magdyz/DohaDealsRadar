@@ -237,8 +237,7 @@ fun PostScreen(
                     .imePadding()  // ✅ Automatic padding when keyboard appears
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .padding(bottom = 100.dp),  // ✅ Base padding for floating button (Spacer at bottom provides scrollable clearance)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // ========================================
@@ -745,7 +744,7 @@ fun PostScreen(
                 // ✅ CRITICAL: Large bottom spacer ensures text fields scroll high enough above floating button
                 // This creates actual scrollable content (not just padding) so imeNestedScroll()
                 // can scroll fields into a visible position above the 56dp button
-                Spacer(Modifier.height(180.dp))
+                Spacer(Modifier.height(100.dp))
             }
         }
 
