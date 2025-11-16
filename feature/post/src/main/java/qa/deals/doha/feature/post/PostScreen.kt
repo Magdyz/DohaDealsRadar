@@ -321,7 +321,7 @@ fun PostScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)  // Scaffold provides padding for bottomBar automatically
+                    // Removed .padding(padding) - we apply it manually via Spacer at bottom
                     .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
