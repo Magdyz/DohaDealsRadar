@@ -184,12 +184,13 @@ fun ReportScreen(
                         onNoteChanged = { viewModel.updateNote(it) },
                         onSubmit = { viewModel.submitReport() }
                     )
-                    // ✅ Dynamic spacer: bottomBar height + visual gap
-                    // This creates the perfect Snoonu-style spacing and works with imeNestedScroll()
-                    Spacer(Modifier.height(padding.calculateBottomPadding() + 16.dp))
                 }
+
+                // ✅ Dynamic spacer: bottomBar height + visual gap
+                // This creates the perfect Snoonu-style spacing and works with imeNestedScroll()
+                Spacer(Modifier.height(padding.calculateBottomPadding() + 16.dp))
             }
-    }
+        }
 }
 
 /**
