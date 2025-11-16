@@ -346,7 +346,16 @@ fun PostScreen(
                             viewModel.updateTitle(it)  // ✅ PRESERVED: Existing method name
                             titleTouched = true
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .bringIntoViewRequester(bringIntoViewRequester)
+                            .onFocusEvent {
+                                if (it.isFocused) {
+                                    scope.launch {
+                                        delay(200)
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
                         placeholder = { Text("e.g., 50% off smartphones at Carrefour") },
                         singleLine = true,
                         maxLines = 1,
@@ -387,9 +396,19 @@ fun PostScreen(
                             onValueChange = {
                                 viewModel.updateOriginalPrice(it)
                             },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("QR 100") },
+                            modifier = Modifier.weight(1f)
+                                .bringIntoViewRequester(bringIntoViewRequester)
+                                .onFocusEvent {
+                                    if (it.isFocused) {
+                                        scope.launch {
+                                            delay(200)
+                                            bringIntoViewRequester.bringIntoView()
+                                        }
+                                    }
+                                },
+                            placeholder = { Text("100") },
                             label = { Text("Original") },
+                            prefix = { Text("QR ", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             singleLine = true,
                             maxLines = 1,
                             keyboardOptions = KeyboardOptions(
@@ -407,9 +426,19 @@ fun PostScreen(
                             onValueChange = {
                                 viewModel.updateDiscountedPrice(it)
                             },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("QR 80") },
+                            modifier = Modifier.weight(1f)
+                                .bringIntoViewRequester(bringIntoViewRequester)
+                                .onFocusEvent {
+                                    if (it.isFocused) {
+                                        scope.launch {
+                                            delay(200)
+                                            bringIntoViewRequester.bringIntoView()
+                                        }
+                                    }
+                                },
+                            placeholder = { Text("80") },
                             label = { Text("Discounted") },
+                            prefix = { Text("QR ", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             singleLine = true,
                             maxLines = 1,
                             keyboardOptions = KeyboardOptions(
@@ -437,7 +466,16 @@ fun PostScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 100.dp, max = 200.dp),
+                            .heightIn(min = 100.dp, max = 200.dp)
+                            .bringIntoViewRequester(bringIntoViewRequester)
+                            .onFocusEvent {
+                                if (it.isFocused) {
+                                    scope.launch {
+                                        delay(200)
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
                         placeholder = { Text("Details, colors, price...") },
                         minLines = 3,
                         maxLines = Int.MAX_VALUE,
@@ -574,7 +612,16 @@ fun PostScreen(
                                     viewModel.updateLink(it)  // ✅ PRESERVED: Existing method name
                                     linkTouched = true
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
+                                    .onFocusEvent {
+                                        if (it.isFocused) {
+                                            scope.launch {
+                                                delay(200)
+                                                bringIntoViewRequester.bringIntoView()
+                                            }
+                                        }
+                                    },
                                 placeholder = { Text("https://example.com/deal") },
                                 leadingIcon = {
                                     Icon(
