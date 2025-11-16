@@ -45,7 +45,7 @@ sealed interface EmailVerificationState {
 /**
  * UI State for Post Screen
  * ✅ UPDATED: Added expiresInDays field for deal expiration
-
+ * ✅ UPDATED: 2025-11-16 Added originalPrice and discountedPrice fields
  */
 
 data class PostUiState(
@@ -58,6 +58,8 @@ data class PostUiState(
     val category: DealCategory = DealCategory.FOOD_DINING,
     val imageUrl: String = "",
     val selectedImageUri: Uri? = null,
+    val originalPrice: String = "",        // ✨ NEW: Original price input (user enters as text)
+    val discountedPrice: String = "",      // ✨ NEW: Discounted price input (user enters as text)
     val expiresInDays: Int = 10,  // ✨ NEW: Expiration duration (default: 10 days)
     val loading: Boolean = false,
     val error: String? = null,
@@ -312,6 +314,21 @@ class PostViewModel(
         uiState = uiState.copy(promoCode = promoCode.trim().ifBlank { null }, error = null)
     }
 
+    // ========================================
+    // ✨ NEW: Price update methods (2025-11-16)
+    // ========================================
+    fun updateOriginalPrice(price: String) {
+        // Allow only numbers, comma, and decimal point
+        val filtered = price.filter { it.isDigit() || it == '.' || it == ',' }
+        uiState = uiState.copy(originalPrice = filtered, error = null)
+    }
+
+    fun updateDiscountedPrice(price: String) {
+        // Allow only numbers, comma, and decimal point
+        val filtered = price.filter { it.isDigit() || it == '.' || it == ',' }
+        uiState = uiState.copy(discountedPrice = filtered, error = null)
+    }
+
     fun updateExpiresInDays(days: Int) {
         uiState = uiState.copy(expiresInDays = days.coerceIn(1, 30), error = null)
         Log.d("PostViewModel", "⏰ Expiration updated: $days days")
@@ -424,6 +441,20 @@ class PostViewModel(
             return
         }
 
+        // ========================================
+        // ✨ NEW: Price validation (2025-11-16)
+        // ========================================
+        val originalPriceValue = parsePrice(uiState.originalPrice)
+        val discountedPriceValue = parsePrice(uiState.discountedPrice)
+
+        // Validate: if both prices exist, discounted must be less than original
+        if (originalPriceValue != null && discountedPriceValue != null) {
+            if (discountedPriceValue >= originalPriceValue) {
+                uiState = uiState.copy(error = "Discounted price must be less than original price")
+                return
+            }
+        }
+
         // ✅ PRESERVED: All existing submission logic with two-stage upload
         // ⚠️ NO CHANGES to the core upload flow below
         viewModelScope.launch(Dispatchers.IO + SupervisorJob()) {
@@ -508,7 +539,9 @@ class PostViewModel(
                         postedBy = uiState.username ?: "Anonymous",
                         userId = uiState.verifiedUserId,           // ✅ SPRINT 5: Already included
                         deviceId = deviceIdManager.getDeviceId(),  // ✅ SPRINT 5: Already included
-                        expiresInDays = uiState.expiresInDays      // ✨ NEW: Expiration duration
+                        expiresInDays = uiState.expiresInDays,     // ✨ NEW: Expiration duration
+                        originalPrice = originalPriceValue,        // ✨ NEW: Original price (2025-11-16)
+                        discountedPrice = discountedPriceValue     // ✨ NEW: Discounted price (2025-11-16)
                     )
 
                     Log.d("Post", "📥 API Response success: ${result.success}")
@@ -591,7 +624,10 @@ class PostViewModel(
                         promoCode = uiState.promoCode?.trim()?.ifBlank { null },
                         postedBy = uiState.username ?: "Anonymous",
                         userId = uiState.verifiedUserId,           // ✅ SPRINT 5: Already included
-                        deviceId = deviceIdManager.getDeviceId()   // ✅ SPRINT 5: Already included
+                        deviceId = deviceIdManager.getDeviceId(),  // ✅ SPRINT 5: Already included
+                        expiresInDays = uiState.expiresInDays,     // ✨ NEW: Expiration duration
+                        originalPrice = originalPriceValue,        // ✨ NEW: Original price (2025-11-16)
+                        discountedPrice = discountedPriceValue     // ✨ NEW: Discounted price (2025-11-16)
                     )
 
                     val dealData = result.data
@@ -673,6 +709,31 @@ class PostViewModel(
         val trimmed = description.trim()
         if (trimmed.length > 2000) return false
         return true
+    }
+
+    // ========================================
+    // ✨ NEW: Price parsing helper (2025-11-16)
+    // ========================================
+    /**
+     * Parses a price string to a Double value.
+     * Removes commas and converts to Double.
+     * Returns null if the string is empty or invalid.
+     *
+     * Examples:
+     * - "1,995" -> 1995.0
+     * - "19.99" -> 19.99
+     * - "1,995.50" -> 1995.50
+     * - "" -> null
+     * - "abc" -> null
+     */
+    private fun parsePrice(priceString: String): Double? {
+        if (priceString.isBlank()) return null
+        return try {
+            // Remove commas and parse as double
+            priceString.replace(",", "").toDoubleOrNull()
+        } catch (e: Exception) {
+            null
+        }
     }
 }
 

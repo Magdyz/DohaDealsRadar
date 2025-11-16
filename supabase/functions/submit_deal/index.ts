@@ -19,7 +19,7 @@ serve(async (req)=>{
         persistSession: false
       }
     });
-    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null } = await req.json();
+    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null, original_price = null, discounted_price = null } = await req.json();
     // Validate required fields
     if (!title || !image_url) {
       return new Response(JSON.stringify({
@@ -124,6 +124,8 @@ console.log(`✅ Deal will expire at: ${expiresAt.toISOString()} (in ${expires_i
       promo_code: promo_code || null,
       posted_by: posted_by || 'Anonymous',
       expires_at: expiresAt.toISOString(),  // ✨ NEW: Added this line
+      original_price: original_price || null,      // ✨ NEW: Price fields (2025-11-16)
+      discounted_price: discounted_price || null,  // ✨ NEW: Price fields (2025-11-16)
       status: dealStatus,
       auto_approved: autoApproved,
       requires_review: requiresReview,

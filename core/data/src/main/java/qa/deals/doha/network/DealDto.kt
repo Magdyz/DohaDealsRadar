@@ -16,6 +16,9 @@ import qa.deals.doha.db.DealEntity
  *
  * ✅ UPDATED: 2025-10-23
  * - Added autoApproved field for trust system
+ *
+ * ✅ UPDATED: 2025-11-16
+ * - Added originalPrice and discountedPrice fields for price display
  */
 data class DealDto(
     val id: String?,
@@ -32,6 +35,12 @@ data class DealDto(
     val category: String? = "other",
     @SerializedName("promo_code") val promoCode: String? = null,
     @SerializedName("posted_by") val postedBy: String? = "Anonymous",
+
+    // ========================================
+    // ✅ NEW: Price fields (2025-11-16)
+    // ========================================
+    @SerializedName("original_price") val originalPrice: Double? = null,
+    @SerializedName("discounted_price") val discountedPrice: Double? = null,
 
     // ========================================
     // ✅ NEW: Added field for trust system
@@ -71,6 +80,9 @@ data class DealDto(
  * ✅ UPDATED: 2025-10-23
  * - Now includes autoApproved mapping
  *
+ * ✅ UPDATED: 2025-11-16
+ * - Now includes originalPrice and discountedPrice mapping
+ *
  * ⚠️ WARNING: This requires `DealEntity` to also
  * have an `autoApproved` field.
  */
@@ -91,6 +103,8 @@ fun DealDto.toEntity(): DealEntity {
         postedBy = this.postedBy ?: "Anonymous",
         autoApproved = this.autoApproved ?: false,
         promoCode = this.promoCode,
+        originalPrice = this.originalPrice,
+        discountedPrice = this.discountedPrice,
 
         // ========================================
         // ✅ SPRINT 2: Map isArchived from API to Entity

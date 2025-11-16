@@ -315,25 +315,33 @@ fun DealCard(
             }
 
             // ========================================
-            // Content Section: Title + View Deal Button
+            // Content Section: Title + Price + View Deal Button
             // ========================================
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),  // ✨ Reduced padding slightly
+                verticalArrangement = Arrangement.spacedBy(8.dp)  // ✨ Tighter spacing
             ) {
-                // Title (2 lines max)
+                // Title (3 lines max - UPDATED from 2)
                 Text(
                     text = deal.title,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,  // ✅ More prominent
                         fontSize = 12.sp,              // ✨ Slightly reduced for better density
-                        lineHeight = 18.sp             // ✅ Adjusted line height proportionally
+                        lineHeight = 16.sp             // ✨ Tighter line height for 3 lines
                     ),
-                    maxLines = 2,
+                    maxLines = 3,  // ✨ UPDATED: From 2 to 3 lines
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.height(44.dp)  // ✅ More space
+                    modifier = Modifier.heightIn(min = 48.dp, max = 54.dp)  // ✨ Height for 3 lines
+                )
+
+                // ========================================
+                // ✨ NEW: Price Display (2025-11-16)
+                // ========================================
+                DealCardPrice(
+                    originalPrice = deal.originalPrice,
+                    discountedPrice = deal.discountedPrice
                 )
 
                 // ========================================
@@ -545,5 +553,107 @@ private fun CompactVoteButton(
                 )
             )
         }
+    }
+}
+
+// ========================================
+// ✨ NEW: Price Display Component (2025-11-16)
+// ========================================
+/**
+ * Displays deal prices with proper formatting:
+ * - Both prices: ~~QR 2,745~~ (grey) -27% (green) QR 1,995 (purple gradient)
+ * - Only original: QR 2,745 (normal text)
+ * - Only discounted: QR 1,995 (green)
+ */
+@Composable
+private fun DealCardPrice(
+    originalPrice: Double?,
+    discountedPrice: Double?
+) {
+    // Don't show anything if both prices are null
+    if (originalPrice == null && discountedPrice == null) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        when {
+            // Case 1: Both prices exist - show strikethrough original + discount% + discounted price
+            originalPrice != null && discountedPrice != null -> {
+                val discountPercent = ((originalPrice - discountedPrice) / originalPrice * 100).toInt()
+
+                // Original price (strikethrough, grey)
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    ),
+                    color = Color.Gray
+                )
+
+                // Discount percentage (green)
+                Text(
+                    text = "-$discountPercent%",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
+                )
+
+                // Discounted price (purple gradient color)
+                Text(
+                    text = formatPrice(discountedPrice),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF9046CF)  // Purple gradient
+                )
+            }
+
+            // Case 2: Only original price
+            originalPrice != null -> {
+                Text(
+                    text = formatPrice(originalPrice),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Case 3: Only discounted price (show in green)
+            discountedPrice != null -> {
+                Text(
+                    text = formatPrice(discountedPrice),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF10B981)  // SuccessGreen
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Formats a price value to display with QR prefix and comma separators
+ * Examples:
+ * - 1995.0 -> "QR 1,995"
+ * - 1995.50 -> "QR 1,995.50"
+ * - 19.99 -> "QR 19.99"
+ */
+private fun formatPrice(price: Double): String {
+    return if (price % 1.0 == 0.0) {
+        // Whole number - no decimals
+        "QR ${"%,.0f".format(price)}"
+    } else {
+        // Has decimals
+        "QR ${"%,.2f".format(price)}"
     }
 }
