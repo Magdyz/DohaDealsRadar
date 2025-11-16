@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.imeNestedScroll
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,11 +51,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.ui.focus.onFocusEvent
-import kotlinx.coroutines.launch // ✅ Make sure this import is present
 import androidx.core.net.toUri
 
 /**
@@ -80,7 +76,7 @@ import androidx.core.net.toUri
  * ✅ ALL LOGGING PRESERVED
  * ✅ ALL EXISTING VIEWMODEL METHODS PRESERVED (updateTitle, updateLocation, etc.)
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostScreen(
     onBackClick: () -> Unit = {},
@@ -186,12 +182,6 @@ fun PostScreen(
         return FileProvider.getUriForFile(context, "${context.packageName}.provider", imageFile)
     }
 
-    // ========================================
-    // Setup for automatic scrolling
-    // ========================================
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
-    val scope = rememberCoroutineScope()
-
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = {
@@ -243,10 +233,11 @@ fun PostScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imePadding()  // ✅ PRESERVED: Keyboard adjusts layout
-                    .verticalScroll(rememberScrollState())  // ✅ PRESERVED: Scrolling works
+                    .imePadding()  // ✅ Automatic padding when keyboard appears
+                    .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .padding(bottom = 88.dp),
+                    .padding(bottom = 88.dp),  // Extra space for floating button
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // ========================================
@@ -346,16 +337,7 @@ fun PostScreen(
                             viewModel.updateTitle(it)  // ✅ PRESERVED: Existing method name
                             titleTouched = true
                         },
-                        modifier = Modifier.fillMaxWidth()
-                            .bringIntoViewRequester(bringIntoViewRequester)
-                            .onFocusEvent {
-                                if (it.isFocused) {
-                                    scope.launch {
-                                        delay(200)
-                                        bringIntoViewRequester.bringIntoView()
-                                    }
-                                }
-                            },
+                        modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("e.g., 50% off smartphones at Carrefour") },
                         singleLine = true,
                         maxLines = 1,
@@ -396,16 +378,7 @@ fun PostScreen(
                             onValueChange = {
                                 viewModel.updateOriginalPrice(it)
                             },
-                            modifier = Modifier.weight(1f)
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .onFocusEvent {
-                                    if (it.isFocused) {
-                                        scope.launch {
-                                            delay(200)
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
+                            modifier = Modifier.weight(1f),
                             placeholder = { Text("100") },
                             label = { Text("Original") },
                             prefix = { Text("QR ", color = MaterialTheme.colorScheme.onSurfaceVariant) },
@@ -426,16 +399,7 @@ fun PostScreen(
                             onValueChange = {
                                 viewModel.updateDiscountedPrice(it)
                             },
-                            modifier = Modifier.weight(1f)
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .onFocusEvent {
-                                    if (it.isFocused) {
-                                        scope.launch {
-                                            delay(200)
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
+                            modifier = Modifier.weight(1f),
                             placeholder = { Text("80") },
                             label = { Text("Discounted") },
                             prefix = { Text("QR ", color = MaterialTheme.colorScheme.onSurfaceVariant) },
@@ -466,16 +430,7 @@ fun PostScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 100.dp, max = 200.dp)
-                            .bringIntoViewRequester(bringIntoViewRequester)
-                            .onFocusEvent {
-                                if (it.isFocused) {
-                                    scope.launch {
-                                        delay(200)
-                                        bringIntoViewRequester.bringIntoView()
-                                    }
-                                }
-                            },
+                            .heightIn(min = 100.dp, max = 200.dp),
                         placeholder = { Text("Details, colors, price...") },
                         minLines = 3,
                         maxLines = Int.MAX_VALUE,
@@ -612,16 +567,7 @@ fun PostScreen(
                                     viewModel.updateLink(it)  // ✅ PRESERVED: Existing method name
                                     linkTouched = true
                                 },
-                                modifier = Modifier.fillMaxWidth()
-                                    .bringIntoViewRequester(bringIntoViewRequester)
-                                    .onFocusEvent {
-                                        if (it.isFocused) {
-                                            scope.launch {
-                                                delay(200)
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
+                                modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text("https://example.com/deal") },
                                 leadingIcon = {
                                     Icon(
@@ -667,18 +613,7 @@ fun PostScreen(
                                 onValueChange = {
                                     viewModel.updatePromoCode(it)  // ✅ PRESERVED: Existing method name
                                 },
-                                modifier = Modifier.fillMaxWidth()// ========================================
-                                    // ✅ FIX: Add modifiers for auto-scrolling
-                                    // ========================================
-                                    .bringIntoViewRequester(bringIntoViewRequester)
-                                    .onFocusEvent {
-                                        if (it.isFocused) {
-                                            scope.launch { // <-- FIX: Added this line
-                                                delay(200) // <-- Now resolves
-                                                bringIntoViewRequester.bringIntoView() // <-- Now resolves
-                                            } // <-- FIX: Added this line
-                                        }
-                                    },
+                                modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text("Enter code here") },
                                 singleLine = true,
                                 maxLines = 1,
@@ -771,19 +706,7 @@ fun PostScreen(
                                 viewModel.updateLocation(it)  // ✅ PRESERVED: Existing method name
                                 locationTouched = true
                             },
-                            modifier = Modifier.fillMaxWidth()
-                                // ========================================
-                                // ✅ FIX: Add modifiers for auto-scrolling
-                                // ========================================
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .onFocusEvent {
-                                    if (it.isFocused) {
-                                        scope.launch {
-                                            delay(200)
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
+                            modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("e.g., Carrefour City Center Mall") },
                             leadingIcon = {
                                 Icon(
