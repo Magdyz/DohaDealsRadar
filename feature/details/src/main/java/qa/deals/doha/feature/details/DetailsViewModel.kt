@@ -98,14 +98,26 @@ class DetailsViewModel(
     }
 
     /**
-     * Cast a vote on this deal with optimistic UI update
-     * Updated: 2025-11-19 - Added authentication requirement and race condition prevention
+     * Cast a vote on this deal with Single Source of Truth pattern (YouTube/Instagram 2025)
+     * Updated: 2025-11-19 - Refactored to use Repository optimistic updates
+     *
+     * How it works (Instagram pattern):
+     * 1. Repository updates Room DB immediately (instant UI)
+     * 2. Room Flow emits → DetailsViewModel observes → UI updates automatically
+     * 3. Repository calls API in background
+     * 4. On success: Repository updates Room with server data → UI auto-updates
+     * 5. On error: Repository reverts Room to original → UI auto-reverts
+     *
+     * Benefits:
+     * - Instant feedback (no lag)
+     * - Cross-screen sync (FeedScreen & DetailsScreen always show same counts)
+     * - No false information (single source of truth)
+     * - No manual state management needed
      */
     fun castVote(voteType: String) {
-        // ✅ NEW: Check authentication first
+        // ✅ Check authentication first
         val userId = deviceIdManager.getUserId()
         if (userId == null) {
-            // Show login dialog for anonymous users
             _uiState.value = _uiState.value.copy(
                 showLoginDialog = true,
                 pendingVoteType = voteType
@@ -123,7 +135,7 @@ class DetailsViewModel(
             return
         }
 
-        // ✅ RACE CONDITION FIX: Prevent concurrent vote requests on same deal
+        // ✅ Prevent race conditions (concurrent vote requests)
         synchronized(votingInProgress) {
             if (votingInProgress.contains(dealId)) {
                 Log.d("Details", "⚠️ Vote already in progress for deal: $dealId, ignoring")
@@ -132,51 +144,40 @@ class DetailsViewModel(
             votingInProgress.add(dealId)
         }
 
-        // ✅ Save original deal BEFORE launching coroutine (for proper revert on error)
-        val originalDeal = _uiState.value.deal ?: run {
-            synchronized(votingInProgress) { votingInProgress.remove(dealId) }
-            return
-        }
-
         viewModelScope.launch {
             try {
                 Log.d("Details", "🗳️ Casting $voteType vote...")
 
-                // ✅ Optimistic update - update UI immediately
-                val optimisticDeal = originalDeal.copy(
-                    hotCount = (originalDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
-                    coldCount = (originalDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
-                )
+                // ✅ Record vote locally for UI state (voted/not voted indicator)
+                deviceIdManager.recordVote(dealId, voteType)
 
+                // Update local UI state to show voting in progress
                 _uiState.value = _uiState.value.copy(
-                    deal = optimisticDeal,
                     voting = true,
                     voteError = null,
                     hasVoted = true,
                     userVoteType = voteType
                 )
 
-                // Record vote locally immediately
-                deviceIdManager.recordVote(dealId, voteType)
-
-                // ✅ UPDATED: Make API call with user_id
+                // ✅ Repository handles optimistic update in Room DB + API call
+                // UI will update automatically via Room Flow observation
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = voteType,
-                    userId = userId  // Changed from deviceId
+                    userId = userId
                 )
 
                 if (result.success == true) {
                     Log.d("Details", "✅ Vote recorded successfully")
-                    // The repository already updated the cache with real data
+                    // Repository already updated Room DB with server data
+                    // Flow will emit new data, UI will update automatically
                     _uiState.value = _uiState.value.copy(
                         voting = false
                     )
                 } else {
                     Log.e("Details", "❌ Vote failed: ${result.error}")
-                    // ✅ Revert optimistic update using original deal
+                    // Repository already reverted Room DB to original state
                     _uiState.value = _uiState.value.copy(
-                        deal = originalDeal,
                         voting = false,
                         voteError = result.error ?: "Failed to record vote",
                         hasVoted = false,
@@ -185,16 +186,14 @@ class DetailsViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("Details", "💥 Error casting vote", e)
-                // ✅ Revert optimistic update using original deal (from outer scope)
+                // Repository already reverted Room DB on exception
                 _uiState.value = _uiState.value.copy(
-                    deal = originalDeal,
                     voting = false,
                     voteError = e.message ?: "Network error",
                     hasVoted = false,
                     userVoteType = null
                 )
             } finally {
-                // ✅ Always remove from in-progress set when done (success or error)
                 synchronized(votingInProgress) {
                     votingInProgress.remove(dealId)
                 }

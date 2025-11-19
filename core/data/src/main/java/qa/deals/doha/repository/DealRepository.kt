@@ -252,11 +252,24 @@ class DealRepository {
     }
 
     // ========================================
-    // ✅ UPDATED: Cast Vote (User Authentication Required)
-    // Updated: 2025-11-19 - Changed from device_id to user_id
+    // ✅ UPDATED: Cast Vote with Optimistic Updates (Instagram/YouTube Pattern)
+    // Updated: 2025-11-19 - Single Source of Truth architecture
+    //
+    // This implements the optimistic update pattern used by major platforms:
+    // 1. Update Room DB immediately (instant UI feedback)
+    // 2. Call API in background
+    // 3. On success: Update Room with server response (server reconciliation)
+    // 4. On error: Revert Room to previous state (error handling)
+    //
+    // Benefits:
+    // - Instant feedback (no lag/wait)
+    // - Cross-screen synchronization (all screens observe same Flow)
+    // - No false information (single source of truth)
+    // - Automatic state consistency
     // ========================================
     /**
-     * Cast a vote on a deal (requires user authentication)
+     * Cast a vote on a deal with optimistic update (requires user authentication)
+     *
      * @param dealId The deal ID to vote on
      * @param voteType Either "hot" or "cold"
      * @param userId The authenticated user's ID
@@ -267,24 +280,70 @@ class DealRepository {
         voteType: String,
         userId: String
     ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "Casting $voteType vote for deal $dealId by user $userId")
+        Log.d("Repository", "🗳️ Optimistic vote: $voteType for deal $dealId by user $userId")
 
-        val request = VoteRequest(
-            deal_id = dealId,
-            vote_type = voteType,
-            user_id = userId
-        )
+        // ✅ STEP 1: Get current deal from Room DB (for optimistic update and error revert)
+        val originalDeal = dealDao.getDealById(dealId)
 
-        val response = api.castVote(request)
-
-        // Update local cache with new vote counts
-        if (response.success == true && response.data != null) {
-            val entity = response.data.toEntity()
-            dealDao.insertDeal(entity)
-            Log.d("Repository", "Vote cast successfully, cache updated")
+        if (originalDeal == null) {
+            Log.e("Repository", "❌ Deal not found in cache: $dealId")
+            return@withContext ApiEnvelope(
+                success = false,
+                error = "Deal not found in local cache",
+                data = null
+            )
         }
 
-        response
+        try {
+            // ✅ STEP 2: Optimistic update - Update Room DB IMMEDIATELY (instant UI feedback)
+            val optimisticDeal = originalDeal.copy(
+                hotCount = (originalDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
+                coldCount = (originalDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
+            )
+            dealDao.insertDeal(optimisticDeal)
+            Log.d("Repository", "⚡ Optimistic update applied to Room DB")
+            Log.d("Repository", "   Original: hot=${originalDeal.hotCount}, cold=${originalDeal.coldCount}")
+            Log.d("Repository", "   Optimistic: hot=${optimisticDeal.hotCount}, cold=${optimisticDeal.coldCount}")
+
+            // ✅ STEP 3: Make API call in background
+            val request = VoteRequest(
+                deal_id = dealId,
+                vote_type = voteType,
+                user_id = userId
+            )
+
+            Log.d("Repository", "📡 Sending vote request to server...")
+            val response = api.castVote(request)
+
+            // ✅ STEP 4: Server reconciliation - Update Room with authoritative server data
+            if (response.success == true && response.data != null) {
+                val serverDeal = response.data.toEntity()
+                dealDao.insertDeal(serverDeal)
+                Log.d("Repository", "✅ Vote successful - Room DB reconciled with server")
+                Log.d("Repository", "   Server truth: hot=${response.data.hotCount}, cold=${response.data.coldCount}")
+            } else {
+                // ✅ STEP 5: Error handling - Revert Room DB to original state
+                dealDao.insertDeal(originalDeal)
+                Log.e("Repository", "❌ Vote failed: ${response.error} - Reverted to original state")
+                Log.d("Repository", "   Reverted: hot=${originalDeal.hotCount}, cold=${originalDeal.coldCount}")
+            }
+
+            response
+
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Vote request failed with exception", e)
+
+            // ✅ STEP 5: Error handling - Revert Room DB to original state
+            dealDao.insertDeal(originalDeal)
+            Log.d("Repository", "🔄 Exception occurred - Reverted to original state")
+
+            // Return error response
+            ApiEnvelope(
+                success = false,
+                error = e.message ?: "Network error",
+                data = null
+            )
+        }
     }
 
     // ========================================

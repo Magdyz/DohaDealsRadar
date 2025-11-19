@@ -118,5 +118,12 @@ interface DealDao {
     @Query("DELETE FROM deals WHERE id = :dealId")
     suspend fun deleteDealById(dealId: String)
 
+    // ========================================
+    // ✅ NEW: Get deal by ID (for optimistic updates)
+    // Returns a single deal synchronously (not a Flow)
+    // Used by Repository for optimistic vote updates
+    // ========================================
+    @Query("SELECT * FROM deals WHERE id = :dealId LIMIT 1")
+    suspend fun getDealById(dealId: String): DealEntity?
 
 }

@@ -556,8 +556,9 @@ fun FeedScreen(
                                     onVoteCold = { viewModel.voteCold(deal.id) },
                                     hasVoted = viewModel.hasVoted(deal.id),
                                     userVoteType = viewModel.getVoteType(deal.id),
-                                    optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
-                                    optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
+                                    // ✅ REMOVED: optimisticHotCount/optimisticColdCount
+                                    // Vote counts now come directly from Room DB (single source of truth)
+                                    // Repository updates Room optimistically → Flow emits → UI updates instantly
                                     // ✅ NEW: Admin-only delete button
                                     showDeleteButton = isAdmin,
                                     onDelete = { dealToDelete = deal.id },
