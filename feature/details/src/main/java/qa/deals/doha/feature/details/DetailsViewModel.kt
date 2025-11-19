@@ -44,6 +44,9 @@ class DetailsViewModel(
     private val _uiState = MutableStateFlow(DetailsUiState())
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
 
+    // ✅ Race condition prevention: Track in-flight vote requests
+    private val votingInProgress = mutableSetOf<String>()
+
     init {
         Log.d("Details", "📱 DetailsViewModel created for dealId: $dealId")
         loadDeal()
@@ -96,7 +99,7 @@ class DetailsViewModel(
 
     /**
      * Cast a vote on this deal with optimistic UI update
-     * Updated: 2025-11-19 - Added authentication requirement
+     * Updated: 2025-11-19 - Added authentication requirement and race condition prevention
      */
     fun castVote(voteType: String) {
         // ✅ NEW: Check authentication first
@@ -120,8 +123,20 @@ class DetailsViewModel(
             return
         }
 
+        // ✅ RACE CONDITION FIX: Prevent concurrent vote requests on same deal
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("Details", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
+        }
+
         // ✅ Save original deal BEFORE launching coroutine (for proper revert on error)
-        val originalDeal = _uiState.value.deal ?: return
+        val originalDeal = _uiState.value.deal ?: run {
+            synchronized(votingInProgress) { votingInProgress.remove(dealId) }
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -178,6 +193,12 @@ class DetailsViewModel(
                     hasVoted = false,
                     userVoteType = null
                 )
+            } finally {
+                // ✅ Always remove from in-progress set when done (success or error)
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
+                Log.d("Details", "🧹 Cleared vote lock for deal: $dealId")
             }
         }
     }
