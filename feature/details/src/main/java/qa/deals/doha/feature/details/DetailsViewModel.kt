@@ -120,15 +120,17 @@ class DetailsViewModel(
             return
         }
 
+        // ✅ Save original deal BEFORE launching coroutine (for proper revert on error)
+        val originalDeal = _uiState.value.deal ?: return
+
         viewModelScope.launch {
             try {
                 Log.d("Details", "🗳️ Casting $voteType vote...")
 
                 // ✅ Optimistic update - update UI immediately
-                val currentDeal = _uiState.value.deal ?: return@launch
-                val optimisticDeal = currentDeal.copy(
-                    hotCount = (currentDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
-                    coldCount = (currentDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
+                val optimisticDeal = originalDeal.copy(
+                    hotCount = (originalDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
+                    coldCount = (originalDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
                 )
 
                 _uiState.value = _uiState.value.copy(
@@ -157,9 +159,9 @@ class DetailsViewModel(
                     )
                 } else {
                     Log.e("Details", "❌ Vote failed: ${result.error}")
-                    // Revert optimistic update
+                    // ✅ Revert optimistic update using original deal
                     _uiState.value = _uiState.value.copy(
-                        deal = currentDeal,
+                        deal = originalDeal,
                         voting = false,
                         voteError = result.error ?: "Failed to record vote",
                         hasVoted = false,
@@ -168,10 +170,9 @@ class DetailsViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("Details", "💥 Error casting vote", e)
-                // Revert optimistic update
-                val currentDeal = _uiState.value.deal
+                // ✅ Revert optimistic update using original deal (from outer scope)
                 _uiState.value = _uiState.value.copy(
-                    deal = currentDeal,
+                    deal = originalDeal,
                     voting = false,
                     voteError = e.message ?: "Network error",
                     hasVoted = false,
