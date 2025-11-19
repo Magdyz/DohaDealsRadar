@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import qa.deals.domain.DealCategory
 import qa.deals.doha.feature.feed.components.DealCard
+import qa.deals.doha.feature.feed.components.VoteLoginDialog  // ✨ NEW: Vote authentication dialog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -555,8 +556,9 @@ fun FeedScreen(
                                     onVoteCold = { viewModel.voteCold(deal.id) },
                                     hasVoted = viewModel.hasVoted(deal.id),
                                     userVoteType = viewModel.getVoteType(deal.id),
-                                    optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
-                                    optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
+                                    // ✅ REMOVED: optimisticHotCount/optimisticColdCount
+                                    // Vote counts now come directly from Room DB (single source of truth)
+                                    // Repository updates Room optimistically → Flow emits → UI updates instantly
                                     // ✅ NEW: Admin-only delete button
                                     showDeleteButton = isAdmin,
                                     onDelete = { dealToDelete = deal.id },
@@ -760,6 +762,19 @@ fun FeedScreen(
                 TextButton(onClick = { dealToDelete = null }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    // ========================================
+    // ✨ NEW: Vote Login Dialog
+    // ========================================
+    if (state.showLoginDialog) {
+        VoteLoginDialog(
+            onDismiss = { viewModel.dismissLoginDialog() },
+            onLoginClick = {
+                viewModel.dismissLoginDialog()
+                onAccountClick()  // Navigate to login/account screen
             }
         )
     }

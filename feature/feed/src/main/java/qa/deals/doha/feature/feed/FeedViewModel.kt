@@ -39,18 +39,21 @@ enum class SortOption {
 
 /**
  * ========================================
- * ✅ UPDATED: UI STATE WITH PAGINATION + MODERATOR
+ * ✅ UPDATED: UI STATE WITH SINGLE SOURCE OF TRUTH PATTERN
  * ========================================
  *
- * Updated: Sprint 5
- * - Added moderator button visibility
+ * Updated: 2025-11-19
+ * - Removed optimisticCounts (moved to Repository → Room DB)
+ * - Vote counts now come directly from Room DB Flow
+ * - Implements Instagram/YouTube 2025 instant feedback pattern
  */
 data class FeedUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
     val votedDeals: Map<String, String> = emptyMap(),
-    val optimisticCounts: Map<String, Pair<Int, Int>> = emptyMap(),
+    // ✅ REMOVED: optimisticCounts - Repository handles this now
+    // Vote counts come from Room DB via Flow (single source of truth)
     // ✅ PRESERVED: Pagination state
     val currentPage: Int = 1,
     val hasMorePages: Boolean = true,
@@ -58,7 +61,11 @@ data class FeedUiState(
     // ✅ SPRINT 5: Moderator UI state
     val showModeratorButton: Boolean = false,
     // ✨ NEW: Filtering/Sorting loading state
-    val isFilteringSorting: Boolean = false
+    val isFilteringSorting: Boolean = false,
+    // ✨ NEW: Vote authentication dialog state
+    val showLoginDialog: Boolean = false,
+    val pendingVoteDealId: String? = null,
+    val pendingVoteType: String? = null
 )
 
 /**
@@ -218,6 +225,9 @@ class FeedViewModel(
     // ✅ PRESERVED + UPDATED: UI State
     var uiState by mutableStateOf(FeedUiState())
         private set
+
+    // ✨ NEW: Track in-flight vote requests to prevent race conditions
+    private val votingInProgress = mutableSetOf<String>()
 
     // ✅ PRESERVED + UPDATED: Initialization
     init {
@@ -479,83 +489,155 @@ class FeedViewModel(
     // ✅ PRESERVED: Vote Status Checks
     fun hasVoted(dealId: String): Boolean = uiState.votedDeals.containsKey(dealId)
     fun getVoteType(dealId: String): String? = uiState.votedDeals[dealId]
-    fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
-    fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
-    // ✅ PRESERVED: Vote HOT with Optimistic Update
+    // ✅ REFACTORED: Vote HOT with Single Source of Truth Pattern (YouTube/Instagram 2025)
+    // Updated: 2025-11-19 - Removed ViewModel optimistic state, Repository handles it
+    //
+    // How it works (Instagram pattern):
+    // 1. Repository updates Room DB immediately (instant UI)
+    // 2. Room Flow emits → UI updates automatically
+    // 3. Repository calls API in background
+    // 4. On success: Repository updates Room with server data → UI auto-updates
+    // 5. On error: Repository reverts Room to original → UI auto-reverts
+    //
+    // Benefits:
+    // - Instant feedback (no lag)
+    // - Cross-screen sync (FeedScreen & DetailsScreen always show same counts)
+    // - No false information (single source of truth)
+    // - No manual state management needed
     fun voteHot(dealId: String) {
-        if (hasVoted(dealId)) return
+        // ✅ Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            uiState = uiState.copy(
+                showLoginDialog = true,
+                pendingVoteDealId = dealId,
+                pendingVoteType = "hot"
+            )
+            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
+        // Check if already voted
+        if (hasVoted(dealId)) {
+            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+            return
+        }
+
+        // ✅ Prevent race conditions (concurrent vote requests)
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
+        }
 
         viewModelScope.launch {
             try {
-                val currentDeal = deals.value.find { it.id == dealId }
-                if (currentDeal != null) {
-                    val newHotCount = (currentDeal.hotCount ?: 0) + 1
-                    val currentColdCount = currentDeal.coldCount ?: 0
-
-                    val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                    updatedCounts[dealId] = Pair(newHotCount, currentColdCount)
-                    uiState = uiState.copy(optimisticCounts = updatedCounts)
-                }
-
+                // ✅ Record vote locally for UI state (voted/not voted indicator)
                 deviceIdManager.recordVote(dealId, "hot")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "hot"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
+                // ✅ Repository handles optimistic update in Room DB + API call
+                // UI will update automatically via Room Flow observation
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "hot",
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId
                 )
 
                 if (result.success == true) {
-                    val clearedCounts = uiState.optimisticCounts.toMutableMap()
-                    clearedCounts.remove(dealId)
-                    uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    Log.d("FeedVote", "✅ Hot vote successful for deal: $dealId")
+                } else {
+                    // Repository already reverted Room DB, just log error
+                    Log.e("FeedVote", "❌ Hot vote failed: ${result.error}")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote hot", t)
+                // Repository already reverted Room DB on exception
+            } finally {
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
             }
         }
     }
 
-    // ✅ PRESERVED: Vote COLD with Optimistic Update
+    // ✅ REFACTORED: Vote COLD with Single Source of Truth Pattern (YouTube/Instagram 2025)
+    // Updated: 2025-11-19 - Removed ViewModel optimistic state, Repository handles it
     fun voteCold(dealId: String) {
-        if (hasVoted(dealId)) return
+        // ✅ Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            uiState = uiState.copy(
+                showLoginDialog = true,
+                pendingVoteDealId = dealId,
+                pendingVoteType = "cold"
+            )
+            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
+        // Check if already voted
+        if (hasVoted(dealId)) {
+            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+            return
+        }
+
+        // ✅ Prevent race conditions (concurrent vote requests)
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
+        }
 
         viewModelScope.launch {
             try {
-                val currentDeal = deals.value.find { it.id == dealId }
-                if (currentDeal != null) {
-                    val currentHotCount = currentDeal.hotCount ?: 0
-                    val newColdCount = (currentDeal.coldCount ?: 0) + 1
-
-                    val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                    updatedCounts[dealId] = Pair(currentHotCount, newColdCount)
-                    uiState = uiState.copy(optimisticCounts = updatedCounts)
-                }
-
+                // ✅ Record vote locally for UI state (voted/not voted indicator)
                 deviceIdManager.recordVote(dealId, "cold")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "cold"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
+                // ✅ Repository handles optimistic update in Room DB + API call
+                // UI will update automatically via Room Flow observation
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId
                 )
 
                 if (result.success == true) {
-                    val clearedCounts = uiState.optimisticCounts.toMutableMap()
-                    clearedCounts.remove(dealId)
-                    uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    Log.d("FeedVote", "✅ Cold vote successful for deal: $dealId")
+                } else {
+                    // Repository already reverted Room DB, just log error
+                    Log.e("FeedVote", "❌ Cold vote failed: ${result.error}")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote cold", t)
+                // Repository already reverted Room DB on exception
+            } finally {
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
             }
         }
+    }
+
+    // ✨ NEW: Dismiss login dialog
+    // Updated: 2025-11-19
+    fun dismissLoginDialog() {
+        uiState = uiState.copy(
+            showLoginDialog = false,
+            pendingVoteDealId = null,
+            pendingVoteType = null
+        )
+        Log.d("FeedVote", "Login dialog dismissed")
     }
 
     // ========================================

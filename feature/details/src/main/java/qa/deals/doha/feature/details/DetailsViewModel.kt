@@ -14,6 +14,7 @@ import qa.deals.doha.repository.DealRepository
 
 /**
  * UI state for Details screen
+ * Updated: 2025-11-19 - Added login dialog state
  */
 data class DetailsUiState(
     val deal: DealEntity? = null,
@@ -23,8 +24,10 @@ data class DetailsUiState(
     val voteError: String? = null,
     val hasVoted: Boolean = false,
     val userVoteType: String? = null,
-    val isArchived: Boolean = false
-
+    val isArchived: Boolean = false,
+    // ✨ NEW: Vote authentication dialog state
+    val showLoginDialog: Boolean = false,
+    val pendingVoteType: String? = null
 )
 
 /**
@@ -40,6 +43,9 @@ class DetailsViewModel(
 
     private val _uiState = MutableStateFlow(DetailsUiState())
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
+
+    // ✅ Race condition prevention: Track in-flight vote requests
+    private val votingInProgress = mutableSetOf<String>()
 
     init {
         Log.d("Details", "📱 DetailsViewModel created for dealId: $dealId")
@@ -92,9 +98,34 @@ class DetailsViewModel(
     }
 
     /**
-     * Cast a vote on this deal with optimistic UI update
+     * Cast a vote on this deal with Single Source of Truth pattern (YouTube/Instagram 2025)
+     * Updated: 2025-11-19 - Refactored to use Repository optimistic updates
+     *
+     * How it works (Instagram pattern):
+     * 1. Repository updates Room DB immediately (instant UI)
+     * 2. Room Flow emits → DetailsViewModel observes → UI updates automatically
+     * 3. Repository calls API in background
+     * 4. On success: Repository updates Room with server data → UI auto-updates
+     * 5. On error: Repository reverts Room to original → UI auto-reverts
+     *
+     * Benefits:
+     * - Instant feedback (no lag)
+     * - Cross-screen sync (FeedScreen & DetailsScreen always show same counts)
+     * - No false information (single source of truth)
+     * - No manual state management needed
      */
     fun castVote(voteType: String) {
+        // ✅ Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            _uiState.value = _uiState.value.copy(
+                showLoginDialog = true,
+                pendingVoteType = voteType
+            )
+            Log.d("Details", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
         // Prevent voting if already voted
         if (_uiState.value.hasVoted) {
             Log.d("Details", "⚠️ User already voted, ignoring")
@@ -104,46 +135,49 @@ class DetailsViewModel(
             return
         }
 
+        // ✅ Prevent race conditions (concurrent vote requests)
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("Details", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
+        }
+
         viewModelScope.launch {
             try {
                 Log.d("Details", "🗳️ Casting $voteType vote...")
 
-                // Optimistic update - update UI immediately
-                val currentDeal = _uiState.value.deal ?: return@launch
-                val optimisticDeal = currentDeal.copy(
-                    hotCount = (currentDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
-                    coldCount = (currentDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
-                )
+                // ✅ Record vote locally for UI state (voted/not voted indicator)
+                deviceIdManager.recordVote(dealId, voteType)
 
+                // Update local UI state to show voting in progress
                 _uiState.value = _uiState.value.copy(
-                    deal = optimisticDeal,
                     voting = true,
                     voteError = null,
                     hasVoted = true,
                     userVoteType = voteType
                 )
 
-                // Record vote locally immediately
-                deviceIdManager.recordVote(dealId, voteType)
-
-                // Make API call
+                // ✅ Repository handles optimistic update in Room DB + API call
+                // UI will update automatically via Room Flow observation
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = voteType,
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId
                 )
 
                 if (result.success == true) {
                     Log.d("Details", "✅ Vote recorded successfully")
-                    // The repository already updated the cache with real data
+                    // Repository already updated Room DB with server data
+                    // Flow will emit new data, UI will update automatically
                     _uiState.value = _uiState.value.copy(
                         voting = false
                     )
                 } else {
                     Log.e("Details", "❌ Vote failed: ${result.error}")
-                    // Revert optimistic update
+                    // Repository already reverted Room DB to original state
                     _uiState.value = _uiState.value.copy(
-                        deal = currentDeal,
                         voting = false,
                         voteError = result.error ?: "Failed to record vote",
                         hasVoted = false,
@@ -152,17 +186,32 @@ class DetailsViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("Details", "💥 Error casting vote", e)
-                // Revert optimistic update
-                val currentDeal = _uiState.value.deal
+                // Repository already reverted Room DB on exception
                 _uiState.value = _uiState.value.copy(
-                    deal = currentDeal,
                     voting = false,
                     voteError = e.message ?: "Network error",
                     hasVoted = false,
                     userVoteType = null
                 )
+            } finally {
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
+                Log.d("Details", "🧹 Cleared vote lock for deal: $dealId")
             }
         }
+    }
+
+    /**
+     * Dismiss login dialog
+     * Updated: 2025-11-19
+     */
+    fun dismissLoginDialog() {
+        _uiState.value = _uiState.value.copy(
+            showLoginDialog = false,
+            pendingVoteType = null
+        )
+        Log.d("Details", "Login dialog dismissed")
     }
 
     /**
