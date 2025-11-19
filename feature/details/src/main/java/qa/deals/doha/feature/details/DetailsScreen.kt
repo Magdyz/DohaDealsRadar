@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.db.DealEntity
-import qa.deals.doha.feature.details.components.VoteLoginDialog  // ✨ NEW: Vote authentication dialog
 import androidx.compose.foundation.BorderStroke
 // ✨ NEW: Advanced Coil imports for 2025 performance
 import coil3.compose.SubcomposeAsyncImage
@@ -148,8 +147,7 @@ private fun getExpiryTimeString(expiresAt: String?): String {
 fun DetailsScreen(
     dealId: String,
     onBackClick: () -> Unit = {},
-    onReportClick: () -> Unit = {},
-    onAccountClick: () -> Unit = {}  // ✨ NEW: Navigate to login/account
+    onReportClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val viewModel = remember(dealId) {
@@ -264,19 +262,6 @@ fun DetailsScreen(
                 }
             }
         }
-    }
-
-    // ========================================
-    // ✨ NEW: Vote Login Dialog
-    // ========================================
-    if (uiState.showLoginDialog) {
-        VoteLoginDialog(
-            onDismiss = { viewModel.dismissLoginDialog() },
-            onLoginClick = {
-                viewModel.dismissLoginDialog()
-                onAccountClick()  // Navigate to login/account screen
-            }
-        )
     }
 }
 

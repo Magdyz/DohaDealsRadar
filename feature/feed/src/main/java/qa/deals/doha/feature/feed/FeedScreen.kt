@@ -33,7 +33,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import qa.deals.domain.DealCategory
 import qa.deals.doha.feature.feed.components.DealCard
-import qa.deals.doha.feature.feed.components.VoteLoginDialog  // ✨ NEW: Vote authentication dialog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -761,19 +760,6 @@ fun FeedScreen(
                 TextButton(onClick = { dealToDelete = null }) {
                     Text("Cancel")
                 }
-            }
-        )
-    }
-
-    // ========================================
-    // ✨ NEW: Vote Login Dialog
-    // ========================================
-    if (state.showLoginDialog) {
-        VoteLoginDialog(
-            onDismiss = { viewModel.dismissLoginDialog() },
-            onLoginClick = {
-                viewModel.dismissLoginDialog()
-                onAccountClick()  // Navigate to login/account screen
             }
         )
     }

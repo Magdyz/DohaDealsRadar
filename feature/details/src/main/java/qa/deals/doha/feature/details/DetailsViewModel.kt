@@ -14,7 +14,6 @@ import qa.deals.doha.repository.DealRepository
 
 /**
  * UI state for Details screen
- * Updated: 2025-11-19 - Added login dialog state
  */
 data class DetailsUiState(
     val deal: DealEntity? = null,
@@ -24,10 +23,8 @@ data class DetailsUiState(
     val voteError: String? = null,
     val hasVoted: Boolean = false,
     val userVoteType: String? = null,
-    val isArchived: Boolean = false,
-    // ✨ NEW: Vote authentication dialog state
-    val showLoginDialog: Boolean = false,
-    val pendingVoteType: String? = null
+    val isArchived: Boolean = false
+
 )
 
 /**
@@ -43,9 +40,6 @@ class DetailsViewModel(
 
     private val _uiState = MutableStateFlow(DetailsUiState())
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
-
-    // ✅ Race condition prevention: Track in-flight vote requests
-    private val votingInProgress = mutableSetOf<String>()
 
     init {
         Log.d("Details", "📱 DetailsViewModel created for dealId: $dealId")
@@ -99,21 +93,8 @@ class DetailsViewModel(
 
     /**
      * Cast a vote on this deal with optimistic UI update
-     * Updated: 2025-11-19 - Added authentication requirement and race condition prevention
      */
     fun castVote(voteType: String) {
-        // ✅ NEW: Check authentication first
-        val userId = deviceIdManager.getUserId()
-        if (userId == null) {
-            // Show login dialog for anonymous users
-            _uiState.value = _uiState.value.copy(
-                showLoginDialog = true,
-                pendingVoteType = voteType
-            )
-            Log.d("Details", "⚠️ User not authenticated, showing login dialog")
-            return
-        }
-
         // Prevent voting if already voted
         if (_uiState.value.hasVoted) {
             Log.d("Details", "⚠️ User already voted, ignoring")
@@ -123,29 +104,15 @@ class DetailsViewModel(
             return
         }
 
-        // ✅ RACE CONDITION FIX: Prevent concurrent vote requests on same deal
-        synchronized(votingInProgress) {
-            if (votingInProgress.contains(dealId)) {
-                Log.d("Details", "⚠️ Vote already in progress for deal: $dealId, ignoring")
-                return
-            }
-            votingInProgress.add(dealId)
-        }
-
-        // ✅ Save original deal BEFORE launching coroutine (for proper revert on error)
-        val originalDeal = _uiState.value.deal ?: run {
-            synchronized(votingInProgress) { votingInProgress.remove(dealId) }
-            return
-        }
-
         viewModelScope.launch {
             try {
                 Log.d("Details", "🗳️ Casting $voteType vote...")
 
-                // ✅ Optimistic update - update UI immediately
-                val optimisticDeal = originalDeal.copy(
-                    hotCount = (originalDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
-                    coldCount = (originalDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
+                // Optimistic update - update UI immediately
+                val currentDeal = _uiState.value.deal ?: return@launch
+                val optimisticDeal = currentDeal.copy(
+                    hotCount = (currentDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
+                    coldCount = (currentDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
                 )
 
                 _uiState.value = _uiState.value.copy(
@@ -159,11 +126,11 @@ class DetailsViewModel(
                 // Record vote locally immediately
                 deviceIdManager.recordVote(dealId, voteType)
 
-                // ✅ UPDATED: Make API call with user_id
+                // Make API call
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = voteType,
-                    userId = userId  // Changed from deviceId
+                    deviceId = deviceIdManager.getDeviceId()
                 )
 
                 if (result.success == true) {
@@ -174,9 +141,9 @@ class DetailsViewModel(
                     )
                 } else {
                     Log.e("Details", "❌ Vote failed: ${result.error}")
-                    // ✅ Revert optimistic update using original deal
+                    // Revert optimistic update
                     _uiState.value = _uiState.value.copy(
-                        deal = originalDeal,
+                        deal = currentDeal,
                         voting = false,
                         voteError = result.error ?: "Failed to record vote",
                         hasVoted = false,
@@ -185,34 +152,17 @@ class DetailsViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("Details", "💥 Error casting vote", e)
-                // ✅ Revert optimistic update using original deal (from outer scope)
+                // Revert optimistic update
+                val currentDeal = _uiState.value.deal
                 _uiState.value = _uiState.value.copy(
-                    deal = originalDeal,
+                    deal = currentDeal,
                     voting = false,
                     voteError = e.message ?: "Network error",
                     hasVoted = false,
                     userVoteType = null
                 )
-            } finally {
-                // ✅ Always remove from in-progress set when done (success or error)
-                synchronized(votingInProgress) {
-                    votingInProgress.remove(dealId)
-                }
-                Log.d("Details", "🧹 Cleared vote lock for deal: $dealId")
             }
         }
-    }
-
-    /**
-     * Dismiss login dialog
-     * Updated: 2025-11-19
-     */
-    fun dismissLoginDialog() {
-        _uiState.value = _uiState.value.copy(
-            showLoginDialog = false,
-            pendingVoteType = null
-        )
-        Log.d("Details", "Login dialog dismissed")
     }
 
     /**

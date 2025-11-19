@@ -58,11 +58,7 @@ data class FeedUiState(
     // ✅ SPRINT 5: Moderator UI state
     val showModeratorButton: Boolean = false,
     // ✨ NEW: Filtering/Sorting loading state
-    val isFilteringSorting: Boolean = false,
-    // ✨ NEW: Vote authentication dialog state
-    val showLoginDialog: Boolean = false,
-    val pendingVoteDealId: String? = null,
-    val pendingVoteType: String? = null
+    val isFilteringSorting: Boolean = false
 )
 
 /**
@@ -222,9 +218,6 @@ class FeedViewModel(
     // ✅ PRESERVED + UPDATED: UI State
     var uiState by mutableStateOf(FeedUiState())
         private set
-
-    // ✨ NEW: Track in-flight vote requests to prevent race conditions
-    private val votingInProgress = mutableSetOf<String>()
 
     // ✅ PRESERVED + UPDATED: Initialization
     init {
@@ -489,40 +482,12 @@ class FeedViewModel(
     fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
     fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
-    // ✅ UPDATED: Vote HOT with Authentication Check & Optimistic Update
-    // Updated: 2025-11-19 - Added authentication requirement + race condition fix
+    // ✅ PRESERVED: Vote HOT with Optimistic Update
     fun voteHot(dealId: String) {
-        // ✅ NEW: Check authentication first
-        val userId = deviceIdManager.getUserId()
-        if (userId == null) {
-            // Show login dialog for anonymous users
-            uiState = uiState.copy(
-                showLoginDialog = true,
-                pendingVoteDealId = dealId,
-                pendingVoteType = "hot"
-            )
-            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
-            return
-        }
-
-        // Check if already voted
-        if (hasVoted(dealId)) {
-            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
-            return
-        }
-
-        // ✨ NEW: Check if vote already in progress to prevent race conditions
-        synchronized(votingInProgress) {
-            if (votingInProgress.contains(dealId)) {
-                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
-                return
-            }
-            votingInProgress.add(dealId)
-        }
+        if (hasVoted(dealId)) return
 
         viewModelScope.launch {
             try {
-                // ✅ Optimistic update (instant UI feedback)
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val newHotCount = (currentDeal.hotCount ?: 0) + 1
@@ -533,72 +498,34 @@ class FeedViewModel(
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
-                // Record vote locally for instant feedback
                 deviceIdManager.recordVote(dealId, "hot")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "hot"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
-                // ✅ UPDATED: Send to backend with user_id
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "hot",
-                    userId = userId  // Changed from deviceId
+                    deviceId = deviceIdManager.getDeviceId()
                 )
 
-                // Clear optimistic count on success (use server data)
                 if (result.success == true) {
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
-                    Log.d("FeedVote", "✅ Hot vote successful for deal: $dealId")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote hot", t)
-                // TODO: Revert optimistic update on failure
-            } finally {
-                // ✨ NEW: Always remove from in-progress set
-                synchronized(votingInProgress) {
-                    votingInProgress.remove(dealId)
-                }
             }
         }
     }
 
-    // ✅ UPDATED: Vote COLD with Authentication Check & Optimistic Update
-    // Updated: 2025-11-19 - Added authentication requirement + race condition fix
+    // ✅ PRESERVED: Vote COLD with Optimistic Update
     fun voteCold(dealId: String) {
-        // ✅ NEW: Check authentication first
-        val userId = deviceIdManager.getUserId()
-        if (userId == null) {
-            // Show login dialog for anonymous users
-            uiState = uiState.copy(
-                showLoginDialog = true,
-                pendingVoteDealId = dealId,
-                pendingVoteType = "cold"
-            )
-            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
-            return
-        }
-
-        // Check if already voted
-        if (hasVoted(dealId)) {
-            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
-            return
-        }
-
-        // ✨ NEW: Check if vote already in progress to prevent race conditions
-        synchronized(votingInProgress) {
-            if (votingInProgress.contains(dealId)) {
-                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
-                return
-            }
-            votingInProgress.add(dealId)
-        }
+        if (hasVoted(dealId)) return
 
         viewModelScope.launch {
             try {
-                // ✅ Optimistic update (instant UI feedback)
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val currentHotCount = currentDeal.hotCount ?: 0
@@ -609,47 +536,26 @@ class FeedViewModel(
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
-                // Record vote locally for instant feedback
                 deviceIdManager.recordVote(dealId, "cold")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "cold"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
-                // ✅ UPDATED: Send to backend with user_id
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
-                    userId = userId  // Changed from deviceId
+                    deviceId = deviceIdManager.getDeviceId()
                 )
 
-                // Clear optimistic count on success (use server data)
                 if (result.success == true) {
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
-                    Log.d("FeedVote", "✅ Cold vote successful for deal: $dealId")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote cold", t)
-                // TODO: Revert optimistic update on failure
-            } finally {
-                // ✨ NEW: Always remove from in-progress set
-                synchronized(votingInProgress) {
-                    votingInProgress.remove(dealId)
-                }
             }
         }
-    }
-
-    // ✨ NEW: Dismiss login dialog
-    // Updated: 2025-11-19
-    fun dismissLoginDialog() {
-        uiState = uiState.copy(
-            showLoginDialog = false,
-            pendingVoteDealId = null,
-            pendingVoteType = null
-        )
-        Log.d("FeedVote", "Login dialog dismissed")
     }
 
     // ========================================
