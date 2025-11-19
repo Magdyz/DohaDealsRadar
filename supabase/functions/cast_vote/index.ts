@@ -17,43 +17,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { deal_id, vote_type, user_id } = await req.json();
+    const { deal_id, vote_type, device_id } = await req.json();
 
     // Validate input
-    if (!deal_id || !vote_type || !user_id) {
-      throw new Error("Missing required fields: deal_id, vote_type, user_id");
+    if (!deal_id || !vote_type || !device_id) {
+      throw new Error("Missing required fields: deal_id, vote_type, device_id");
     }
 
     if (vote_type !== "hot" && vote_type !== "cold") {
       throw new Error("vote_type must be 'hot' or 'cold'");
     }
 
-    // Verify user exists (security check)
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", user_id)
-      .single();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Invalid user. Please log in again.",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 401,
-        }
-      );
-    }
-
-    // Check if user already voted on this deal
+    // Check if device already voted on this deal
     const { data: existingVote, error: checkError } = await supabase
       .from("votes")
       .select("*")
       .eq("deal_id", deal_id)
-      .eq("user_id", user_id)
+      .eq("device_id", device_id)
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
@@ -79,7 +59,7 @@ serve(async (req) => {
       {
         deal_id,
         vote_type,
-        user_id,
+        device_id,
       },
     ]);
 
