@@ -768,7 +768,7 @@ fun FeedScreen(
     // ========================================
     // ✨ NEW: Vote Login Dialog
     // ========================================
-    if (uiState.showLoginDialog) {
+    if (state.showLoginDialog) {
         VoteLoginDialog(
             onDismiss = { viewModel.dismissLoginDialog() },
             onLoginClick = {
