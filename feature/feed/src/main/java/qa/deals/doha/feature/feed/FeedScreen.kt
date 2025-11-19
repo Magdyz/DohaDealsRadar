@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import qa.deals.domain.DealCategory
 import qa.deals.doha.feature.feed.components.DealCard
+import qa.deals.doha.feature.feed.components.VoteAuthDialog  // ✅ NEW: Vote authentication dialog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -762,5 +763,26 @@ fun FeedScreen(
                 }
             }
         )
+    }
+
+    // ========================================
+    // ✅ NEW: Vote Authentication Dialog
+    // Shows when anonymous user tries to vote
+    // ========================================
+
+    state.pendingVote?.let { pendingVote ->
+        if (state.showVoteAuthDialog) {
+            VoteAuthDialog(
+                voteType = pendingVote.voteType,
+                onDismiss = { viewModel.dismissVoteAuthDialog() },
+                onLoginClick = {
+                    viewModel.dismissVoteAuthDialog()
+                    onAccountClick()  // ✅ Navigate to verify email screen (same as account icon)
+                },
+                onVerifyEmailClick = {
+                    viewModel.dismissVoteAuthDialog()
+                }
+            )
+        }
     }
 }  // End of FeedScreen
