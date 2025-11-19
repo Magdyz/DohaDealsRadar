@@ -58,7 +58,11 @@ data class FeedUiState(
     // ✅ SPRINT 5: Moderator UI state
     val showModeratorButton: Boolean = false,
     // ✨ NEW: Filtering/Sorting loading state
-    val isFilteringSorting: Boolean = false
+    val isFilteringSorting: Boolean = false,
+    // ✨ NEW: Vote authentication dialog state
+    val showLoginDialog: Boolean = false,
+    val pendingVoteDealId: String? = null,
+    val pendingVoteType: String? = null
 )
 
 /**
@@ -482,12 +486,31 @@ class FeedViewModel(
     fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
     fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
-    // ✅ PRESERVED: Vote HOT with Optimistic Update
+    // ✅ UPDATED: Vote HOT with Authentication Check & Optimistic Update
+    // Updated: 2025-11-19 - Added authentication requirement
     fun voteHot(dealId: String) {
-        if (hasVoted(dealId)) return
+        // ✅ NEW: Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            // Show login dialog for anonymous users
+            uiState = uiState.copy(
+                showLoginDialog = true,
+                pendingVoteDealId = dealId,
+                pendingVoteType = "hot"
+            )
+            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
+        // Check if already voted
+        if (hasVoted(dealId)) {
+            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+            return
+        }
 
         viewModelScope.launch {
             try {
+                // ✅ Optimistic update (instant UI feedback)
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val newHotCount = (currentDeal.hotCount ?: 0) + 1
@@ -498,34 +521,58 @@ class FeedViewModel(
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
+                // Record vote locally for instant feedback
                 deviceIdManager.recordVote(dealId, "hot")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "hot"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
+                // ✅ UPDATED: Send to backend with user_id
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "hot",
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId  // Changed from deviceId
                 )
 
+                // Clear optimistic count on success (use server data)
                 if (result.success == true) {
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    Log.d("FeedVote", "✅ Hot vote successful for deal: $dealId")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote hot", t)
+                // TODO: Revert optimistic update on failure
             }
         }
     }
 
-    // ✅ PRESERVED: Vote COLD with Optimistic Update
+    // ✅ UPDATED: Vote COLD with Authentication Check & Optimistic Update
+    // Updated: 2025-11-19 - Added authentication requirement
     fun voteCold(dealId: String) {
-        if (hasVoted(dealId)) return
+        // ✅ NEW: Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            // Show login dialog for anonymous users
+            uiState = uiState.copy(
+                showLoginDialog = true,
+                pendingVoteDealId = dealId,
+                pendingVoteType = "cold"
+            )
+            Log.d("FeedVote", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
+        // Check if already voted
+        if (hasVoted(dealId)) {
+            Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
+            return
+        }
 
         viewModelScope.launch {
             try {
+                // ✅ Optimistic update (instant UI feedback)
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal != null) {
                     val currentHotCount = currentDeal.hotCount ?: 0
@@ -536,26 +583,42 @@ class FeedViewModel(
                     uiState = uiState.copy(optimisticCounts = updatedCounts)
                 }
 
+                // Record vote locally for instant feedback
                 deviceIdManager.recordVote(dealId, "cold")
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "cold"
                 uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
+                // ✅ UPDATED: Send to backend with user_id
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId  // Changed from deviceId
                 )
 
+                // Clear optimistic count on success (use server data)
                 if (result.success == true) {
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    Log.d("FeedVote", "✅ Cold vote successful for deal: $dealId")
                 }
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote cold", t)
+                // TODO: Revert optimistic update on failure
             }
         }
+    }
+
+    // ✨ NEW: Dismiss login dialog
+    // Updated: 2025-11-19
+    fun dismissLoginDialog() {
+        uiState = uiState.copy(
+            showLoginDialog = false,
+            pendingVoteDealId = null,
+            pendingVoteType = null
+        )
+        Log.d("FeedVote", "Login dialog dismissed")
     }
 
     // ========================================

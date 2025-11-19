@@ -14,6 +14,7 @@ import qa.deals.doha.repository.DealRepository
 
 /**
  * UI state for Details screen
+ * Updated: 2025-11-19 - Added login dialog state
  */
 data class DetailsUiState(
     val deal: DealEntity? = null,
@@ -23,8 +24,10 @@ data class DetailsUiState(
     val voteError: String? = null,
     val hasVoted: Boolean = false,
     val userVoteType: String? = null,
-    val isArchived: Boolean = false
-
+    val isArchived: Boolean = false,
+    // ✨ NEW: Vote authentication dialog state
+    val showLoginDialog: Boolean = false,
+    val pendingVoteType: String? = null
 )
 
 /**
@@ -93,8 +96,21 @@ class DetailsViewModel(
 
     /**
      * Cast a vote on this deal with optimistic UI update
+     * Updated: 2025-11-19 - Added authentication requirement
      */
     fun castVote(voteType: String) {
+        // ✅ NEW: Check authentication first
+        val userId = deviceIdManager.getUserId()
+        if (userId == null) {
+            // Show login dialog for anonymous users
+            _uiState.value = _uiState.value.copy(
+                showLoginDialog = true,
+                pendingVoteType = voteType
+            )
+            Log.d("Details", "⚠️ User not authenticated, showing login dialog")
+            return
+        }
+
         // Prevent voting if already voted
         if (_uiState.value.hasVoted) {
             Log.d("Details", "⚠️ User already voted, ignoring")
@@ -108,7 +124,7 @@ class DetailsViewModel(
             try {
                 Log.d("Details", "🗳️ Casting $voteType vote...")
 
-                // Optimistic update - update UI immediately
+                // ✅ Optimistic update - update UI immediately
                 val currentDeal = _uiState.value.deal ?: return@launch
                 val optimisticDeal = currentDeal.copy(
                     hotCount = (currentDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
@@ -126,11 +142,11 @@ class DetailsViewModel(
                 // Record vote locally immediately
                 deviceIdManager.recordVote(dealId, voteType)
 
-                // Make API call
+                // ✅ UPDATED: Make API call with user_id
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = voteType,
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId  // Changed from deviceId
                 )
 
                 if (result.success == true) {
@@ -163,6 +179,18 @@ class DetailsViewModel(
                 )
             }
         }
+    }
+
+    /**
+     * Dismiss login dialog
+     * Updated: 2025-11-19
+     */
+    fun dismissLoginDialog() {
+        _uiState.value = _uiState.value.copy(
+            showLoginDialog = false,
+            pendingVoteType = null
+        )
+        Log.d("Details", "Login dialog dismissed")
     }
 
     /**
