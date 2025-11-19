@@ -223,6 +223,9 @@ class FeedViewModel(
     var uiState by mutableStateOf(FeedUiState())
         private set
 
+    // ✨ NEW: Track in-flight vote requests to prevent race conditions
+    private val votingInProgress = mutableSetOf<String>()
+
     // ✅ PRESERVED + UPDATED: Initialization
     init {
         Log.d("FeedViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -487,7 +490,7 @@ class FeedViewModel(
     fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
     // ✅ UPDATED: Vote HOT with Authentication Check & Optimistic Update
-    // Updated: 2025-11-19 - Added authentication requirement
+    // Updated: 2025-11-19 - Added authentication requirement + race condition fix
     fun voteHot(dealId: String) {
         // ✅ NEW: Check authentication first
         val userId = deviceIdManager.getUserId()
@@ -506,6 +509,15 @@ class FeedViewModel(
         if (hasVoted(dealId)) {
             Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
             return
+        }
+
+        // ✨ NEW: Check if vote already in progress to prevent race conditions
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
         }
 
         viewModelScope.launch {
@@ -544,12 +556,17 @@ class FeedViewModel(
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote hot", t)
                 // TODO: Revert optimistic update on failure
+            } finally {
+                // ✨ NEW: Always remove from in-progress set
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
             }
         }
     }
 
     // ✅ UPDATED: Vote COLD with Authentication Check & Optimistic Update
-    // Updated: 2025-11-19 - Added authentication requirement
+    // Updated: 2025-11-19 - Added authentication requirement + race condition fix
     fun voteCold(dealId: String) {
         // ✅ NEW: Check authentication first
         val userId = deviceIdManager.getUserId()
@@ -568,6 +585,15 @@ class FeedViewModel(
         if (hasVoted(dealId)) {
             Log.d("FeedVote", "⚠️ User already voted on deal: $dealId")
             return
+        }
+
+        // ✨ NEW: Check if vote already in progress to prevent race conditions
+        synchronized(votingInProgress) {
+            if (votingInProgress.contains(dealId)) {
+                Log.d("FeedVote", "⚠️ Vote already in progress for deal: $dealId, ignoring")
+                return
+            }
+            votingInProgress.add(dealId)
         }
 
         viewModelScope.launch {
@@ -606,6 +632,11 @@ class FeedViewModel(
             } catch (t: Throwable) {
                 Log.e("FeedVote", "💥 Failed to vote cold", t)
                 // TODO: Revert optimistic update on failure
+            } finally {
+                // ✨ NEW: Always remove from in-progress set
+                synchronized(votingInProgress) {
+                    votingInProgress.remove(dealId)
+                }
             }
         }
     }
