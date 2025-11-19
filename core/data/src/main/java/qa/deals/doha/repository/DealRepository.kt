@@ -252,22 +252,27 @@ class DealRepository {
     }
 
     // ========================================
-    // ✅ PRESERVED: Cast Vote (No Changes)
+    // ✅ UPDATED: Cast Vote (User Authentication Required)
+    // Updated: 2025-11-19 - Changed from device_id to user_id
     // ========================================
     /**
-     * Cast a vote on a deal
+     * Cast a vote on a deal (requires user authentication)
+     * @param dealId The deal ID to vote on
+     * @param voteType Either "hot" or "cold"
+     * @param userId The authenticated user's ID
+     * @return ApiEnvelope containing updated deal data
      */
     suspend fun castVote(
         dealId: String,
         voteType: String,
-        deviceId: String
+        userId: String
     ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "Casting $voteType vote for deal $dealId")
+        Log.d("Repository", "Casting $voteType vote for deal $dealId by user $userId")
 
         val request = VoteRequest(
             deal_id = dealId,
             vote_type = voteType,
-            device_id = deviceId
+            user_id = userId
         )
 
         val response = api.castVote(request)

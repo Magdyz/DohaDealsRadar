@@ -213,6 +213,9 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() },
                 onReportClick = {
                     navController.navigate(Routes.report(dealId))
+                },
+                onAccountClick = {  // ✨ NEW: Navigate to login/account
+                    navController.navigate(Routes.LOGIN)
                 }
             )
         }
