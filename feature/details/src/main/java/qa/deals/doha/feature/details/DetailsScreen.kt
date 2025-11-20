@@ -147,7 +147,8 @@ private fun getExpiryTimeString(expiresAt: String?): String {
 fun DetailsScreen(
     dealId: String,
     onBackClick: () -> Unit = {},
-    onReportClick: () -> Unit = {}
+    onReportClick: () -> Unit = {},
+    onAccountClick: () -> Unit = {}  // ✅ NEW: Navigate to verify email screen
 ) {
     val context = LocalContext.current
     val viewModel = remember(dealId) {
@@ -261,6 +262,27 @@ fun DetailsScreen(
                     )
                 }
             }
+        }
+    }
+
+    // ========================================
+    // ✅ NEW: Vote Authentication Dialog
+    // Shows when anonymous user tries to vote
+    // ========================================
+
+    uiState.pendingVote?.let { pendingVote ->
+        if (uiState.showVoteAuthDialog) {
+            VoteAuthDialog(
+                voteType = pendingVote.voteType,
+                onDismiss = { viewModel.dismissVoteAuthDialog() },
+                onLoginClick = {
+                    viewModel.dismissVoteAuthDialog()
+                    onAccountClick()  // ✅ Navigate to verify email screen (same as account icon)
+                },
+                onVerifyEmailClick = {
+                    viewModel.dismissVoteAuthDialog()
+                }
+            )
         }
     }
 }

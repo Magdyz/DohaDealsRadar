@@ -45,6 +45,14 @@ enum class SortOption {
  * Updated: Sprint 5
  * - Added moderator button visibility
  */
+/**
+ * ✅ NEW: Pending vote waiting for authentication
+ */
+data class PendingVote(
+    val dealId: String,
+    val voteType: String  // "hot" or "cold"
+)
+
 data class FeedUiState(
     val loading: Boolean = false,
     val error: String? = null,
@@ -58,7 +66,10 @@ data class FeedUiState(
     // ✅ SPRINT 5: Moderator UI state
     val showModeratorButton: Boolean = false,
     // ✨ NEW: Filtering/Sorting loading state
-    val isFilteringSorting: Boolean = false
+    val isFilteringSorting: Boolean = false,
+    // ✅ NEW: Vote authentication dialog state
+    val showVoteAuthDialog: Boolean = false,
+    val pendingVote: PendingVote? = null
 )
 
 /**
@@ -482,68 +493,189 @@ class FeedViewModel(
     fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
     fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
 
-    // ✅ PRESERVED: Vote HOT with Optimistic Update
+    // ========================================
+    // ✅ UPDATED: Vote HOT with User Authentication + Optimistic Update
+    // Migration: device_id → user_id
+    // ========================================
+    /**
+     * Cast a HOT vote on a deal
+     *
+     * Flow (Instagram/YouTube 2025 pattern):
+     * 1. Check authentication → Show dialog if anonymous
+     * 2. Check duplicate vote
+     * 3. Optimistic UI update → Instant feedback
+     * 4. API call → Server validation
+     * 5. Success → Clear optimistic state (server data is source of truth)
+     * 6. Failure → Revert changes + show error
+     */
     fun voteHot(dealId: String) {
-        if (hasVoted(dealId)) return
-
         viewModelScope.launch {
             try {
-                val currentDeal = deals.value.find { it.id == dealId }
-                if (currentDeal != null) {
-                    val newHotCount = (currentDeal.hotCount ?: 0) + 1
-                    val currentColdCount = currentDeal.coldCount ?: 0
+                // ========================================
+                // STEP 1: Authentication Check
+                // ========================================
+                val userId = deviceIdManager.getUserId()
+                val userEmail = if (userId != null) {
+                    userRepo.getCachedUser(userId)?.email
+                } else null
 
-                    val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                    updatedCounts[dealId] = Pair(newHotCount, currentColdCount)
-                    uiState = uiState.copy(optimisticCounts = updatedCounts)
+                // ✅ GATE: Show auth dialog for anonymous users
+                if (userId == null) {
+                    Log.d("Feed", "⚠️ Anonymous user tried to vote - showing auth dialog")
+                    uiState = uiState.copy(
+                        showVoteAuthDialog = true,
+                        pendingVote = PendingVote(dealId, "hot")
+                    )
+                    return@launch
                 }
 
-                deviceIdManager.recordVote(dealId, "hot")
+                // ========================================
+                // STEP 2: Duplicate Vote Check
+                // ========================================
+                if (deviceIdManager.hasUserVoted(userId, dealId)) {
+                    Log.d("Feed", "⚠️ User already voted on deal $dealId")
+                    return@launch
+                }
+
+                // ========================================
+                // STEP 3: Optimistic UI Update
+                // ========================================
+                val currentDeal = deals.value.find { it.id == dealId }
+                if (currentDeal == null) {
+                    Log.e("Feed", "❌ Deal $dealId not found")
+                    return@launch
+                }
+
+                val optimisticHotCount = (currentDeal.hotCount ?: 0) + 1
+                val currentColdCount = currentDeal.coldCount ?: 0
+
+                Log.d("Feed", "🔥 Optimistic hot vote: $dealId (count: $optimisticHotCount)")
+
+                // Update UI immediately
+                val updatedCounts = uiState.optimisticCounts.toMutableMap()
+                updatedCounts[dealId] = Pair(optimisticHotCount, currentColdCount)
+
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "hot"
-                uiState = uiState.copy(votedDeals = updatedVotedDeals)
 
+                uiState = uiState.copy(
+                    optimisticCounts = updatedCounts,
+                    votedDeals = updatedVotedDeals
+                )
+
+                // Record locally BEFORE API call (for offline resilience)
+                deviceIdManager.recordUserVote(userId, dealId, "hot")
+
+                // ========================================
+                // STEP 4: API Call
+                // ========================================
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "hot",
-                    deviceId = deviceIdManager.getDeviceId()
+                    userId = userId,
+                    userEmail = userEmail,
+                    deviceId = deviceIdManager.getDeviceId()  // Analytics only
                 )
 
+                // ========================================
+                // STEP 5: Handle Response
+                // ========================================
                 if (result.success == true) {
+                    // ✅ SUCCESS: Clear optimistic state (server data is now source of truth)
+                    Log.d("Feed", "✅ Hot vote recorded successfully")
+
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
+
+                } else {
+                    // ❌ FAILURE: Revert optimistic changes
+                    Log.e("Feed", "❌ Vote failed: ${result.error}")
+
+                    val revertedCounts = uiState.optimisticCounts.toMutableMap()
+                    revertedCounts.remove(dealId)
+
+                    val revertedVotedDeals = uiState.votedDeals.toMutableMap()
+                    revertedVotedDeals.remove(dealId)
+
+                    uiState = uiState.copy(
+                        optimisticCounts = revertedCounts,
+                        votedDeals = revertedVotedDeals
+                    )
+
+                    // Clear local vote record
+                    deviceIdManager.clearUserVote(userId, dealId)
                 }
-            } catch (t: Throwable) {
-                Log.e("FeedVote", "💥 Failed to vote hot", t)
+
+            } catch (e: Exception) {
+                Log.e("Feed", "❌ Vote exception: ${e.message}", e)
+
+                // Revert on exception
+                val userId = deviceIdManager.getUserId()
+                if (userId != null) {
+                    deviceIdManager.clearUserVote(userId, dealId)
+                }
+
+                val revertedCounts = uiState.optimisticCounts.toMutableMap()
+                revertedCounts.remove(dealId)
+                val revertedVotedDeals = uiState.votedDeals.toMutableMap()
+                revertedVotedDeals.remove(dealId)
+
+                uiState = uiState.copy(
+                    optimisticCounts = revertedCounts,
+                    votedDeals = revertedVotedDeals
+                )
             }
         }
     }
 
-    // ✅ PRESERVED: Vote COLD with Optimistic Update
+    // ========================================
+    // ✅ UPDATED: Vote COLD with User Authentication (Same Pattern as voteHot)
+    // ========================================
     fun voteCold(dealId: String) {
-        if (hasVoted(dealId)) return
-
         viewModelScope.launch {
             try {
-                val currentDeal = deals.value.find { it.id == dealId }
-                if (currentDeal != null) {
-                    val currentHotCount = currentDeal.hotCount ?: 0
-                    val newColdCount = (currentDeal.coldCount ?: 0) + 1
+                val userId = deviceIdManager.getUserId()
+                val userEmail = if (userId != null) {
+                    userRepo.getCachedUser(userId)?.email
+                } else null
 
-                    val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                    updatedCounts[dealId] = Pair(currentHotCount, newColdCount)
-                    uiState = uiState.copy(optimisticCounts = updatedCounts)
+                if (userId == null) {
+                    uiState = uiState.copy(
+                        showVoteAuthDialog = true,
+                        pendingVote = PendingVote(dealId, "cold")
+                    )
+                    return@launch
                 }
 
-                deviceIdManager.recordVote(dealId, "cold")
+                if (deviceIdManager.hasUserVoted(userId, dealId)) {
+                    return@launch
+                }
+
+                val currentDeal = deals.value.find { it.id == dealId } ?: return@launch
+                val currentHotCount = currentDeal.hotCount ?: 0
+                val optimisticColdCount = (currentDeal.coldCount ?: 0) + 1
+
+                Log.d("Feed", "❄️ Optimistic cold vote: $dealId (count: $optimisticColdCount)")
+
+                val updatedCounts = uiState.optimisticCounts.toMutableMap()
+                updatedCounts[dealId] = Pair(currentHotCount, optimisticColdCount)
+
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
                 updatedVotedDeals[dealId] = "cold"
-                uiState = uiState.copy(votedDeals = updatedVotedDeals)
+
+                uiState = uiState.copy(
+                    optimisticCounts = updatedCounts,
+                    votedDeals = updatedVotedDeals
+                )
+
+                deviceIdManager.recordUserVote(userId, dealId, "cold")
 
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
+                    userId = userId,
+                    userEmail = userEmail,
                     deviceId = deviceIdManager.getDeviceId()
                 )
 
@@ -551,10 +683,69 @@ class FeedViewModel(
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
+                } else {
+                    // Revert on failure
+                    val revertedCounts = uiState.optimisticCounts.toMutableMap()
+                    revertedCounts.remove(dealId)
+                    val revertedVotedDeals = uiState.votedDeals.toMutableMap()
+                    revertedVotedDeals.remove(dealId)
+
+                    uiState = uiState.copy(
+                        optimisticCounts = revertedCounts,
+                        votedDeals = revertedVotedDeals
+                    )
+
+                    deviceIdManager.clearUserVote(userId, dealId)
                 }
-            } catch (t: Throwable) {
-                Log.e("FeedVote", "💥 Failed to vote cold", t)
+
+            } catch (e: Exception) {
+                Log.e("Feed", "❌ Vote exception: ${e.message}", e)
+                val userId = deviceIdManager.getUserId()
+                if (userId != null) {
+                    deviceIdManager.clearUserVote(userId, dealId)
+                }
+
+                val revertedCounts = uiState.optimisticCounts.toMutableMap()
+                revertedCounts.remove(dealId)
+                val revertedVotedDeals = uiState.votedDeals.toMutableMap()
+                revertedVotedDeals.remove(dealId)
+
+                uiState = uiState.copy(
+                    optimisticCounts = revertedCounts,
+                    votedDeals = revertedVotedDeals
+                )
             }
+        }
+    }
+
+    // ========================================
+    // ✅ NEW: Dialog Management Methods
+    // ========================================
+
+    /**
+     * Dismiss vote auth dialog
+     */
+    fun dismissVoteAuthDialog() {
+        uiState = uiState.copy(
+            showVoteAuthDialog = false,
+            pendingVote = null
+        )
+    }
+
+    /**
+     * Retry pending vote after user authenticates
+     * Called from FeedScreen after successful login/email verification
+     */
+    fun retryPendingVote() {
+        val pending = uiState.pendingVote ?: return
+        uiState = uiState.copy(
+            showVoteAuthDialog = false,
+            pendingVote = null
+        )
+
+        when (pending.voteType) {
+            "hot" -> voteHot(pending.dealId)
+            "cold" -> voteCold(pending.dealId)
         }
     }
 

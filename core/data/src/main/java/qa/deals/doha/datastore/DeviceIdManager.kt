@@ -86,8 +86,10 @@ class DeviceIdManager private constructor(context: Context) {
         // Shared Preferences keys
         private const val PREFS_FILE = "device_prefs"
         private const val KEY_DEVICE_ID = "device_id"
-        private const val KEY_VOTE_PREFIX = "vote_"
-        private const val KEY_VOTE_TYPE_PREFIX = "vote_type_"
+        private const val KEY_VOTE_PREFIX = "vote_"                   // Legacy device votes
+        private const val KEY_VOTE_TYPE_PREFIX = "vote_type_"         // Legacy device vote types
+        private const val KEY_USER_VOTE_PREFIX = "user_vote_"         // ✅ NEW: User votes
+        private const val KEY_USER_VOTE_TIME_PREFIX = "user_vote_time_" // ✅ NEW: Vote timestamps
         private const val KEY_REPORT_PREFIX = "report_"
         private const val KEY_REPORT_COUNT_PREFIX = "report_count_"
         private const val KEY_USERNAME = "username"
@@ -246,10 +248,81 @@ class DeviceIdManager private constructor(context: Context) {
     fun clearAllVotes() {
         prefs.edit().apply {
             prefs.all.keys.filter {
-                it.startsWith(KEY_VOTE_PREFIX) || it.startsWith(KEY_VOTE_TYPE_PREFIX)
+                it.startsWith(KEY_VOTE_PREFIX) || it.startsWith(KEY_VOTE_TYPE_PREFIX) ||
+                it.startsWith(KEY_USER_VOTE_PREFIX) || it.startsWith(KEY_USER_VOTE_TIME_PREFIX)
             }.forEach { remove(it) }
         }.apply()
         Log.d(TAG, "🗑️ Cleared all votes")
+    }
+
+    // ========================================
+    // ✅ NEW: USER-BASED VOTE TRACKING
+    // (Migration from device-based to user-based voting)
+    // ========================================
+
+    /**
+     * Record vote for authenticated user (separate from device votes)
+     * Stored as: "user_vote_{userId}_{dealId}" = "hot"/"cold"
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @param voteType "hot" or "cold"
+     */
+    fun recordUserVote(userId: String, dealId: String, voteType: String) {
+        prefs.edit()
+            .putString("$KEY_USER_VOTE_PREFIX${userId}_$dealId", voteType)
+            .putLong("$KEY_USER_VOTE_TIME_PREFIX${userId}_$dealId", System.currentTimeMillis())
+            .apply()
+        Log.d(TAG, "✅ Recorded $voteType vote for user $userId on deal $dealId")
+    }
+
+    /**
+     * Check if user has voted on a deal
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @return true if user has voted on this deal
+     */
+    fun hasUserVoted(userId: String, dealId: String): Boolean {
+        return prefs.contains("$KEY_USER_VOTE_PREFIX${userId}_$dealId")
+    }
+
+    /**
+     * Get user's vote type for a deal
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @return "hot" or "cold" if voted, null otherwise
+     */
+    fun getUserVoteType(userId: String, dealId: String): String? {
+        return prefs.getString("$KEY_USER_VOTE_PREFIX${userId}_$dealId", null)
+    }
+
+    /**
+     * Clear user vote (for error recovery)
+     * Used when API vote fails and we need to revert optimistic update
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     */
+    fun clearUserVote(userId: String, dealId: String) {
+        prefs.edit()
+            .remove("$KEY_USER_VOTE_PREFIX${userId}_$dealId")
+            .remove("$KEY_USER_VOTE_TIME_PREFIX${userId}_$dealId")
+            .apply()
+        Log.d(TAG, "🗑️ Cleared vote for user $userId on deal $dealId")
+    }
+
+    /**
+     * Get timestamp when user voted on deal
+     * Useful for analytics and debugging
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @return Timestamp in milliseconds, or 0 if not voted
+     */
+    fun getUserVoteTimestamp(userId: String, dealId: String): Long {
+        return prefs.getLong("$KEY_USER_VOTE_TIME_PREFIX${userId}_$dealId", 0L)
     }
 
     // ========================================

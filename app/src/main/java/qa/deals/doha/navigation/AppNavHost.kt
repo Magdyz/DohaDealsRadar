@@ -208,11 +208,49 @@ fun AppNavHost(
             )
         ) { backStackEntry ->
             val dealId = backStackEntry.arguments?.getString("dealId") ?: ""
+
+            // ✅ NEW: Get authentication state for account navigation
+            val context = LocalContext.current
+            val feedViewModel: FeedViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return FeedViewModel(context) as T
+                    }
+                }
+            )
+            val isAuthenticated by feedViewModel.isAuthenticated.collectAsState()
+            val currentUserRole by feedViewModel.currentUserRole.collectAsState()
+            val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
+
             DetailsScreen(
                 dealId = dealId,
                 onBackClick = { navController.popBackStack() },
                 onReportClick = {
                     navController.navigate(Routes.report(dealId))
+                },
+                // ✅ NEW: Navigate to account/login screen (same logic as FeedScreen)
+                onAccountClick = {
+                    when {
+                        !isAuthenticated -> {
+                            // Not logged in → Login screen
+                            navController.navigate(Routes.LOGIN)
+                        }
+                        currentUserRole == "admin" || currentUserRole == "moderator" -> {
+                            // Moderator/Admin → Check if first time
+                            if (!deviceIdManager.hasSeenAccountScreen()) {
+                                // First time → Show account screen
+                                navController.navigate(Routes.ACCOUNT)
+                            } else {
+                                // Subsequent times → Show dashboard
+                                navController.navigate(Routes.MODERATOR_DASHBOARD)
+                            }
+                        }
+                        else -> {
+                            // Regular user → Account screen
+                            navController.navigate(Routes.ACCOUNT)
+                        }
+                    }
                 }
             )
         }

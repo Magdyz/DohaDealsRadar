@@ -252,31 +252,50 @@ class DealRepository {
     }
 
     // ========================================
-    // ✅ PRESERVED: Cast Vote (No Changes)
+    // ✅ UPDATED: Cast Vote (User-Authenticated)
     // ========================================
     /**
      * Cast a vote on a deal
+     *
+     * MIGRATION: Updated to support user-authenticated voting
+     * - Prioritizes user_id for authenticated users
+     * - Falls back to device_id for legacy support
+     * - Backend performs duplicate vote check
+     *
+     * @param dealId Deal UUID to vote on
+     * @param voteType "hot" or "cold"
+     * @param userId Authenticated user UUID (REQUIRED for authenticated votes)
+     * @param userEmail Alternative to userId (backend looks up user)
+     * @param deviceId Device ID (optional, for analytics/legacy support)
+     * @return ApiEnvelope with updated deal data
      */
     suspend fun castVote(
         dealId: String,
         voteType: String,
-        deviceId: String
+        userId: String? = null,       // ✅ NEW: User ID (preferred)
+        userEmail: String? = null,    // ✅ NEW: User email (alternative)
+        deviceId: String? = null      // ✅ UPDATED: Now optional
     ): ApiEnvelope<DealDto> = withContext(Dispatchers.IO) {
-        Log.d("Repository", "Casting $voteType vote for deal $dealId")
+        val userIdentifier = userId ?: userEmail ?: "anonymous"
+        Log.d("Repository", "Casting $voteType vote for deal $dealId (user: $userIdentifier)")
 
         val request = VoteRequest(
             deal_id = dealId,
             vote_type = voteType,
-            device_id = deviceId
+            user_id = userId,         // ✅ NEW
+            user_email = userEmail,   // ✅ NEW
+            device_id = deviceId      // ✅ Optional
         )
 
         val response = api.castVote(request)
 
-        // Update local cache with new vote counts
+        // ✅ Update local cache with new vote counts (Single Source of Truth)
         if (response.success == true && response.data != null) {
             val entity = response.data.toEntity()
             dealDao.insertDeal(entity)
-            Log.d("Repository", "Vote cast successfully, cache updated")
+            Log.d("Repository", "✅ Vote cast successfully, cache updated")
+        } else {
+            Log.w("Repository", "❌ Vote failed: ${response.error}")
         }
 
         response
