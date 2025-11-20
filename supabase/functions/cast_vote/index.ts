@@ -134,74 +134,7 @@ serve(async (req) => {
 });
 
 // ========================================
-// OLD IMPLEMENTATION (KEPT FOR REFERENCE/ROLLBACK)
+// NOTE: Old implementation preserved in git history
+// Previous commit: 471e7ed
+// To rollback: git show 471e7ed:supabase/functions/cast_vote/index.ts
 // ========================================
-// The code below is the previous implementation that blocked vote switching.
-// It's kept here for easy rollback if issues are discovered.
-// To rollback: Replace the new implementation above with this code.
-/*
-    // OLD: Check for duplicate vote (blocked all repeats)
-    let existingVote = null;
-    if (authenticatedUserId) {
-      const { data, error: checkError } = await supabase
-        .from("votes")
-        .select("*")
-        .eq("deal_id", deal_id)
-        .eq("user_id", authenticatedUserId)
-        .maybeSingle();
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
-      existingVote = data;
-    } else if (device_id) {
-      const { data, error: checkError } = await supabase
-        .from("votes")
-        .select("*")
-        .eq("deal_id", deal_id)
-        .eq("device_id", device_id)
-        .maybeSingle();
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
-      existingVote = data;
-    }
-
-    if (existingVote) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "You have already voted on this deal",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
-    }
-
-    // OLD: Manual insert and count update (non-atomic)
-    const { error: insertError } = await supabase.from("votes").insert([
-      {
-        deal_id,
-        vote_type,
-        user_id: authenticatedUserId || null,
-        device_id: device_id || null,
-      },
-    ]);
-    if (insertError) throw insertError;
-
-    const columnToIncrement = vote_type === "hot" ? "hot_count" : "cold_count";
-    const { data: deal, error: updateError } = await supabase
-      .from("deals")
-      .select("hot_count, cold_count")
-      .eq("id", deal_id)
-      .single();
-    if (updateError) throw updateError;
-
-    const newCount = (deal[columnToIncrement] || 0) + 1;
-    const { error: finalUpdateError } = await supabase
-      .from("deals")
-      .update({ [columnToIncrement]: newCount })
-      .eq("id", deal_id);
-    if (finalUpdateError) throw finalUpdateError;
-*/
