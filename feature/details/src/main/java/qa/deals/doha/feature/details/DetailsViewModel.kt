@@ -148,37 +148,65 @@ class DetailsViewModel(
                 }
 
                 // ========================================
-                // STEP 2: Duplicate Vote Check
+                // STEP 2: Determine Vote Action (NEW/SWITCH/REMOVE)
+                // ✅ UPDATED 2025-11-20: Support vote switching
                 // ========================================
-                if (deviceIdManager.hasUserVoted(userId, dealId)) {
-                    Log.d("Details", "⚠️ User already voted on deal $dealId")
-                    _uiState.value = _uiState.value.copy(
-                        voteError = "You have already voted on this deal"
-                    )
-                    return@launch
-                }
+                val voteAction = deviceIdManager.getVoteAction(userId, dealId, voteType)
+                val actionDescription = deviceIdManager.getVoteActionDescription(userId, dealId, voteType)
+                val existingVoteType = deviceIdManager.getUserVoteType(userId, dealId)
+
+                Log.d("Details", "🗳️ Vote action: $actionDescription")
 
                 // ========================================
-                // STEP 3: Optimistic UI Update
+                // STEP 3: Optimistic UI Update (Based on Action)
+                // ✅ UPDATED 2025-11-20: Handle +1/-1 for switches
                 // ========================================
-                Log.d("Details", "🗳️ Casting $voteType vote (optimistic update)...")
-
                 val currentDeal = _uiState.value.deal ?: return@launch
-                val optimisticDeal = currentDeal.copy(
-                    hotCount = (currentDeal.hotCount ?: 0) + if (voteType == "hot") 1 else 0,
-                    coldCount = (currentDeal.coldCount ?: 0) + if (voteType == "cold") 1 else 0
-                )
+                val currentHotCount = currentDeal.hotCount ?: 0
+                val currentColdCount = currentDeal.coldCount ?: 0
+
+                val optimisticDeal = when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW -> {
+                        // New vote: +1 to selected type
+                        currentDeal.copy(
+                            hotCount = currentHotCount + if (voteType == "hot") 1 else 0,
+                            coldCount = currentColdCount + if (voteType == "cold") 1 else 0
+                        )
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        // Switch vote: -1 from old type, +1 to new type
+                        currentDeal.copy(
+                            hotCount = currentHotCount + if (voteType == "hot") 1 else -1,
+                            coldCount = currentColdCount + if (voteType == "cold") 1 else -1
+                        )
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        // Remove vote: -1 from current type (with floor at 0)
+                        currentDeal.copy(
+                            hotCount = (currentHotCount - if (voteType == "hot") 1 else 0).coerceAtLeast(0),
+                            coldCount = (currentColdCount - if (voteType == "cold") 1 else 0).coerceAtLeast(0)
+                        )
+                    }
+                }
 
                 _uiState.value = _uiState.value.copy(
                     deal = optimisticDeal,
                     voting = true,
                     voteError = null,
-                    hasVoted = true,
-                    userVoteType = voteType
+                    hasVoted = voteAction != qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE,
+                    userVoteType = if (voteAction == qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE) null else voteType
                 )
 
-                // Record vote locally BEFORE API call
-                deviceIdManager.recordUserVote(userId, dealId, voteType)
+                // Update local storage based on action
+                when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW,
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        deviceIdManager.recordUserVote(userId, dealId, voteType)
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+                }
 
                 // ========================================
                 // STEP 4: API Call
@@ -207,16 +235,20 @@ class DetailsViewModel(
                     // ❌ FAILURE: Revert optimistic update
                     Log.e("Details", "❌ Vote failed: ${result.error}")
 
+                    // Revert local storage to previous state
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+
                     _uiState.value = _uiState.value.copy(
-                        deal = currentDeal,
+                        deal = currentDeal,  // Restore original deal data
                         voting = false,
                         voteError = result.error ?: "Failed to record vote",
-                        hasVoted = false,
-                        userVoteType = null
+                        hasVoted = existingVoteType != null,
+                        userVoteType = existingVoteType
                     )
-
-                    // Clear local vote record
-                    deviceIdManager.clearUserVote(userId, dealId)
                 }
 
             } catch (e: Exception) {
@@ -225,17 +257,25 @@ class DetailsViewModel(
                 // Revert on exception
                 val userId = deviceIdManager.getUserId()
                 val currentDeal = _uiState.value.deal
+                val existingVoteType = if (userId != null) {
+                    deviceIdManager.getUserVoteType(userId, dealId)
+                } else null
 
+                // Restore previous vote state in local storage
                 if (userId != null) {
-                    deviceIdManager.clearUserVote(userId, dealId)
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
                 }
 
                 _uiState.value = _uiState.value.copy(
                     deal = currentDeal,
                     voting = false,
                     voteError = e.message ?: "Network error",
-                    hasVoted = false,
-                    userVoteType = null
+                    hasVoted = existingVoteType != null,
+                    userVoteType = existingVoteType
                 )
             }
         }

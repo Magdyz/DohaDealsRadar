@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     // ========================================
-    // ✅ NEW: Lookup user_id from email if provided
+    // LOOKUP USER_ID FROM EMAIL IF PROVIDED
     // ========================================
     let authenticatedUserId = user_id;
 
@@ -137,7 +137,60 @@ serve(async (req) => {
     // ✅ UPDATED: Check for duplicate vote
     // Checks both user_id (new votes) and device_id (legacy votes)
     // ========================================
-    let existingVote = null;
+    const { data: voteResult, error: voteError } = await supabase
+      .rpc('cast_vote_atomic', {
+        p_deal_id: deal_id,
+        p_vote_type: vote_type,
+        p_user_id: authenticatedUserId || null,
+        p_device_id: device_id || null
+      });
+
+    if (voteError) {
+      console.error("❌ Vote transaction failed:", voteError);
+      throw voteError;
+    }
+
+    // voteResult is array with single row: [{ action, hot_count, cold_count }]
+    const result = voteResult && voteResult.length > 0 ? voteResult[0] : null;
+
+    if (!result) {
+      throw new Error("Vote transaction returned no result");
+    }
+
+    console.log(`✅ Vote ${result.action}: user=${authenticatedUserId || device_id}, deal=${deal_id}, type=${vote_type}`);
+
+    // ========================================
+    // FETCH UPDATED DEAL DATA
+    // ========================================
+    const { data: updatedDeal, error: fetchError } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("id", deal_id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // ========================================
+    // RETURN SUCCESS RESPONSE
+    // ========================================
+    const messages = {
+      'added': `Vote recorded: ${vote_type}`,
+      'switched': `Vote changed to: ${vote_type}`,
+      'removed': `Vote removed`
+    };
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: messages[result.action] || `Vote ${result.action}`,
+        action: result.action,  // ✅ NEW: Tell client what happened
+        data: updatedDeal,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
 
     // PRIMARY CHECK: Check by user_id (for authenticated users)
     console.log(`🔍 Checking for existing vote by user_id: ${authenticatedUserId}`);
@@ -218,54 +271,17 @@ serve(async (req) => {
 
     // Update deal counts
     const columnToIncrement = vote_type === "hot" ? "hot_count" : "cold_count";
-
     const { data: deal, error: updateError } = await supabase
       .from("deals")
       .select("hot_count, cold_count")
       .eq("id", deal_id)
       .single();
-
     if (updateError) throw updateError;
 
     const newCount = (deal[columnToIncrement] || 0) + 1;
-
     const { error: finalUpdateError } = await supabase
       .from("deals")
       .update({ [columnToIncrement]: newCount })
       .eq("id", deal_id);
-
     if (finalUpdateError) throw finalUpdateError;
-
-    // Get updated deal data
-    const { data: updatedDeal, error: fetchError } = await supabase
-      .from("deals")
-      .select("*")
-      .eq("id", deal_id)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Vote recorded: ${vote_type}`,
-        data: updatedDeal,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
-  }
-});
+*/
