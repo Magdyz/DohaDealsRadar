@@ -326,14 +326,34 @@ class FeedViewModel(
     }
 
     // ✅ PRESERVED: Load Vote Status
+    /**
+     * ✅ UPDATED: Load vote status using user-based voting
+     * Migration: device-based → user-based voting
+     */
     private fun loadVoteStatus() {
         viewModelScope.launch {
             deals.collect { dealList ->
                 val votedDeals = mutableMapOf<String, String>()
+                val userId = deviceIdManager.getUserId()
+
                 dealList.forEach { deal ->
-                    if (deviceIdManager.hasVoted(deal.id)) {
-                        deviceIdManager.getVoteType(deal.id)?.let { voteType ->
-                            votedDeals[deal.id] = voteType
+                    val hasVoted = if (userId != null) {
+                        // NEW: Check user-based votes
+                        deviceIdManager.hasUserVoted(userId, deal.id)
+                    } else {
+                        // LEGACY: Fallback to device-based votes for backward compatibility
+                        deviceIdManager.hasVoted(deal.id)
+                    }
+
+                    if (hasVoted) {
+                        val voteType = if (userId != null) {
+                            deviceIdManager.getUserVoteType(userId, deal.id)
+                        } else {
+                            deviceIdManager.getVoteType(deal.id)
+                        }
+
+                        voteType?.let {
+                            votedDeals[deal.id] = it
                         }
                     }
                 }
@@ -490,8 +510,30 @@ class FeedViewModel(
     // ✅ PRESERVED: Vote Status Checks
     fun hasVoted(dealId: String): Boolean = uiState.votedDeals.containsKey(dealId)
     fun getVoteType(dealId: String): String? = uiState.votedDeals[dealId]
-    fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
-    fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
+
+    /**
+     * ✅ FIXED: Get optimistic counts only if vote is in progress
+     * Returns null if optimistic count would match database count (prevents double-counting)
+     */
+    fun getOptimisticHotCount(dealId: String): Int? {
+        val optimistic = uiState.optimisticCounts[dealId]?.first
+        if (optimistic != null) {
+            // Only return optimistic count if different from database count
+            val dbCount = deals.value.find { it.id == dealId }?.hotCount ?: 0
+            return if (optimistic != dbCount) optimistic else null
+        }
+        return null
+    }
+
+    fun getOptimisticColdCount(dealId: String): Int? {
+        val optimistic = uiState.optimisticCounts[dealId]?.second
+        if (optimistic != null) {
+            // Only return optimistic count if different from database count
+            val dbCount = deals.value.find { it.id == dealId }?.coldCount ?: 0
+            return if (optimistic != dbCount) optimistic else null
+        }
+        return null
+    }
 
     // ========================================
     // ✅ UPDATED: Vote HOT with User Authentication + Optimistic Update
@@ -530,15 +572,18 @@ class FeedViewModel(
                 }
 
                 // ========================================
-                // STEP 2: Duplicate Vote Check
+                // STEP 2: Determine Vote Action (NEW/SWITCH/REMOVE)
+                // ✅ UPDATED 2025-11-20: Support vote switching
                 // ========================================
-                if (deviceIdManager.hasUserVoted(userId, dealId)) {
-                    Log.d("Feed", "⚠️ User already voted on deal $dealId")
-                    return@launch
-                }
+                val voteAction = deviceIdManager.getVoteAction(userId, dealId, "hot")
+                val actionDescription = deviceIdManager.getVoteActionDescription(userId, dealId, "hot")
+                val existingVoteType = deviceIdManager.getUserVoteType(userId, dealId)
+
+                Log.d("Feed", "🗳️ Vote action: $actionDescription")
 
                 // ========================================
-                // STEP 3: Optimistic UI Update
+                // STEP 3: Optimistic UI Update (Based on Action)
+                // ✅ UPDATED 2025-11-20: Handle +1/-1 for switches
                 // ========================================
                 val currentDeal = deals.value.find { it.id == dealId }
                 if (currentDeal == null) {
@@ -546,25 +591,52 @@ class FeedViewModel(
                     return@launch
                 }
 
-                val optimisticHotCount = (currentDeal.hotCount ?: 0) + 1
+                val currentHotCount = currentDeal.hotCount ?: 0
                 val currentColdCount = currentDeal.coldCount ?: 0
 
-                Log.d("Feed", "🔥 Optimistic hot vote: $dealId (count: $optimisticHotCount)")
+                val optimisticCounts = when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW -> {
+                        // New vote: +1 to hot
+                        Pair(currentHotCount + 1, currentColdCount)
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        // Switch from cold to hot: -1 cold, +1 hot
+                        Pair(currentHotCount + 1, currentColdCount - 1)
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        // Remove hot vote: -1 hot (with floor at 0)
+                        Pair((currentHotCount - 1).coerceAtLeast(0), currentColdCount)
+                    }
+                }
+
+                Log.d("Feed", "🔥 Optimistic hot vote: $dealId (counts: ${optimisticCounts.first}, ${optimisticCounts.second})")
 
                 // Update UI immediately
                 val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                updatedCounts[dealId] = Pair(optimisticHotCount, currentColdCount)
+                updatedCounts[dealId] = optimisticCounts
 
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
-                updatedVotedDeals[dealId] = "hot"
+                if (voteAction == qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE) {
+                    updatedVotedDeals.remove(dealId)
+                } else {
+                    updatedVotedDeals[dealId] = "hot"
+                }
 
                 uiState = uiState.copy(
                     optimisticCounts = updatedCounts,
                     votedDeals = updatedVotedDeals
                 )
 
-                // Record locally BEFORE API call (for offline resilience)
-                deviceIdManager.recordUserVote(userId, dealId, "hot")
+                // Update local storage based on action
+                when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW,
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        deviceIdManager.recordUserVote(userId, dealId, "hot")
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+                }
 
                 // ========================================
                 // STEP 4: API Call
@@ -581,45 +653,71 @@ class FeedViewModel(
                 // STEP 5: Handle Response
                 // ========================================
                 if (result.success == true) {
-                    // ✅ SUCCESS: Clear optimistic state (server data is now source of truth)
+                    // ✅ SUCCESS: Wait for database to update, then clear optimistic state
                     Log.d("Feed", "✅ Hot vote recorded successfully")
+
+                    // Small delay to ensure database Flow has updated
+                    // This prevents UI flashing when optimistic count is removed before DB update
+                    kotlinx.coroutines.delay(300)
 
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
 
                 } else {
-                    // ❌ FAILURE: Revert optimistic changes
+                    // ❌ FAILURE: Revert optimistic changes to previous state
                     Log.e("Feed", "❌ Vote failed: ${result.error}")
 
+                    // Revert local storage to previous state
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+
+                    // Revert UI to show previous state
                     val revertedCounts = uiState.optimisticCounts.toMutableMap()
                     revertedCounts.remove(dealId)
 
                     val revertedVotedDeals = uiState.votedDeals.toMutableMap()
-                    revertedVotedDeals.remove(dealId)
+                    if (existingVoteType != null) {
+                        revertedVotedDeals[dealId] = existingVoteType
+                    } else {
+                        revertedVotedDeals.remove(dealId)
+                    }
 
                     uiState = uiState.copy(
                         optimisticCounts = revertedCounts,
                         votedDeals = revertedVotedDeals
                     )
-
-                    // Clear local vote record
-                    deviceIdManager.clearUserVote(userId, dealId)
                 }
 
             } catch (e: Exception) {
                 Log.e("Feed", "❌ Vote exception: ${e.message}", e)
 
-                // Revert on exception
+                // Revert on exception to previous state
                 val userId = deviceIdManager.getUserId()
+                val existingVoteType = if (userId != null) {
+                    deviceIdManager.getUserVoteType(userId, dealId)
+                } else null
+
                 if (userId != null) {
-                    deviceIdManager.clearUserVote(userId, dealId)
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
                 }
 
                 val revertedCounts = uiState.optimisticCounts.toMutableMap()
                 revertedCounts.remove(dealId)
+
                 val revertedVotedDeals = uiState.votedDeals.toMutableMap()
-                revertedVotedDeals.remove(dealId)
+                if (existingVoteType != null) {
+                    revertedVotedDeals[dealId] = existingVoteType
+                } else {
+                    revertedVotedDeals.remove(dealId)
+                }
 
                 uiState = uiState.copy(
                     optimisticCounts = revertedCounts,
@@ -648,29 +746,70 @@ class FeedViewModel(
                     return@launch
                 }
 
-                if (deviceIdManager.hasUserVoted(userId, dealId)) {
-                    return@launch
-                }
+                // ========================================
+                // STEP 2: Determine Vote Action (NEW/SWITCH/REMOVE)
+                // ✅ UPDATED 2025-11-20: Support vote switching
+                // ========================================
+                val voteAction = deviceIdManager.getVoteAction(userId, dealId, "cold")
+                val actionDescription = deviceIdManager.getVoteActionDescription(userId, dealId, "cold")
+                val existingVoteType = deviceIdManager.getUserVoteType(userId, dealId)
 
+                Log.d("Feed", "🗳️ Vote action: $actionDescription")
+
+                // ========================================
+                // STEP 3: Optimistic UI Update (Based on Action)
+                // ✅ UPDATED 2025-11-20: Handle +1/-1 for switches
+                // ========================================
                 val currentDeal = deals.value.find { it.id == dealId } ?: return@launch
                 val currentHotCount = currentDeal.hotCount ?: 0
-                val optimisticColdCount = (currentDeal.coldCount ?: 0) + 1
+                val currentColdCount = currentDeal.coldCount ?: 0
 
-                Log.d("Feed", "❄️ Optimistic cold vote: $dealId (count: $optimisticColdCount)")
+                val optimisticCounts = when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW -> {
+                        // New vote: +1 to cold
+                        Pair(currentHotCount, currentColdCount + 1)
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        // Switch from hot to cold: -1 hot, +1 cold
+                        Pair(currentHotCount - 1, currentColdCount + 1)
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        // Remove cold vote: -1 cold (with floor at 0)
+                        Pair(currentHotCount, (currentColdCount - 1).coerceAtLeast(0))
+                    }
+                }
+
+                Log.d("Feed", "❄️ Optimistic cold vote: $dealId (counts: ${optimisticCounts.first}, ${optimisticCounts.second})")
 
                 val updatedCounts = uiState.optimisticCounts.toMutableMap()
-                updatedCounts[dealId] = Pair(currentHotCount, optimisticColdCount)
+                updatedCounts[dealId] = optimisticCounts
 
                 val updatedVotedDeals = uiState.votedDeals.toMutableMap()
-                updatedVotedDeals[dealId] = "cold"
+                if (voteAction == qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE) {
+                    updatedVotedDeals.remove(dealId)
+                } else {
+                    updatedVotedDeals[dealId] = "cold"
+                }
 
                 uiState = uiState.copy(
                     optimisticCounts = updatedCounts,
                     votedDeals = updatedVotedDeals
                 )
 
-                deviceIdManager.recordUserVote(userId, dealId, "cold")
+                // Update local storage based on action
+                when (voteAction) {
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.NEW,
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.SWITCH -> {
+                        deviceIdManager.recordUserVote(userId, dealId, "cold")
+                    }
+                    qa.deals.doha.datastore.DeviceIdManager.VoteAction.REMOVE -> {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+                }
 
+                // ========================================
+                // STEP 4: API Call
+                // ========================================
                 val result = repo.castVote(
                     dealId = dealId,
                     voteType = "cold",
@@ -679,36 +818,74 @@ class FeedViewModel(
                     deviceId = deviceIdManager.getDeviceId()
                 )
 
+                // ========================================
+                // STEP 5: Handle Response
+                // ========================================
                 if (result.success == true) {
+                    // ✅ SUCCESS: Wait for database to update, then clear optimistic state
+                    Log.d("Feed", "✅ Cold vote recorded successfully")
+
+                    // Small delay to ensure database Flow has updated
+                    kotlinx.coroutines.delay(300)
+
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
+
                 } else {
-                    // Revert on failure
+                    // ❌ FAILURE: Revert optimistic changes to previous state
+                    Log.e("Feed", "❌ Vote failed: ${result.error}")
+
+                    // Revert local storage to previous state
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
+
+                    // Revert UI to show previous state
                     val revertedCounts = uiState.optimisticCounts.toMutableMap()
                     revertedCounts.remove(dealId)
+
                     val revertedVotedDeals = uiState.votedDeals.toMutableMap()
-                    revertedVotedDeals.remove(dealId)
+                    if (existingVoteType != null) {
+                        revertedVotedDeals[dealId] = existingVoteType
+                    } else {
+                        revertedVotedDeals.remove(dealId)
+                    }
 
                     uiState = uiState.copy(
                         optimisticCounts = revertedCounts,
                         votedDeals = revertedVotedDeals
                     )
-
-                    deviceIdManager.clearUserVote(userId, dealId)
                 }
 
             } catch (e: Exception) {
                 Log.e("Feed", "❌ Vote exception: ${e.message}", e)
+
+                // Revert on exception to previous state
                 val userId = deviceIdManager.getUserId()
+                val existingVoteType = if (userId != null) {
+                    deviceIdManager.getUserVoteType(userId, dealId)
+                } else null
+
                 if (userId != null) {
-                    deviceIdManager.clearUserVote(userId, dealId)
+                    if (existingVoteType != null) {
+                        deviceIdManager.recordUserVote(userId, dealId, existingVoteType)
+                    } else {
+                        deviceIdManager.clearUserVote(userId, dealId)
+                    }
                 }
 
                 val revertedCounts = uiState.optimisticCounts.toMutableMap()
                 revertedCounts.remove(dealId)
+
                 val revertedVotedDeals = uiState.votedDeals.toMutableMap()
-                revertedVotedDeals.remove(dealId)
+                if (existingVoteType != null) {
+                    revertedVotedDeals[dealId] = existingVoteType
+                } else {
+                    revertedVotedDeals.remove(dealId)
+                }
 
                 uiState = uiState.copy(
                     optimisticCounts = revertedCounts,
