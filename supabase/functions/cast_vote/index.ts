@@ -17,28 +17,74 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { deal_id, vote_type, device_id } = await req.json();
+    const { deal_id, vote_type, device_id, user_id, user_email } = await req.json();
 
-    // Validate input
-    if (!deal_id || !vote_type || !device_id) {
-      throw new Error("Missing required fields: deal_id, vote_type, device_id");
+    // ========================================
+    // ✅ UPDATED: Validate input (prioritize user_id over device_id)
+    // ========================================
+    if (!deal_id || !vote_type) {
+      throw new Error("Missing required fields: deal_id, vote_type");
+    }
+
+    const isAuthenticated = !!(user_id || user_email);
+    if (!isAuthenticated && !device_id) {
+      throw new Error("Either user_id/user_email or device_id is required");
     }
 
     if (vote_type !== "hot" && vote_type !== "cold") {
       throw new Error("vote_type must be 'hot' or 'cold'");
     }
 
-    // Check if device already voted on this deal
-    const { data: existingVote, error: checkError } = await supabase
-      .from("votes")
-      .select("*")
-      .eq("deal_id", deal_id)
-      .eq("device_id", device_id)
-      .single();
+    // ========================================
+    // ✅ NEW: Lookup user_id from email if provided
+    // ========================================
+    let authenticatedUserId = user_id;
+    if (!authenticatedUserId && user_email) {
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", user_email)
+        .eq("email_verified", true)
+        .maybeSingle();
 
-    if (checkError && checkError.code !== "PGRST116") {
-      // PGRST116 = no rows found, which is fine
-      throw checkError;
+      if (user) {
+        authenticatedUserId = user.id;
+      } else {
+        console.log(`⚠️ Email ${user_email} not found or not verified`);
+      }
+    }
+
+    // ========================================
+    // ✅ UPDATED: Check for duplicate vote (prioritize user_id)
+    // ========================================
+    let existingVote = null;
+
+    if (authenticatedUserId) {
+      // Check by user_id (authenticated vote)
+      const { data, error: checkError } = await supabase
+        .from("votes")
+        .select("*")
+        .eq("deal_id", deal_id)
+        .eq("user_id", authenticatedUserId)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        throw checkError;
+      }
+      existingVote = data;
+    } else if (device_id) {
+      // Fallback: Check by device_id (legacy support)
+      const { data, error: checkError } = await supabase
+        .from("votes")
+        .select("*")
+        .eq("deal_id", deal_id)
+        .eq("device_id", device_id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        throw checkError;
+      }
+      existingVote = data;
     }
 
     if (existingVote) {
@@ -54,12 +100,15 @@ serve(async (req) => {
       );
     }
 
-    // Record the vote
+    // ========================================
+    // ✅ UPDATED: Record the vote with user_id
+    // ========================================
     const { error: insertError } = await supabase.from("votes").insert([
       {
         deal_id,
         vote_type,
-        device_id,
+        user_id: authenticatedUserId || null,  // ✅ NEW: Store user_id
+        device_id: device_id || null,           // Keep for analytics/legacy
       },
     ]);
 
