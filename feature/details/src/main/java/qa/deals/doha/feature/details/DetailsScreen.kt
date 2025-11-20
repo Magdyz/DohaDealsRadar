@@ -465,9 +465,9 @@ private fun DealDetailsContent(
                                     else Modifier
                                 )
                                 .clickable(
-                                    enabled = !uiState.hasVoted && !uiState.isArchived,
+                                    enabled = !uiState.isArchived,
                                     onClick = {
-                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("hot")
+                                        if (!uiState.isArchived) onVote("hot")
                                     }
 
                                 ),
@@ -507,9 +507,9 @@ private fun DealDetailsContent(
                                     else Modifier
                                 )
                                 .clickable(
-                                    enabled = !uiState.hasVoted && !uiState.isArchived,
+                                    enabled = !uiState.isArchived,
                                     onClick = {
-                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("cold")
+                                        if (!uiState.isArchived) onVote("cold")
                                     }
                                 ),
                             contentAlignment = Alignment.Center

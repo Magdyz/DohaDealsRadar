@@ -191,97 +191,17 @@ serve(async (req) => {
         status: 200,
       }
     );
-
-    // PRIMARY CHECK: Check by user_id (for authenticated users)
-    console.log(`🔍 Checking for existing vote by user_id: ${authenticatedUserId}`);
-    const { data: userVote, error: userCheckError } = await supabase
-      .from("votes")
-      .select("*")
-      .eq("deal_id", deal_id)
-      .eq("user_id", authenticatedUserId)
-      .maybeSingle();
-
-    if (userCheckError && userCheckError.code !== "PGRST116") {
-      throw userCheckError;
-    }
-
-    if (userVote) {
-      console.log(`⚠️ User already voted on this deal (vote_id: ${userVote.id})`);
-      existingVote = userVote;
-    }
-
-    // SECONDARY CHECK: Also check device_id for legacy votes
-    // (User may have voted before authentication was required)
-    if (!existingVote && device_id) {
-      console.log(`🔍 Also checking for legacy vote by device_id: ${device_id}`);
-      const { data: deviceVote, error: deviceCheckError } = await supabase
-        .from("votes")
-        .select("*")
-        .eq("deal_id", deal_id)
-        .eq("device_id", device_id)
-        .maybeSingle();
-
-      if (deviceCheckError && deviceCheckError.code !== "PGRST116") {
-        throw deviceCheckError;
+  } catch (error) {
+    console.error("Error in cast_vote:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || "An error occurred while processing your vote",
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
       }
-
-      if (deviceVote) {
-        console.log(`⚠️ Device already voted on this deal (legacy vote_id: ${deviceVote.id})`);
-        existingVote = deviceVote;
-      }
-    }
-
-    if (existingVote) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "You have already voted on this deal",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
-    }
-
-    // ========================================
-    // ✅ UPDATED: Record the vote with user_id (REQUIRED)
-    // device_id is optional (kept for analytics)
-    // ========================================
-    // Log the vote attempt for debugging
-    console.log(`Received vote request: deal=${deal_id}, type=${vote_type}`);
-    console.log(`  user_id=${user_id}, user_email=${user_email}, device_id=${device_id}`);
-
-    // Prepare vote data: prioritize user_id, keep device_id for analytics only if user_id present
-    const voteData: any = {
-      deal_id,
-      vote_type,
-      user_id: authenticatedUserId || null,
-      // Store device_id for analytics (it's now allowed alongside user_id)
-      device_id: device_id || null,
-    };
-
-    console.log(`Inserting vote with user_id=${voteData.user_id}, device_id=${voteData.device_id}`);
-
-    const { data: insertedVote, error: insertError } = await supabase.from("votes").insert([voteData]).select();
-
-    if (insertError) throw insertError;
-
-    console.log(`✅ Vote inserted successfully:`, insertedVote);
-
-    // Update deal counts
-    const columnToIncrement = vote_type === "hot" ? "hot_count" : "cold_count";
-    const { data: deal, error: updateError } = await supabase
-      .from("deals")
-      .select("hot_count, cold_count")
-      .eq("id", deal_id)
-      .single();
-    if (updateError) throw updateError;
-
-    const newCount = (deal[columnToIncrement] || 0) + 1;
-    const { error: finalUpdateError } = await supabase
-      .from("deals")
-      .update({ [columnToIncrement]: newCount })
-      .eq("id", deal_id);
-    if (finalUpdateError) throw finalUpdateError;
-*/
+    );
+  }
+});

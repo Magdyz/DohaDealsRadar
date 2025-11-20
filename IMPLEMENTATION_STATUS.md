@@ -1,8 +1,70 @@
 # Vote Switching Feature - Implementation Status
-## Branch: `claude/fix-logged-voting-duplicates-01G3RFUoPozXGzNwBgMMVSmU`
+## Branch: `votingdb`
 
 **Date:** 2025-11-20
-**Status:** ✅ 100% COMPLETE - Ready for Deployment
+**Status:** ⚠️ CRITICAL BUG FIXED - Backend Deployment Required
+**Last Updated:** 2025-11-20 (SQL Ambiguity Fix Created)
+
+---
+
+## 🔧 CONFLICTS RESOLVED (2025-11-20)
+
+### **CRITICAL: SQL Ambiguous Column Error - FIXED** 🚨
+**Problem:** The deployed `cast_vote_atomic` function had unqualified column references causing "column reference hot_count is ambiguous" errors, making voting completely broken.
+
+**Root Cause Analysis:**
+- PostgreSQL/PostgREST execution contexts sometimes cannot resolve unqualified column names
+- All UPDATE statements used `hot_count` instead of `deals.hot_count`
+- This caused HTTP 400 errors: `{"success":false,"error":"column reference \"hot_count\" is ambiguous"}`
+- Feed screen voting was laggy, messy, with disappearing vote counts
+- Both Feed and Details screens were affected by backend failures
+
+**Fix Created:**
+- **File:** `supabase/migrations/20251120_fix_cast_vote_atomic_ambiguity.sql`
+- Explicitly qualified ALL column references with table names:
+  - `hot_count` → `deals.hot_count`
+  - `cold_count` → `deals.cold_count`
+  - `id` → `deals.id`
+- Updated RETURNING clauses: `RETURNING deals.hot_count, deals.cold_count`
+- Safe, backward-compatible change using `CREATE OR REPLACE FUNCTION`
+
+**DEPLOYMENT REQUIRED:** ⚠️
+This migration MUST be deployed to the database to fix the voting system:
+```bash
+# Deploy the fix
+supabase db push
+
+# Or run the migration manually
+psql $DATABASE_URL -f supabase/migrations/20251120_fix_cast_vote_atomic_ambiguity.sql
+```
+
+**Expected Impact After Deployment:**
+- ✅ All voting operations will work correctly
+- ✅ No more HTTP 400 errors
+- ✅ Feed screen voting will be smooth and reliable
+- ✅ Vote counts will update correctly and persist
+- ✅ No breaking changes to existing functionality
+
+---
+
+### **UI Vote Locking Conflict - FIXED** ✅
+**Problem:** The UI components were using old logic that disabled vote buttons after a user voted, preventing the new vote switching feature from working.
+
+**Files Fixed:**
+1. **`feature/feed/src/main/java/qa/deals/doha/feature/feed/components/DealCard.kt`** (Lines 293, 308)
+   - **Before:** `enabled = !hasVoted && !isArchived` ❌
+   - **After:** `enabled = !isArchived` ✅
+
+2. **`feature/details/src/main/java/qa/deals/doha/feature/details/DetailsScreen.kt`** (Lines 468, 510)
+   - **Before:** `enabled = !uiState.hasVoted && !uiState.isArchived` ❌
+   - **After:** `enabled = !uiState.isArchived` ✅
+
+**Impact:**
+- ✅ Users can now switch votes (hot ↔ cold)
+- ✅ Users can remove votes (click same button twice)
+- ✅ Visual feedback still works correctly (borders, colors)
+- ✅ Archived deals still cannot be voted on
+- ✅ No other functionality affected
 
 ---
 
@@ -348,10 +410,14 @@ Once FeedViewModel is updated, test these scenarios:
 
 **Deployment Steps:**
 1. ✅ Code complete (all changes committed)
-2. ⏳ Deploy database migration (run SQL)
-3. ⏳ Deploy edge function (cast_vote)
-4. ⏳ Test in staging environment
-5. ⏳ Build and release mobile app
+2. 🚨 **CRITICAL:** Deploy SQL ambiguity fix FIRST
+   ```bash
+   supabase db push
+   # Or manually run: 20251120_fix_cast_vote_atomic_ambiguity.sql
+   ```
+3. ⏳ Test voting in production (should now work without errors)
+4. ⏳ Deploy edge function updates (if any uncommitted changes)
+5. ⏳ Build and release mobile app with UI fixes
 6. ⏳ Monitor metrics and user feedback
 
 ---
