@@ -223,8 +223,12 @@ class DetailsViewModel(
                 // STEP 5: Handle Response
                 // ========================================
                 if (result.success == true) {
-                    Log.d("Details", "✅ Vote ${voteAction.name.lowercase()} successful")
-                    // Repository already updated cache with real data
+                    Log.d("Details", "✅ Vote recorded successfully")
+
+                    // Wait for database to propagate, then clear optimistic state
+                    kotlinx.coroutines.delay(300)
+
+                    // Don't need to update deal - loadDeal() Flow will handle it
                     _uiState.value = _uiState.value.copy(voting = false)
 
                 } else {
