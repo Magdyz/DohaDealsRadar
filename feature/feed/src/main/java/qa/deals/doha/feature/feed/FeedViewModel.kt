@@ -326,14 +326,34 @@ class FeedViewModel(
     }
 
     // ✅ PRESERVED: Load Vote Status
+    /**
+     * ✅ UPDATED: Load vote status using user-based voting
+     * Migration: device-based → user-based voting
+     */
     private fun loadVoteStatus() {
         viewModelScope.launch {
             deals.collect { dealList ->
                 val votedDeals = mutableMapOf<String, String>()
+                val userId = deviceIdManager.getUserId()
+
                 dealList.forEach { deal ->
-                    if (deviceIdManager.hasVoted(deal.id)) {
-                        deviceIdManager.getVoteType(deal.id)?.let { voteType ->
-                            votedDeals[deal.id] = voteType
+                    val hasVoted = if (userId != null) {
+                        // NEW: Check user-based votes
+                        deviceIdManager.hasUserVoted(userId, deal.id)
+                    } else {
+                        // LEGACY: Fallback to device-based votes for backward compatibility
+                        deviceIdManager.hasVoted(deal.id)
+                    }
+
+                    if (hasVoted) {
+                        val voteType = if (userId != null) {
+                            deviceIdManager.getUserVoteType(userId, deal.id)
+                        } else {
+                            deviceIdManager.getVoteType(deal.id)
+                        }
+
+                        voteType?.let {
+                            votedDeals[deal.id] = it
                         }
                     }
                 }
@@ -490,8 +510,30 @@ class FeedViewModel(
     // ✅ PRESERVED: Vote Status Checks
     fun hasVoted(dealId: String): Boolean = uiState.votedDeals.containsKey(dealId)
     fun getVoteType(dealId: String): String? = uiState.votedDeals[dealId]
-    fun getOptimisticHotCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.first
-    fun getOptimisticColdCount(dealId: String): Int? = uiState.optimisticCounts[dealId]?.second
+
+    /**
+     * ✅ FIXED: Get optimistic counts only if vote is in progress
+     * Returns null if optimistic count would match database count (prevents double-counting)
+     */
+    fun getOptimisticHotCount(dealId: String): Int? {
+        val optimistic = uiState.optimisticCounts[dealId]?.first
+        if (optimistic != null) {
+            // Only return optimistic count if different from database count
+            val dbCount = deals.value.find { it.id == dealId }?.hotCount ?: 0
+            return if (optimistic != dbCount) optimistic else null
+        }
+        return null
+    }
+
+    fun getOptimisticColdCount(dealId: String): Int? {
+        val optimistic = uiState.optimisticCounts[dealId]?.second
+        if (optimistic != null) {
+            // Only return optimistic count if different from database count
+            val dbCount = deals.value.find { it.id == dealId }?.coldCount ?: 0
+            return if (optimistic != dbCount) optimistic else null
+        }
+        return null
+    }
 
     // ========================================
     // ✅ UPDATED: Vote HOT with User Authentication + Optimistic Update
@@ -611,8 +653,12 @@ class FeedViewModel(
                 // STEP 5: Handle Response
                 // ========================================
                 if (result.success == true) {
-                    // ✅ SUCCESS: Clear optimistic state (server data is now source of truth)
-                    Log.d("Feed", "✅ Vote ${voteAction.name.lowercase()} successful")
+                    // ✅ SUCCESS: Wait for database to update, then clear optimistic state
+                    Log.d("Feed", "✅ Hot vote recorded successfully")
+
+                    // Small delay to ensure database Flow has updated
+                    // This prevents UI flashing when optimistic count is removed before DB update
+                    kotlinx.coroutines.delay(300)
 
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
@@ -776,7 +822,12 @@ class FeedViewModel(
                 // STEP 5: Handle Response
                 // ========================================
                 if (result.success == true) {
-                    Log.d("Feed", "✅ Vote ${voteAction.name.lowercase()} successful")
+                    // ✅ SUCCESS: Wait for database to update, then clear optimistic state
+                    Log.d("Feed", "✅ Cold vote recorded successfully")
+
+                    // Small delay to ensure database Flow has updated
+                    kotlinx.coroutines.delay(300)
+
                     val clearedCounts = uiState.optimisticCounts.toMutableMap()
                     clearedCounts.remove(dealId)
                     uiState = uiState.copy(optimisticCounts = clearedCounts)
