@@ -326,14 +326,34 @@ class FeedViewModel(
     }
 
     // ✅ PRESERVED: Load Vote Status
+    /**
+     * ✅ UPDATED: Load vote status using user-based voting
+     * Migration: device-based → user-based voting
+     */
     private fun loadVoteStatus() {
         viewModelScope.launch {
             deals.collect { dealList ->
                 val votedDeals = mutableMapOf<String, String>()
+                val userId = deviceIdManager.getUserId()
+
                 dealList.forEach { deal ->
-                    if (deviceIdManager.hasVoted(deal.id)) {
-                        deviceIdManager.getVoteType(deal.id)?.let { voteType ->
-                            votedDeals[deal.id] = voteType
+                    val hasVoted = if (userId != null) {
+                        // NEW: Check user-based votes
+                        deviceIdManager.hasUserVoted(userId, deal.id)
+                    } else {
+                        // LEGACY: Fallback to device-based votes for backward compatibility
+                        deviceIdManager.hasVoted(deal.id)
+                    }
+
+                    if (hasVoted) {
+                        val voteType = if (userId != null) {
+                            deviceIdManager.getUserVoteType(userId, deal.id)
+                        } else {
+                            deviceIdManager.getVoteType(deal.id)
+                        }
+
+                        voteType?.let {
+                            votedDeals[deal.id] = it
                         }
                     }
                 }

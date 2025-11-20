@@ -1,3 +1,28 @@
+/**
+ * ========================================
+ * CAST VOTE EDGE FUNCTION
+ * ========================================
+ *
+ * UPDATED: 2025-11-20
+ * - user_id is now REQUIRED for all new votes
+ * - Legacy votes with device_id only are preserved
+ * - Checks both user_id and device_id for duplicate detection
+ * - Comprehensive logging for debugging
+ *
+ * Request Body:
+ * - deal_id: string (required)
+ * - vote_type: "hot" | "cold" (required)
+ * - user_id: string (REQUIRED - authenticated user UUID)
+ * - user_email: string (optional - alternative to user_id)
+ * - device_id: string (optional - kept for analytics)
+ *
+ * Response:
+ * - success: boolean
+ * - message: string
+ * - data: updated deal object (if success)
+ * - error: string (if failure)
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,15 +45,27 @@ serve(async (req) => {
     const { deal_id, vote_type, device_id, user_id, user_email } = await req.json();
 
     // ========================================
-    // ✅ UPDATED: Validate input (prioritize user_id over device_id)
+    // 📊 LOGGING: Log incoming request details
+    // ========================================
+    console.log(`📩 Received vote request:`);
+    console.log(`   deal_id: ${deal_id}`);
+    console.log(`   vote_type: ${vote_type}`);
+    console.log(`   user_id: ${user_id || 'null'}`);
+    console.log(`   user_email: ${user_email || 'null'}`);
+    console.log(`   device_id: ${device_id || 'null'}`);
+
+    // ========================================
+    // ✅ UPDATED: Validate input - user_id is now REQUIRED
     // ========================================
     if (!deal_id || !vote_type) {
       throw new Error("Missing required fields: deal_id, vote_type");
     }
 
+    // ✅ NEW POLICY: user_id (or user_email) is now REQUIRED for new votes
     const isAuthenticated = !!(user_id || user_email);
-    if (!isAuthenticated && !device_id) {
-      throw new Error("Either user_id/user_email or device_id is required");
+    if (!isAuthenticated) {
+      console.log(`❌ Vote rejected: No user_id or user_email provided`);
+      throw new Error("Authentication required: user_id or user_email must be provided");
     }
 
     if (vote_type !== "hot" && vote_type !== "cold") {
@@ -58,43 +95,87 @@ serve(async (req) => {
         authenticatedUserId = user.id;
         console.log(`Found user_id from email: ${authenticatedUserId}`);
       } else {
-        console.log(`⚠️ Email ${user_email} not found or not verified`);
+        console.log(`❌ Email ${user_email} not found or not verified`);
+        throw new Error(`User with email ${user_email} not found or not verified`);
       }
     } else if (authenticatedUserId) {
       console.log(`Using provided user_id: ${authenticatedUserId}`);
     }
 
     // ========================================
-    // ✅ UPDATED: Check for duplicate vote (prioritize user_id)
+    // ✅ VALIDATION: Ensure we have a valid user_id
+    // ========================================
+    if (!authenticatedUserId) {
+      console.log(`❌ No valid user_id found after authentication checks`);
+      throw new Error("Failed to authenticate user: no valid user_id");
+    }
+
+    console.log(`✅ Authenticated user_id: ${authenticatedUserId}`);
+
+    // ========================================
+    // ✅ VALIDATION: Verify user exists in database
+    // ========================================
+    const { data: userExists, error: userExistsError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", authenticatedUserId)
+      .maybeSingle();
+
+    if (userExistsError) {
+      console.log(`❌ Error checking if user exists: ${userExistsError.message}`);
+      throw new Error(`Failed to verify user: ${userExistsError.message}`);
+    }
+
+    if (!userExists) {
+      console.log(`❌ User ${authenticatedUserId} does not exist in database`);
+      throw new Error(`User ${authenticatedUserId} not found`);
+    }
+
+    console.log(`✅ User verified in database`);
+
+    // ========================================
+    // ✅ UPDATED: Check for duplicate vote
+    // Checks both user_id (new votes) and device_id (legacy votes)
     // ========================================
     let existingVote = null;
 
-    if (authenticatedUserId) {
-      // Check by user_id (authenticated vote)
-      const { data, error: checkError } = await supabase
-        .from("votes")
-        .select("*")
-        .eq("deal_id", deal_id)
-        .eq("user_id", authenticatedUserId)
-        .maybeSingle();
+    // PRIMARY CHECK: Check by user_id (for authenticated users)
+    console.log(`🔍 Checking for existing vote by user_id: ${authenticatedUserId}`);
+    const { data: userVote, error: userCheckError } = await supabase
+      .from("votes")
+      .select("*")
+      .eq("deal_id", deal_id)
+      .eq("user_id", authenticatedUserId)
+      .maybeSingle();
 
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
-      existingVote = data;
-    } else if (device_id) {
-      // Fallback: Check by device_id (legacy support)
-      const { data, error: checkError } = await supabase
+    if (userCheckError && userCheckError.code !== "PGRST116") {
+      throw userCheckError;
+    }
+
+    if (userVote) {
+      console.log(`⚠️ User already voted on this deal (vote_id: ${userVote.id})`);
+      existingVote = userVote;
+    }
+
+    // SECONDARY CHECK: Also check device_id for legacy votes
+    // (User may have voted before authentication was required)
+    if (!existingVote && device_id) {
+      console.log(`🔍 Also checking for legacy vote by device_id: ${device_id}`);
+      const { data: deviceVote, error: deviceCheckError } = await supabase
         .from("votes")
         .select("*")
         .eq("deal_id", deal_id)
         .eq("device_id", device_id)
         .maybeSingle();
 
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
+      if (deviceCheckError && deviceCheckError.code !== "PGRST116") {
+        throw deviceCheckError;
       }
-      existingVote = data;
+
+      if (deviceVote) {
+        console.log(`⚠️ Device already voted on this deal (legacy vote_id: ${deviceVote.id})`);
+        existingVote = deviceVote;
+      }
     }
 
     if (existingVote) {
@@ -111,7 +192,8 @@ serve(async (req) => {
     }
 
     // ========================================
-    // ✅ UPDATED: Record the vote with user_id
+    // ✅ UPDATED: Record the vote with user_id (REQUIRED)
+    // device_id is optional (kept for analytics)
     // ========================================
     // Log the vote attempt for debugging
     console.log(`Received vote request: deal=${deal_id}, type=${vote_type}`);
@@ -131,6 +213,8 @@ serve(async (req) => {
     const { error: insertError } = await supabase.from("votes").insert([voteData]);
 
     if (insertError) throw insertError;
+
+    console.log(`✅ Vote inserted successfully:`, insertedVote);
 
     // Update deal counts
     const columnToIncrement = vote_type === "hot" ? "hot_count" : "cold_count";
