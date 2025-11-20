@@ -210,7 +210,7 @@ serve(async (req) => {
 
     console.log(`Inserting vote with user_id=${voteData.user_id}, device_id=${voteData.device_id}`);
 
-    const { error: insertError } = await supabase.from("votes").insert([voteData]);
+    const { data: insertedVote, error: insertError } = await supabase.from("votes").insert([voteData]).select();
 
     if (insertError) throw insertError;
 
