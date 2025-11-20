@@ -77,6 +77,7 @@ serve(async (req) => {
     // ========================================
     let authenticatedUserId = user_id;
     if (!authenticatedUserId && user_email) {
+      console.log(`🔍 Looking up user by email: ${user_email}`);
       const { data: user, error: userError } = await supabase
         .from("users")
         .select("id")
@@ -86,10 +87,43 @@ serve(async (req) => {
 
       if (user) {
         authenticatedUserId = user.id;
+        console.log(`✅ Found user_id from email: ${authenticatedUserId}`);
       } else {
-        console.log(`⚠️ Email ${user_email} not found or not verified`);
+        console.log(`❌ Email ${user_email} not found or not verified`);
+        throw new Error(`User with email ${user_email} not found or not verified`);
       }
     }
+
+    // ========================================
+    // ✅ VALIDATION: Ensure we have a valid user_id
+    // ========================================
+    if (!authenticatedUserId) {
+      console.log(`❌ No valid user_id found after authentication checks`);
+      throw new Error("Failed to authenticate user: no valid user_id");
+    }
+
+    console.log(`✅ Authenticated user_id: ${authenticatedUserId}`);
+
+    // ========================================
+    // ✅ VALIDATION: Verify user exists in database
+    // ========================================
+    const { data: userExists, error: userExistsError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", authenticatedUserId)
+      .maybeSingle();
+
+    if (userExistsError) {
+      console.log(`❌ Error checking if user exists: ${userExistsError.message}`);
+      throw new Error(`Failed to verify user: ${userExistsError.message}`);
+    }
+
+    if (!userExists) {
+      console.log(`❌ User ${authenticatedUserId} does not exist in database`);
+      throw new Error(`User ${authenticatedUserId} not found`);
+    }
+
+    console.log(`✅ User verified in database`);
 
     // ========================================
     // ✅ UPDATED: Check for duplicate vote
