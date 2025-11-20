@@ -87,34 +87,128 @@ serve(async (req) => {
       existingVote = data;
     }
 
+    // ========================================
+    // ✅ UPDATED: Handle vote toggle logic
+    // ========================================
     if (existingVote) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "You have already voted on this deal",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
+      // Vote exists - either remove it or switch it
+      if (existingVote.vote_type === vote_type) {
+        // Same vote type - REMOVE the vote
+        const { error: deleteError } = await supabase
+          .from("votes")
+          .delete()
+          .eq("id", existingVote.id);
+
+        if (deleteError) throw deleteError;
+
+        // Decrement the count
+        const columnToDecrement = vote_type === "hot" ? "hot_count" : "cold_count";
+        const { data: deal, error: fetchError } = await supabase
+          .from("deals")
+          .select("hot_count, cold_count")
+          .eq("id", deal_id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        const newCount = Math.max((deal[columnToDecrement] || 0) - 1, 0);
+
+        const { error: updateError } = await supabase
+          .from("deals")
+          .update({ [columnToDecrement]: newCount })
+          .eq("id", deal_id);
+
+        if (updateError) throw updateError;
+
+        // Get updated deal data
+        const { data: updatedDeal, error: finalFetchError } = await supabase
+          .from("deals")
+          .select("*")
+          .eq("id", deal_id)
+          .single();
+
+        if (finalFetchError) throw finalFetchError;
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Vote removed",
+            data: updatedDeal,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
+      } else {
+        // Different vote type - SWITCH the vote
+        const { error: updateError } = await supabase
+          .from("votes")
+          .update({ vote_type })
+          .eq("id", existingVote.id);
+
+        if (updateError) throw updateError;
+
+        // Adjust both counts
+        const { data: deal, error: fetchError } = await supabase
+          .from("deals")
+          .select("hot_count, cold_count")
+          .eq("id", deal_id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        const oldColumn = existingVote.vote_type === "hot" ? "hot_count" : "cold_count";
+        const newColumn = vote_type === "hot" ? "hot_count" : "cold_count";
+
+        const { error: countsUpdateError } = await supabase
+          .from("deals")
+          .update({
+            [oldColumn]: Math.max((deal[oldColumn] || 0) - 1, 0),
+            [newColumn]: (deal[newColumn] || 0) + 1,
+          })
+          .eq("id", deal_id);
+
+        if (countsUpdateError) throw countsUpdateError;
+
+        // Get updated deal data
+        const { data: updatedDeal, error: finalFetchError } = await supabase
+          .from("deals")
+          .select("*")
+          .eq("id", deal_id)
+          .single();
+
+        if (finalFetchError) throw finalFetchError;
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Vote switched to ${vote_type}`,
+            data: updatedDeal,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
+      }
     }
 
     // ========================================
-    // ✅ UPDATED: Record the vote with user_id
+    // ✅ UPDATED: No existing vote - INSERT new vote
     // ========================================
     const { error: insertError } = await supabase.from("votes").insert([
       {
         deal_id,
         vote_type,
-        user_id: authenticatedUserId || null,  // ✅ NEW: Store user_id
+        user_id: authenticatedUserId || null,  // ✅ Store user_id
         device_id: device_id || null,           // Keep for analytics/legacy
       },
     ]);
 
     if (insertError) throw insertError;
 
-    // Update deal counts
+    // Increment the count
     const columnToIncrement = vote_type === "hot" ? "hot_count" : "cold_count";
 
     const { data: deal, error: updateError } = await supabase
