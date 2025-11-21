@@ -15,6 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +33,13 @@ import java.util.*
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -498,12 +507,14 @@ fun DealCard(
 }
 
 /**
- * ✨ UPDATED: Compact Vote Button - Smaller and Circular
+ * ✨ UPDATED: Compact Vote Button - Smaller and Circular with 2025 Animations
  *
  * CHANGES:
  * 1. ✨ CHANGE 1: Reduced size (was 28dp height, now 24dp)
  * 2. ✨ CHANGE 3: Circular shape (CircleShape instead of MaterialTheme.shapes.small)
  * 3. ✨ CHANGE 1: Smaller padding and font sizes
+ * 4. 🔥 NEW: Physics-based spring animations and particle effects
+ * 5. 📳 NEW: Haptic feedback for tactile feel
  */
 @Composable
 private fun CompactVoteButton(
@@ -516,87 +527,75 @@ private fun CompactVoteButton(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    // ✅ FIX: Add local debounce state
+    // Local state for "Visual Fire"
+    var triggerAnimation by remember { mutableStateOf(false) }
     var lastClickTime by remember { mutableStateOf(0L) }
+    val haptic = LocalHapticFeedback.current // ✅ Add Haptics for "Tactile" feel
 
-    // ✅ UPDATED: Visual feedback based on isVoted, not enabled
-    // This allows vote switching while maintaining visual feedback
-    val buttonBg = when {
-        isVoted -> Color.White.copy(alpha = 0.9f)  // This vote - white background
-        !enabled -> Color.Gray.copy(alpha = 0.5f)  // Archived - grey
-        else -> backgroundColor                     // Not voted - colorful
+    // Determine animation type based on emoji
+    val animType = if (emoji == "🔥") "hot" else "cold"
+
+    // Reset trigger after animation plays so it can play again
+    LaunchedEffect(triggerAnimation) {
+        if (triggerAnimation) {
+            delay(600)
+            triggerAnimation = false
+        }
     }
 
-    // Emoji opacity
-    val emojiAlpha = when {
-        isVoted -> 0.7f   // This vote - slightly dimmed
-        !enabled -> 0.4f  // Archived - very grey
-        else -> 1f        // Not voted - full color
-    }
+    // Wrap the button in our new Effect logic
+    VoteAnimationEffect(trigger = triggerAnimation, type = animType) {
+        Button(
+            onClick = {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastClickTime > 500) { // Keep your safe debounce
+                    lastClickTime = currentTime
 
-    // Number color
-    val numberColor = when {
-        isVoted -> contentColor  // This vote - colored number
-        !enabled -> Color.Gray   // Archived - grey
-        else -> contentColor     // Not voted - colored
-    }
+                    // 🚀 1. Trigger Visuals Immediately
+                    triggerAnimation = true
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress) // Vibrate
 
-    Button(
-        onClick = {
-            // ✅ FIX: Only trigger if 500ms passed since last click
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastClickTime > 500) {
-                lastClickTime = currentTime
-                onClick()
-            }
-        },
-        enabled = enabled,
-        modifier = modifier
-            // ✨ CHANGE 1: Smaller height (was 28dp, now 24dp)
-            .height(24.dp)
-            // ✨ CHANGE 1: Smaller minimum width (was 45dp, now 40dp)
-            .widthIn(min = 40.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = buttonBg,
-            contentColor = numberColor,
-            disabledContainerColor = buttonBg,
-            disabledContentColor = numberColor
-        ),
-        // ✨ CHANGE 3: Circular shape instead of small rounded rectangle
-        shape = CircleShape, // Perfectly round buttons!
-        // ✨ CHANGE 1: Smaller padding (was 6dp horizontal, now 5dp)
-        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (enabled) contentColor.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            // ✨ CHANGE 1: Smaller spacing (was 3dp, now 2dp)
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Emoji
-            Text(
-                text = emoji,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    // ✨ CHANGE 1: Smaller emoji (was 12sp, now 11sp)
-                    fontSize = 11.sp
-                ),
-                modifier = Modifier.graphicsLayer {
-                    alpha = emojiAlpha
+                    // 🚀 2. Call actual logic
+                    onClick()
                 }
+            },
+            enabled = enabled,
+            modifier = modifier
+                .height(24.dp)
+                .widthIn(min = 40.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isVoted) Color.White.copy(alpha = 0.9f)
+                                else backgroundColor,
+                contentColor = if (isVoted) contentColor else Color.Gray
+            ),
+            shape = CircleShape,
+            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp),
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (enabled) contentColor.copy(alpha = 0.3f)
+                        else Color.Gray.copy(alpha = 0.3f)
             )
-
-            // Number
-            Text(
-                text = count,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Medium,
-                    // ✨ CHANGE 1: Smaller number (was 11sp, now 10sp)
-                    fontSize = 10.sp
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = emoji,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    modifier = Modifier.graphicsLayer {
+                        // Subtle fade for unselected state
+                        alpha = if (isVoted) 1f else 0.7f
+                    }
                 )
-            )
+                Text(
+                    text = count,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 10.sp
+                    )
+                )
+            }
         }
     }
 }
@@ -724,3 +723,125 @@ private fun formatPrice(price: Double): String {
         "QR ${"%,.2f".format(price)}"
     }
 }
+
+// ========================================
+// ✨ 2025 VOTE ANIMATIONS (Add to bottom of DealCard.kt)
+// ========================================
+
+/**
+ * ✨ 2025 UPDATED: Particle explosion effect
+ * - Bigger particles for HOT
+ * - Visible, shattering particles for COLD
+ */
+@Composable
+private fun VoteAnimationEffect(
+    trigger: Boolean,
+    type: String, // "hot" or "cold"
+    content: @Composable () -> Unit
+) {
+    // Animation State for the Particles (0f to 1f)
+    val particleProgress = remember { Animatable(0f) }
+
+    // Animation State for the Button Scale
+    val scaleAnim = remember { Animatable(1f) }
+
+    // Trigger logic
+    LaunchedEffect(trigger) {
+        if (trigger) {
+            // 1. Start Button Bounce (Instant)
+            launch {
+                scaleAnim.animateTo(0.8f, animationSpec = tween(100))
+                scaleAnim.animateTo(1.0f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f))
+            }
+
+            // 2. Reset & Play Particle Animation
+            particleProgress.snapTo(0f)
+            particleProgress.animateTo(1f, animationSpec = tween(600, easing = FastOutSlowInEasing))
+        }
+    }
+
+    // ✨ AMENDMENT 1: Increased particle size (was 3..6)
+    val particles = remember {
+        List(12) {
+            ParticleData(
+                angle = (it * 30 + (-15..15).random()).toFloat(),
+                distance = (20..50).random().toFloat(),
+                size = (4..9).random().toFloat() // Bigger chunks
+            )
+        }
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        // 1. The Button itself (Scale Animation)
+        Box(modifier = Modifier.graphicsLayer {
+            scaleX = scaleAnim.value
+            scaleY = scaleAnim.value
+        }) {
+            content()
+        }
+
+        // 2. The Particles (Overlay)
+        if (particleProgress.value > 0f && particleProgress.value < 1f) {
+            Box(modifier = Modifier.size(0.dp), contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(100.dp)) {
+                    val center = center
+                    val progress = particleProgress.value
+                    val alpha = (1f - progress).coerceIn(0f, 1f)
+
+                    if (type == "hot") {
+                        // 🔥 FIRE EFFECT (Unchanged logic, just bigger particles)
+                        particles.forEach { particle ->
+                            val currentDist = particle.distance * progress * 2f
+                            val verticalRise = progress * 60f
+
+                            drawCircle(
+                                color = if (particle.hashCode() % 2 == 0) Color(0xFFFF9143) else Color(0xFFFF4500),
+                                radius = particle.size * (1f - progress),
+                                center = center.copy(
+                                    x = center.x + (currentDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
+                                    y = center.y + (currentDist * kotlin.math.sin(Math.toRadians(particle.angle.toDouble()))).toFloat() - verticalRise
+                                ),
+                                alpha = alpha
+                            )
+                        }
+                    } else {
+                        // ❄️ COLD EFFECT (Fixed visibility)
+
+                        // 1. Icy Ring Pulse
+                        val ringScale = 1f + (progress * 0.5f)
+                        drawCircle(
+                            color = Color(0xFF29B6F6).copy(alpha = 0.5f), // Lighter blue ring
+                            radius = (size.minDimension / 4) * ringScale,
+                            style = Stroke(width = 4f * (1f - progress)),
+                            alpha = alpha
+                        )
+
+                        // 2. Shattering Ice Chunks
+                        particles.forEach { particle ->
+                            // ✨ Logic Change: Move OUT then DOWN (Shatter effect)
+                            val shatterDist = particle.distance * 0.6f * progress // Move out
+                            val gravity = progress * progress * 100f // Accelerate down
+
+                            drawCircle(
+                                color = Color(0xFF039BE5), // ✨ Darker Blue (Visible on white)
+                                radius = particle.size * (1f - (progress * 0.5f)), // ✨ Full size (don't shrink too fast)
+                                center = center.copy(
+                                    x = center.x + (shatterDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
+                                    y = center.y + (shatterDist * kotlin.math.sin(Math.toRadians(particle.angle.toDouble()))).toFloat() + gravity
+                                ),
+                                alpha = alpha
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper class for random particles
+private data class ParticleData(
+    val angle: Float,
+    val distance: Float,
+    val size: Float
+)
