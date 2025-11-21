@@ -29,6 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import qa.deals.doha.db.DealEntity
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 // ✨ NEW: Advanced Coil imports for 2025 performance
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
@@ -364,6 +372,10 @@ private fun DealDetailsContent(
     // ✨ NEW: Description expansion state
     var isDescriptionExpanded by remember { mutableStateOf(false) }
 
+    // ✅ FIX: Debouncing for vote buttons
+    var lastVoteTime by remember { mutableLongStateOf(0L) }
+    val debounceThreshold = 500L // 500ms cooldown
+
 // 🔧 FIX: Smart max lines - only truncate if description is actually long
 // Short descriptions (≤100 chars) show fully without ellipsis
 // Long descriptions (>100 chars) get truncated to 3 lines with "See more" button
@@ -442,8 +454,29 @@ private fun DealDetailsContent(
                 verticalArrangement = Arrangement.spacedBy(24.dp)  // ✨ Increased spacing for better breathing room
             ) {
                 // ========================================
-                // Voting & Report Buttons (unchanged)
+                // Voting & Report Buttons with 2025 Animations
                 // ========================================
+
+                // ✨ NEW: Animation state for vote buttons
+                var triggerHotAnimation by remember { mutableStateOf(false) }
+                var triggerColdAnimation by remember { mutableStateOf(false) }
+                val haptic = LocalHapticFeedback.current
+
+                // Reset animation triggers
+                LaunchedEffect(triggerHotAnimation) {
+                    if (triggerHotAnimation) {
+                        delay(600)
+                        triggerHotAnimation = false
+                    }
+                }
+
+                LaunchedEffect(triggerColdAnimation) {
+                    if (triggerColdAnimation) {
+                        delay(600)
+                        triggerColdAnimation = false
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -453,86 +486,111 @@ private fun DealDetailsContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Hot Vote Button
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF374151))
-                                .then(
-                                    if (uiState.hasVoted && uiState.userVoteType == "hot")
-                                        Modifier.border(3.dp, Color(0xFFFF9143), CircleShape)
-                                    else Modifier
-                                )
-                                .clickable(
-                                    enabled = !uiState.hasVoted && !uiState.isArchived,
-                                    onClick = {
-                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("hot")
-                                    }
-
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(text = "🔥", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = formatVoteCount(deal.hotCount ?: 0),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = if (uiState.hasVoted && uiState.userVoteType == "hot")
-                                            Color(0xFFF3F3F4)
-                                        else if (uiState.hasVoted)
-                                            Color(0xFF6B7280)
-                                        else
-                                            Color(0xFFFF6B35)
+                        // Hot Vote Button with Animation
+                        VoteAnimationEffect(trigger = triggerHotAnimation, type = "hot") {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF374151))
+                                    .then(
+                                        if (uiState.hasVoted && uiState.userVoteType == "hot")
+                                            Modifier.border(3.dp, Color(0xFFFF9143), CircleShape)
+                                        else Modifier
                                     )
-                                )
+                                    .clickable(
+                                        enabled = !uiState.isArchived,
+                                        onClick = {
+                                            // ✅ FIX: Add Debounce Logic + Animation
+                                            val currentTime = System.currentTimeMillis()
+                                            if (!uiState.isArchived && (currentTime - lastVoteTime > debounceThreshold)) {
+                                                lastVoteTime = currentTime
+
+                                                // 🚀 Trigger Animation & Haptic
+                                                triggerHotAnimation = true
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                                                // Call vote logic
+                                                onVote("hot")
+                                            }
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(text = "🔥", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = formatVoteCount(deal.hotCount ?: 0),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = if (uiState.hasVoted && uiState.userVoteType == "hot")
+                                                Color(0xFFF3F3F4)
+                                            else if (uiState.hasVoted)
+                                                Color(0xFF6B7280)
+                                            else
+                                                Color(0xFFFF6B35)
+                                        )
+                                    )
+                                }
                             }
                         }
 
-                        // Cold Vote Button
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF374151))
-                                .then(
-                                    if (uiState.hasVoted && uiState.userVoteType == "cold")
-                                        Modifier.border(3.dp, Color(0xFF4A90E2), CircleShape)
-                                    else Modifier
-                                )
-                                .clickable(
-                                    enabled = !uiState.hasVoted && !uiState.isArchived,
-                                    onClick = {
-                                        if (!uiState.hasVoted && !uiState.isArchived) onVote("cold")
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(text = "❄️", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = formatVoteCount(deal.coldCount ?: 0),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = if (uiState.hasVoted && uiState.userVoteType == "cold")
-                                            Color(0xFFF3F3F4)
-                                        else if (uiState.hasVoted)
-                                            Color(0xFF6B7280)
-                                        else
-                                            Color(0xFF4A90E2)
+                        // Cold Vote Button with Animation
+                        VoteAnimationEffect(trigger = triggerColdAnimation, type = "cold") {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF374151))
+                                    .then(
+                                        if (uiState.hasVoted && uiState.userVoteType == "cold")
+                                            Modifier.border(3.dp, Color(0xFF4A90E2), CircleShape)
+                                        else Modifier
                                     )
-                                )
+                                    .clickable(
+                                        enabled = !uiState.isArchived,
+                                        onClick = {
+                                            // ✅ FIX: Add Debounce Logic + Animation
+                                            val currentTime = System.currentTimeMillis()
+                                            if (!uiState.isArchived && (currentTime - lastVoteTime > debounceThreshold)) {
+                                                lastVoteTime = currentTime
+
+                                                // 🚀 Trigger Animation & Haptic
+                                                triggerColdAnimation = true
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                                                // Call vote logic
+                                                onVote("cold")
+                                            }
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(text = "❄️", style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = formatVoteCount(deal.coldCount ?: 0),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = if (uiState.hasVoted && uiState.userVoteType == "cold")
+                                                Color(0xFFF3F3F4)
+                                            else if (uiState.hasVoted)
+                                                Color(0xFF6B7280)
+                                            else
+                                                Color(0xFF4A90E2)
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
@@ -1206,3 +1264,125 @@ private fun formatPrice(price: Double): String {
         "QR ${"%,.2f".format(price)}"
     }
 }
+
+// ========================================
+// ✨ 2025 VOTE ANIMATIONS
+// ========================================
+
+/**
+ * ✨ 2025 UPDATED: Particle explosion effect
+ * - Bigger particles for HOT
+ * - Visible, shattering particles for COLD
+ */
+@Composable
+private fun VoteAnimationEffect(
+    trigger: Boolean,
+    type: String, // "hot" or "cold"
+    content: @Composable () -> Unit
+) {
+    // Animation State for the Particles (0f to 1f)
+    val particleProgress = remember { Animatable(0f) }
+
+    // Animation State for the Button Scale
+    val scaleAnim = remember { Animatable(1f) }
+
+    // Trigger logic
+    LaunchedEffect(trigger) {
+        if (trigger) {
+            // 1. Start Button Bounce (Instant)
+            launch {
+                scaleAnim.animateTo(0.8f, animationSpec = tween(100))
+                scaleAnim.animateTo(1.0f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f))
+            }
+
+            // 2. Reset & Play Particle Animation
+            particleProgress.snapTo(0f)
+            particleProgress.animateTo(1f, animationSpec = tween(600, easing = FastOutSlowInEasing))
+        }
+    }
+
+    // ✨ AMENDMENT 1: Increased particle size (was 3..6)
+    val particles = remember {
+        List(12) {
+            ParticleData(
+                angle = (it * 30 + (-15..15).random()).toFloat(),
+                distance = (20..50).random().toFloat(),
+                size = (4..9).random().toFloat() // Bigger chunks
+            )
+        }
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        // 1. The Button itself (Scale Animation)
+        Box(modifier = Modifier.graphicsLayer {
+            scaleX = scaleAnim.value
+            scaleY = scaleAnim.value
+        }) {
+            content()
+        }
+
+        // 2. The Particles (Overlay)
+        if (particleProgress.value > 0f && particleProgress.value < 1f) {
+            Box(modifier = Modifier.size(0.dp), contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(100.dp)) {
+                    val center = center
+                    val progress = particleProgress.value
+                    val alpha = (1f - progress).coerceIn(0f, 1f)
+
+                    if (type == "hot") {
+                        // 🔥 FIRE EFFECT (Unchanged logic, just bigger particles)
+                        particles.forEach { particle ->
+                            val currentDist = particle.distance * progress * 2f
+                            val verticalRise = progress * 60f
+
+                            drawCircle(
+                                color = if (particle.hashCode() % 2 == 0) Color(0xFFFF9143) else Color(0xFFFF4500),
+                                radius = particle.size * (1f - progress),
+                                center = center.copy(
+                                    x = center.x + (currentDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
+                                    y = center.y + (currentDist * kotlin.math.sin(Math.toRadians(particle.angle.toDouble()))).toFloat() - verticalRise
+                                ),
+                                alpha = alpha
+                            )
+                        }
+                    } else {
+                        // ❄️ COLD EFFECT (Fixed visibility)
+
+                        // 1. Icy Ring Pulse
+                        val ringScale = 1f + (progress * 0.5f)
+                        drawCircle(
+                            color = Color(0xFF29B6F6).copy(alpha = 0.5f), // Lighter blue ring
+                            radius = (size.minDimension / 4) * ringScale,
+                            style = Stroke(width = 4f * (1f - progress)),
+                            alpha = alpha
+                        )
+
+                        // 2. Shattering Ice Chunks
+                        particles.forEach { particle ->
+                            // ✨ Logic Change: Move OUT then DOWN (Shatter effect)
+                            val shatterDist = particle.distance * 0.6f * progress // Move out
+                            val gravity = progress * progress * 100f // Accelerate down
+
+                            drawCircle(
+                                color = Color(0xFF039BE5), // ✨ Darker Blue (Visible on white)
+                                radius = particle.size * (1f - (progress * 0.5f)), // ✨ Full size (don't shrink too fast)
+                                center = center.copy(
+                                    x = center.x + (shatterDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
+                                    y = center.y + (shatterDist * kotlin.math.sin(Math.toRadians(particle.angle.toDouble()))).toFloat() + gravity
+                                ),
+                                alpha = alpha
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper class for random particles
+private data class ParticleData(
+    val angle: Float,
+    val distance: Float,
+    val size: Float
+)

@@ -548,16 +548,15 @@ fun FeedScreen(
                                 key = { it.id },
                                 contentType = { "deal_card" }  // ✅ 2025: Helps Compose reuse compositions
                             ) { deal ->
-                                // ✅ PRESERVED: DealCard with all voting functionality
+                                // ✅ UPDATED: DealCard with unified voting (Instagram Pattern)
                                 DealCard(
                                     deal = deal,
                                     onClick = { onDealClick(deal.id) },
-                                    onVoteHot = { viewModel.voteHot(deal.id) },
-                                    onVoteCold = { viewModel.voteCold(deal.id) },
+                                    // ✅ NEW: Unified vote callback (debounced + instant local update)
+                                    onVote = { voteType -> viewModel.onVoteClicked(deal.id, voteType) },
                                     hasVoted = viewModel.hasVoted(deal.id),
                                     userVoteType = viewModel.getVoteType(deal.id),
-                                    optimisticHotCount = viewModel.getOptimisticHotCount(deal.id),
-                                    optimisticColdCount = viewModel.getOptimisticColdCount(deal.id),
+                                    // ✅ REMOVED: optimisticCounts - DB is now source of truth (zero lag)
                                     // ✅ NEW: Admin-only delete button
                                     showDeleteButton = isAdmin,
                                     onDelete = { dealToDelete = deal.id },

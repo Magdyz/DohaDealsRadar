@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -62,6 +63,21 @@ interface DealDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeal(deal: DealEntity)
+
+    // ========================================
+    // ✅ NEW: Update a specific deal with fresh data (Big App voting fix)
+    // OnConflictStrategy.REPLACE ensures we overwrite old counts with new ones
+    // ========================================
+    @Update(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun updateDeal(deal: DealEntity)
+
+    // ========================================
+    // ✅ NEW: Instant local vote count update (Zero-Lag UI)
+    // Updates only the vote counts without touching the network
+    // Used for immediate UI feedback before network sync
+    // ========================================
+    @Query("UPDATE deals SET hotCount = :hot, coldCount = :cold WHERE id = :dealId")
+    suspend fun updateCounts(dealId: String, hot: Int, cold: Int)
 
     @Query("DELETE FROM deals")
     suspend fun clearAll()

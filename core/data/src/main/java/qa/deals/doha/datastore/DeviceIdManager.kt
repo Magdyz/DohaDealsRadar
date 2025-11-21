@@ -326,6 +326,81 @@ class DeviceIdManager private constructor(context: Context) {
     }
 
     // ========================================
+    // ✅ NEW: VOTE SWITCHING SUPPORT (2025-11-20)
+    // ========================================
+
+    /**
+     * Determine what action should be taken for a vote.
+     *
+     * This method helps ViewModels decide whether to:
+     * - Add a new vote
+     * - Switch an existing vote
+     * - Remove an existing vote
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @param voteType The vote type user is attempting ("hot" or "cold")
+     * @return VoteAction enum: NEW, SWITCH, or REMOVE
+     */
+    fun getVoteAction(userId: String, dealId: String, voteType: String): VoteAction {
+        val existingVoteType = getUserVoteType(userId, dealId)
+
+        return when {
+            existingVoteType == null -> VoteAction.NEW
+            existingVoteType == voteType -> VoteAction.REMOVE
+            else -> VoteAction.SWITCH
+        }
+    }
+
+    /**
+     * Update an existing user vote to a new type (for vote switching).
+     *
+     * This is essentially the same as recordUserVote, but the name makes
+     * it explicit that we're updating an existing vote.
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @param newVoteType New vote type ("hot" or "cold")
+     */
+    fun updateUserVote(userId: String, dealId: String, newVoteType: String) {
+        recordUserVote(userId, dealId, newVoteType)
+        Log.d(TAG, "🔄 Updated vote to $newVoteType for user $userId on deal $dealId")
+    }
+
+    /**
+     * Get vote action description for logging/debugging.
+     *
+     * @param userId Authenticated user UUID
+     * @param dealId Deal UUID
+     * @param voteType Vote type being attempted
+     * @return Human-readable description of the action
+     */
+    fun getVoteActionDescription(userId: String, dealId: String, voteType: String): String {
+        return when (getVoteAction(userId, dealId, voteType)) {
+            VoteAction.NEW -> "Adding new $voteType vote"
+            VoteAction.SWITCH -> {
+                val oldType = getUserVoteType(userId, dealId)
+                "Switching from $oldType to $voteType"
+            }
+            VoteAction.REMOVE -> "Removing $voteType vote"
+        }
+    }
+
+    /**
+     * Enum representing possible vote actions.
+     */
+    enum class VoteAction {
+        /** User has not voted yet, this is a new vote */
+        NEW,
+
+        /** User is changing their vote from hot to cold or vice versa */
+        SWITCH,
+
+        /** User is clicking the same vote type again to remove their vote */
+        REMOVE
+    }
+
+    // ========================================
     // 🚨 REPORTING MANAGEMENT
     // (Existing functionality preserved)
     // ========================================

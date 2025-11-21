@@ -289,16 +289,73 @@ class DealRepository {
 
         val response = api.castVote(request)
 
-        // ✅ Update local cache with new vote counts (Single Source of Truth)
-        if (response.success == true && response.data != null) {
-            val entity = response.data.toEntity()
-            dealDao.insertDeal(entity)
-            Log.d("Repository", "✅ Vote cast successfully, cache updated")
+        // ✅ FIX: DO NOT update cache here to prevent race conditions
+        // When multiple votes are cast in quick succession, server responses
+        // may arrive out of order, causing stale data to overwrite newer local state.
+        //
+        // Cache updates now happen via:
+        // 1. Optimistic updates in ViewModel (instant feedback)
+        // 2. Pull-to-refresh (eventual consistency)
+        if (response.success == true) {
+            Log.d("Repository", "✅ Vote cast successfully (cache NOT updated to prevent race condition)")
         } else {
             Log.w("Repository", "❌ Vote failed: ${response.error}")
         }
 
         response
+    }
+
+    // ========================================
+    // ✅ NEW: Big App Voting Fix - Immediate Consistency
+    // Manually inject server data into Local DB
+    // This bridges the gap between "Network Success" and "UI Update"
+    // ========================================
+    /**
+     * Update local deal cache with fresh data from network
+     *
+     * This method is called after a successful vote to immediately
+     * update the Room database with the server's authoritative vote counts.
+     * This eliminates the race condition where optimistic UI is cleared
+     * before the database Flow emits updated values.
+     *
+     * @param dealDto Fresh deal data from server
+     */
+    suspend fun updateLocalDealFromNetwork(dealDto: DealDto) {
+        withContext(Dispatchers.IO) {
+            try {
+                val entity = dealDto.toEntity()
+                dealDao.updateDeal(entity)
+                Log.d("Repository", "✅ Cache manually updated for deal: ${dealDto.id}")
+            } catch (e: Exception) {
+                Log.e("Repository", "❌ Failed to update local cache", e)
+            }
+        }
+    }
+
+    // ========================================
+    // ✅ NEW: Instant Local Vote Count Update (Zero-Lag UI)
+    // Updates only the vote counts without touching the network
+    // ========================================
+    /**
+     * Update vote counts in local database immediately
+     *
+     * This is the "Instagram Pattern" - update the local database instantly
+     * for zero-lag UI, then sync with server in the background.
+     * If the network fails, the ViewModel will rollback these counts.
+     *
+     * @param dealId Deal UUID to update
+     * @param hotCount New hot vote count
+     * @param coldCount New cold vote count
+     */
+    suspend fun updateDealCountsLocal(dealId: String, hotCount: Int, coldCount: Int) {
+        withContext(Dispatchers.IO) {
+            try {
+                dealDao.updateCounts(dealId, hotCount, coldCount)
+                Log.d("Repository", "⚡ Local counts updated instantly: deal=$dealId hot=$hotCount cold=$coldCount")
+            } catch (e: Exception) {
+                Log.e("Repository", "❌ Failed to update local counts", e)
+            }
+        }
     }
 
     // ========================================
