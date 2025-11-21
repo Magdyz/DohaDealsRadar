@@ -12,6 +12,9 @@ import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +68,9 @@ fun DealCard(
     deal: DealEntity,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    // ✅ NEW: Unified vote callback (Instagram Pattern)
+    onVote: ((String) -> Unit)? = null,   // Callback with vote type: "hot" or "cold"
+    // ✅ DEPRECATED: Legacy callbacks (for backwards compatibility)
     onVoteHot: (() -> Unit)? = null,
     onVoteCold: (() -> Unit)? = null,
     hasVoted: Boolean = false,           // Keep for backwards compatibility
@@ -91,6 +97,22 @@ fun DealCard(
     val hotCountText = remember(displayHotCount) { "$displayHotCount" }
     val coldCountText = remember(displayColdCount) { "$displayColdCount" }
     val isDarkTheme = false
+
+    // ========================================
+    // 🔍 DEBUG: Log vote counts on every recomposition
+    // ========================================
+    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    Log.d(TAG, "📊 DEALCARD DISPLAY - ${deal.title.take(30)}")
+    Log.d(TAG, "   DealID: ${deal.id}")
+    Log.d(TAG, "   DB Hot Count: ${deal.hotCount ?: 0}")
+    Log.d(TAG, "   DB Cold Count: ${deal.coldCount ?: 0}")
+    Log.d(TAG, "   Optimistic Hot: $optimisticHotCount")
+    Log.d(TAG, "   Optimistic Cold: $optimisticColdCount")
+    Log.d(TAG, "   ✨ Display Hot: $displayHotCount")
+    Log.d(TAG, "   ✨ Display Cold: $displayColdCount")
+    Log.d(TAG, "   User Vote Type: $userVoteType")
+    Log.d(TAG, "   Has Voted: $hasVoted")
+    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     // ========================================
 // 🆕 NEW FEATURE: Check if deal is new (within 2 days)
@@ -287,7 +309,12 @@ fun DealCard(
                             count = hotCountText,
                             onClick = {
                                 if (!isArchived) {  // ✅ NEW: Check archive status
-                                    onVoteHot?.invoke()
+                                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    Log.d(TAG, "🔥 HOT VOTE BUTTON CLICKED")
+                                    Log.d(TAG, "   DealID: ${deal.id}")
+                                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    // ✅ NEW: Use unified callback if available, fallback to legacy
+                                    onVote?.invoke("hot") ?: onVoteHot?.invoke()
                                 }
                             },
                             enabled = !isArchived,  // ✅ FIXED: Allow vote switching - only disable if archived
@@ -302,7 +329,12 @@ fun DealCard(
                             count = coldCountText,
                             onClick = {
                                 if (!isArchived) {  // ✅ NEW: Check archive status
-                                    onVoteCold?.invoke()
+                                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    Log.d(TAG, "❄️ COLD VOTE BUTTON CLICKED")
+                                    Log.d(TAG, "   DealID: ${deal.id}")
+                                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    // ✅ NEW: Use unified callback if available, fallback to legacy
+                                    onVote?.invoke("cold") ?: onVoteCold?.invoke()
                                 }
                             },
                             enabled = !isArchived,  // ✅ FIXED: Allow vote switching - only disable if archived
@@ -484,6 +516,9 @@ private fun CompactVoteButton(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    // ✅ FIX: Add local debounce state
+    var lastClickTime by remember { mutableStateOf(0L) }
+
     // ✅ UPDATED: Visual feedback based on isVoted, not enabled
     // This allows vote switching while maintaining visual feedback
     val buttonBg = when {
@@ -507,7 +542,14 @@ private fun CompactVoteButton(
     }
 
     Button(
-        onClick = onClick,
+        onClick = {
+            // ✅ FIX: Only trigger if 500ms passed since last click
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastClickTime > 500) {
+                lastClickTime = currentTime
+                onClick()
+            }
+        },
         enabled = enabled,
         modifier = modifier
             // ✨ CHANGE 1: Smaller height (was 28dp, now 24dp)

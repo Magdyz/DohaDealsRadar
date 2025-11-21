@@ -1,34 +1,9 @@
-/**
- * ========================================
- * CAST VOTE EDGE FUNCTION
- * ========================================
- *
- * UPDATED: 2025-11-20
- * - user_id is now REQUIRED for all new votes
- * - Legacy votes with device_id only are preserved
- * - Checks both user_id and device_id for duplicate detection
- * - Comprehensive logging for debugging
- *
- * Request Body:
- * - deal_id: string (required)
- * - vote_type: "hot" | "cold" (required)
- * - user_id: string (REQUIRED - authenticated user UUID)
- * - user_email: string (optional - alternative to user_id)
- * - device_id: string (optional - kept for analytics)
- *
- * Response:
- * - success: boolean
- * - message: string
- * - data: updated deal object (if success)
- * - error: string (if failure)
- */
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-"Access-Control-Allow-Origin": "*",
-"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -45,27 +20,15 @@ serve(async (req) => {
     const { deal_id, vote_type, device_id, user_id, user_email } = await req.json();
 
     // ========================================
-    // 📊 LOGGING: Log incoming request details
-    // ========================================
-    console.log(`📩 Received vote request:`);
-    console.log(`   deal_id: ${deal_id}`);
-    console.log(`   vote_type: ${vote_type}`);
-    console.log(`   user_id: ${user_id || 'null'}`);
-    console.log(`   user_email: ${user_email || 'null'}`);
-    console.log(`   device_id: ${device_id || 'null'}`);
-
-    // ========================================
-    // ✅ UPDATED: Validate input - user_id is now REQUIRED
+    // VALIDATION
     // ========================================
     if (!deal_id || !vote_type) {
       throw new Error("Missing required fields: deal_id, vote_type");
     }
 
-    // ✅ NEW POLICY: user_id (or user_email) is now REQUIRED for new votes
     const isAuthenticated = !!(user_id || user_email);
-    if (!isAuthenticated) {
-      console.log(`❌ Vote rejected: No user_id or user_email provided`);
-      throw new Error("Authentication required: user_id or user_email must be provided");
+    if (!isAuthenticated && !device_id) {
+      throw new Error("Either user_id/user_email or device_id is required");
     }
 
     if (vote_type !== "hot" && vote_type !== "cold") {
@@ -73,13 +36,10 @@ serve(async (req) => {
     }
 
     // ========================================
-    // LOOKUP USER_ID FROM EMAIL IF PROVIDED
+    // USER LOOKUP (if email provided)
     // ========================================
-    let authenticatedUserId = user_id;
-
-    // If user_id not provided but email is, look up user by email
-    if (!authenticatedUserId && user_email) {
-      console.log(`Looking up user by email: ${user_email}`);
+    let finalUserId = user_id;
+    if (!finalUserId && user_email) {
       const { data: user, error: userError } = await supabase
         .from("users")
         .select("id")
@@ -87,103 +47,80 @@ serve(async (req) => {
         .eq("email_verified", true)
         .maybeSingle();
 
-      if (userError) {
-        console.error(`Error looking up user by email:`, userError);
-      }
-
       if (user) {
-        authenticatedUserId = user.id;
-        console.log(`Found user_id from email: ${authenticatedUserId}`);
+        finalUserId = user.id;
       } else {
-        console.log(`❌ Email ${user_email} not found or not verified`);
-        throw new Error(`User with email ${user_email} not found or not verified`);
+        console.log(`⚠️ Email ${user_email} not found or not verified`);
       }
-    } else if (authenticatedUserId) {
-      console.log(`Using provided user_id: ${authenticatedUserId}`);
     }
 
     // ========================================
-    // ✅ VALIDATION: Ensure we have a valid user_id
+    // ATOMIC UPSERT (The Final Fix)
+    // Call the Postgres RPC function directly.
+    // This bypasses the JS client's limitation with Partial Indexes.
     // ========================================
-    if (!authenticatedUserId) {
-      console.log(`❌ No valid user_id found after authentication checks`);
-      throw new Error("Failed to authenticate user: no valid user_id");
-    }
 
-    console.log(`✅ Authenticated user_id: ${authenticatedUserId}`);
-
-    // ========================================
-    // ✅ VALIDATION: Verify user exists in database
-    // ========================================
-    const { data: userExists, error: userExistsError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", authenticatedUserId)
-      .maybeSingle();
-
-    if (userExistsError) {
-      console.log(`❌ Error checking if user exists: ${userExistsError.message}`);
-      throw new Error(`Failed to verify user: ${userExistsError.message}`);
-    }
-
-    if (!userExists) {
-      console.log(`❌ User ${authenticatedUserId} does not exist in database`);
-      throw new Error(`User ${authenticatedUserId} not found`);
-    }
-
-    console.log(`✅ User verified in database`);
-
-    // ========================================
-    // ✅ UPDATED: Check for duplicate vote
-    // Checks both user_id (new votes) and device_id (legacy votes)
-    // ========================================
-    const { data: voteResult, error: voteError } = await supabase
-      .rpc('cast_vote_atomic', {
-        p_deal_id: deal_id,
-        p_vote_type: vote_type,
-        p_user_id: authenticatedUserId || null,
-        p_device_id: device_id || null
-      });
+    const { error: voteError } = await supabase.rpc('cast_vote', {
+      p_deal_id: deal_id,
+      p_vote_type: vote_type,
+      p_user_id: finalUserId || null,
+      p_device_id: device_id || null
+    });
 
     if (voteError) {
-      console.error("❌ Vote transaction failed:", voteError);
+      console.error("Vote Error:", voteError);
       throw voteError;
     }
 
-    // voteResult is array with single row: [{ action, hot_count, cold_count }]
-    const result = voteResult && voteResult.length > 0 ? voteResult[0] : null;
+    // ========================================
+    // UPDATE DEAL COUNTS
+    // Recalculate hot_count and cold_count from votes table
+    // ========================================
+    const { count: hotCount } = await supabase
+      .from("votes")
+      .select("*", { count: "exact", head: true })
+      .eq("deal_id", deal_id)
+      .eq("vote_type", "hot");
 
-    if (!result) {
-      throw new Error("Vote transaction returned no result");
+    const { count: coldCount } = await supabase
+      .from("votes")
+      .select("*", { count: "exact", head: true })
+      .eq("deal_id", deal_id)
+      .eq("vote_type", "cold");
+
+    const { error: updateError } = await supabase
+      .from("deals")
+      .update({
+        hot_count: hotCount || 0,
+        cold_count: coldCount || 0,
+      })
+      .eq("id", deal_id);
+
+    if (updateError) {
+      console.error("Deal count update error:", updateError);
+      throw updateError;
     }
 
-    console.log(`✅ Vote ${result.action}: user=${authenticatedUserId || device_id}, deal=${deal_id}, type=${vote_type}`);
+    console.log(
+      `✅ Vote recorded for deal ${deal_id}: ${vote_type} ` +
+      `(hot=${hotCount || 0}, cold=${coldCount || 0})`
+    );
 
     // ========================================
-    // FETCH UPDATED DEAL DATA
+    // FETCH UPDATED DEAL (for backward compatibility with client)
     // ========================================
-    const { data: updatedDeal, error: fetchError } = await supabase
+    const { data: updatedDeal, error: dealError } = await supabase
       .from("deals")
       .select("*")
       .eq("id", deal_id)
       .single();
 
-    if (fetchError) throw fetchError;
-
-    // ========================================
-    // RETURN SUCCESS RESPONSE
-    // ========================================
-    const messages = {
-      'added': `Vote recorded: ${vote_type}`,
-      'switched': `Vote changed to: ${vote_type}`,
-      'removed': `Vote removed`
-    };
+    if (dealError) throw dealError;
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: messages[result.action] || `Vote ${result.action}`,
-        action: result.action,  // ✅ NEW: Tell client what happened
+        message: `Vote recorded: ${vote_type}`,
         data: updatedDeal,
       }),
       {
@@ -192,15 +129,14 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in cast_vote:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "An error occurred while processing your vote",
+        error: error.message,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+        status: 500,
       }
     );
   }

@@ -364,6 +364,10 @@ private fun DealDetailsContent(
     // ✨ NEW: Description expansion state
     var isDescriptionExpanded by remember { mutableStateOf(false) }
 
+    // ✅ FIX: Debouncing for vote buttons
+    var lastVoteTime by remember { mutableLongStateOf(0L) }
+    val debounceThreshold = 500L // 500ms cooldown
+
 // 🔧 FIX: Smart max lines - only truncate if description is actually long
 // Short descriptions (≤100 chars) show fully without ellipsis
 // Long descriptions (>100 chars) get truncated to 3 lines with "See more" button
@@ -467,9 +471,13 @@ private fun DealDetailsContent(
                                 .clickable(
                                     enabled = !uiState.isArchived,
                                     onClick = {
-                                        if (!uiState.isArchived) onVote("hot")
+                                        // ✅ FIX: Add Debounce Logic
+                                        val currentTime = System.currentTimeMillis()
+                                        if (!uiState.isArchived && (currentTime - lastVoteTime > debounceThreshold)) {
+                                            lastVoteTime = currentTime
+                                            onVote("hot")
+                                        }
                                     }
-
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -509,7 +517,12 @@ private fun DealDetailsContent(
                                 .clickable(
                                     enabled = !uiState.isArchived,
                                     onClick = {
-                                        if (!uiState.isArchived) onVote("cold")
+                                        // ✅ FIX: Add Debounce Logic
+                                        val currentTime = System.currentTimeMillis()
+                                        if (!uiState.isArchived && (currentTime - lastVoteTime > debounceThreshold)) {
+                                            lastVoteTime = currentTime
+                                            onVote("cold")
+                                        }
                                     }
                                 ),
                             contentAlignment = Alignment.Center
