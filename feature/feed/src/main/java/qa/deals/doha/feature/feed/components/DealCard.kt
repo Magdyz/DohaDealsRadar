@@ -290,7 +290,7 @@ fun DealCard(
                                     onVoteHot?.invoke()
                                 }
                             },
-                            enabled = !hasVoted && !isArchived,  // ✅ MODIFIED: Disable if archived
+                            enabled = !isArchived,  // ✅ FIXED: Allow vote switching - only disable if archived
                             isVoted = userVoteType == "hot",
                             backgroundColor = if (isDarkTheme) VoteHotBgDark else VoteHotBg,
                             contentColor = if (isDarkTheme) VoteHotContentDark else VoteHotContent
@@ -305,7 +305,7 @@ fun DealCard(
                                     onVoteCold?.invoke()
                                 }
                             },
-                            enabled = !hasVoted && !isArchived,  // ✅ MODIFIED: Disable if archived
+                            enabled = !isArchived,  // ✅ FIXED: Allow vote switching - only disable if archived
                             isVoted = userVoteType == "cold",
                             backgroundColor = if (isDarkTheme) VoteColdBgDark else VoteColdBg,
                             contentColor = if (isDarkTheme) VoteColdContentDark else VoteColdContent
@@ -484,25 +484,26 @@ private fun CompactVoteButton(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    // Button background logic
+    // ✅ UPDATED: Visual feedback based on isVoted, not enabled
+    // This allows vote switching while maintaining visual feedback
     val buttonBg = when {
-        !enabled && isVoted -> Color.White.copy(alpha = 0.9f)  // This vote - white background
-        !enabled -> Color.Gray.copy(alpha = 0.5f)              // Other vote - grey
-        else -> backgroundColor                                 // Not voted - colorful
+        isVoted -> Color.White.copy(alpha = 0.9f)  // This vote - white background
+        !enabled -> Color.Gray.copy(alpha = 0.5f)  // Archived - grey
+        else -> backgroundColor                     // Not voted - colorful
     }
 
     // Emoji opacity
     val emojiAlpha = when {
-        !enabled && !isVoted -> 0.4f  // Other vote - very grey
-        !enabled && isVoted -> 0.7f   // This vote - slightly grey
-        else -> 1f                     // Not voted - full color
+        isVoted -> 0.7f   // This vote - slightly dimmed
+        !enabled -> 0.4f  // Archived - very grey
+        else -> 1f        // Not voted - full color
     }
 
     // Number color
     val numberColor = when {
-        !enabled && isVoted -> contentColor  // This vote - colored number
-        !enabled -> Color.Gray               // Other vote - grey
-        else -> contentColor                 // Not voted - colored
+        isVoted -> contentColor  // This vote - colored number
+        !enabled -> Color.Gray   // Archived - grey
+        else -> contentColor     // Not voted - colored
     }
 
     Button(
