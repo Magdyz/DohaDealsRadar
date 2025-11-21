@@ -209,19 +209,12 @@ fun AppNavHost(
         ) { backStackEntry ->
             val dealId = backStackEntry.arguments?.getString("dealId") ?: ""
 
-            // ✅ NEW: Get authentication state for account navigation
+            // ✅ FIX: Use DeviceIdManager and UserRepository directly to avoid cache conflict
+            // Creating FeedViewModel triggers refreshDeals() which replaces cache,
+            // removing pending deals that moderators are trying to view
             val context = LocalContext.current
-            val feedViewModel: FeedViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return FeedViewModel(context) as T
-                    }
-                }
-            )
-            val isAuthenticated by feedViewModel.isAuthenticated.collectAsState()
-            val currentUserRole by feedViewModel.currentUserRole.collectAsState()
             val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
+            val userRepo = remember { qa.deals.doha.repository.UserRepository() }
 
             DetailsScreen(
                 dealId = dealId,
@@ -229,14 +222,17 @@ fun AppNavHost(
                 onReportClick = {
                     navController.navigate(Routes.report(dealId))
                 },
-                // ✅ NEW: Navigate to account/login screen (same logic as FeedScreen)
+                // ✅ FIX: Check authentication state directly without creating FeedViewModel
                 onAccountClick = {
+                    val userId = deviceIdManager.getUserId()
+                    val userRole = userId?.let { userRepo.getCachedUser(it)?.role } ?: "user"
+
                     when {
-                        !isAuthenticated -> {
+                        userId == null -> {
                             // Not logged in → Login screen
                             navController.navigate(Routes.LOGIN)
                         }
-                        currentUserRole == "admin" || currentUserRole == "moderator" -> {
+                        userRole == "admin" || userRole == "moderator" -> {
                             // Moderator/Admin → Check if first time
                             if (!deviceIdManager.hasSeenAccountScreen()) {
                                 // First time → Show account screen
