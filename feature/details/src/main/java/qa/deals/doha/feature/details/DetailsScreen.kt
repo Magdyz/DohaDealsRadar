@@ -1270,9 +1270,10 @@ private fun formatPrice(price: Double): String {
 // ========================================
 
 /**
- * ✨ 2025 UPDATED: Particle explosion effect
- * - Bigger particles for HOT
- * - Visible, shattering particles for COLD
+ * ✨ 2025 HIGH-IMPACT ANIMATION (Designed for Details Screen)
+ * - Keeps button size identical (0 layout shift)
+ * - Explosion radius: 150dp (Huge visual impact)
+ * - Particles: Vibrant, larger, physics-based
  */
 @Composable
 private fun VoteAnimationEffect(
@@ -1280,40 +1281,37 @@ private fun VoteAnimationEffect(
     type: String, // "hot" or "cold"
     content: @Composable () -> Unit
 ) {
-    // Animation State for the Particles (0f to 1f)
+    // Animation State
     val particleProgress = remember { Animatable(0f) }
-
-    // Animation State for the Button Scale
     val scaleAnim = remember { Animatable(1f) }
 
-    // Trigger logic
     LaunchedEffect(trigger) {
         if (trigger) {
-            // 1. Start Button Bounce (Instant)
+            // 1. Deep Impact Bounce (0.7f scale for more "punch")
             launch {
-                scaleAnim.animateTo(0.8f, animationSpec = tween(100))
-                scaleAnim.animateTo(1.0f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f))
+                scaleAnim.animateTo(0.7f, animationSpec = tween(100))
+                scaleAnim.animateTo(1.0f, animationSpec = spring(dampingRatio = 0.3f, stiffness = 400f))
             }
 
-            // 2. Reset & Play Particle Animation
+            // 2. Explosion (Slower, 800ms for visibility)
             particleProgress.snapTo(0f)
-            particleProgress.animateTo(1f, animationSpec = tween(600, easing = FastOutSlowInEasing))
+            particleProgress.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
         }
     }
 
-    // ✨ AMENDMENT 1: Increased particle size (was 3..6)
+    // ✨ MORE & BIGGER PARTICLES
     val particles = remember {
-        List(12) {
+        List(24) { // Increased count to 24
             ParticleData(
-                angle = (it * 30 + (-15..15).random()).toFloat(),
-                distance = (20..50).random().toFloat(),
-                size = (4..9).random().toFloat() // Bigger chunks
+                angle = (it * 15 + (-10..10).random()).toFloat(),
+                distance = (60..140).random().toFloat(), // ✨ Travel much further (60-140dp)
+                size = (6..14).random().toFloat() // ✨ Much bigger particles (6-14dp)
             )
         }
     }
 
     Box(contentAlignment = Alignment.Center) {
-        // 1. The Button itself (Scale Animation)
+        // 1. The Button Content (Your existing 52dp circle)
         Box(modifier = Modifier.graphicsLayer {
             scaleX = scaleAnim.value
             scaleY = scaleAnim.value
@@ -1321,22 +1319,31 @@ private fun VoteAnimationEffect(
             content()
         }
 
-        // 2. The Particles (Overlay)
+        // 2. The Effects Overlay (Zero-size box = No Layout Shift)
         if (particleProgress.value > 0f && particleProgress.value < 1f) {
+            // ✨ HUGE CANVAS (300dp) allows particles to fly over neighboring UI
             Box(modifier = Modifier.size(0.dp), contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.size(100.dp)) {
+                Canvas(modifier = Modifier.size(300.dp)) {
                     val center = center
                     val progress = particleProgress.value
-                    val alpha = (1f - progress).coerceIn(0f, 1f)
 
                     if (type == "hot") {
-                        // 🔥 FIRE EFFECT (Unchanged logic, just bigger particles)
-                        particles.forEach { particle ->
-                            val currentDist = particle.distance * progress * 2f
-                            val verticalRise = progress * 60f
+                        // 🔥 SOLAR FLARE EFFECT
+                        particles.forEachIndexed { index, particle ->
+                            val currentDist = particle.distance * progress * 1.2f
+                            val verticalRise = progress * 120f // Float up high
+
+                            val alpha = (1f - progress).coerceIn(0f, 1f)
+
+                            // Vibrant Fire Palette (Gold Core -> Red Edge)
+                            val color = when {
+                                index % 4 == 0 -> Color(0xFFFFD700) // Bright Gold
+                                index % 3 == 0 -> Color(0xFFFF9100) // Orange
+                                else -> Color(0xFFFF1744) // Vivid Red
+                            }
 
                             drawCircle(
-                                color = if (particle.hashCode() % 2 == 0) Color(0xFFFF9143) else Color(0xFFFF4500),
+                                color = color,
                                 radius = particle.size * (1f - progress),
                                 center = center.copy(
                                     x = center.x + (currentDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
@@ -1346,26 +1353,29 @@ private fun VoteAnimationEffect(
                             )
                         }
                     } else {
-                        // ❄️ COLD EFFECT (Fixed visibility)
+                        // ❄️ FROST NOVA EFFECT
+                        val alpha = (1f - progress).coerceIn(0f, 1f)
+                        val ringScale = 1f + (progress * 0.8f)
 
-                        // 1. Icy Ring Pulse
-                        val ringScale = 1f + (progress * 0.5f)
+                        // 1. Thick Shockwave Ring
                         drawCircle(
-                            color = Color(0xFF29B6F6).copy(alpha = 0.5f), // Lighter blue ring
-                            radius = (size.minDimension / 4) * ringScale,
-                            style = Stroke(width = 4f * (1f - progress)),
+                            color = Color(0xFF00E5FF).copy(alpha = 0.4f), // Cyan Neon
+                            radius = (size.minDimension / 8) * ringScale, // Starts at button size, expands
+                            style = Stroke(width = 10f * (1f - progress)), // Thick blast
                             alpha = alpha
                         )
 
-                        // 2. Shattering Ice Chunks
-                        particles.forEach { particle ->
-                            // ✨ Logic Change: Move OUT then DOWN (Shatter effect)
-                            val shatterDist = particle.distance * 0.6f * progress // Move out
-                            val gravity = progress * progress * 100f // Accelerate down
+                        // 2. Heavy Ice Shards
+                        particles.forEachIndexed { index, particle ->
+                            val shatterDist = particle.distance * 0.7f * progress
+                            val gravity = progress * progress * 300f // Heavy fall
+
+                            // Ice Palette (White Core -> Cyan Edge)
+                            val color = if (index % 2 == 0) Color.White else Color(0xFF40C4FF)
 
                             drawCircle(
-                                color = Color(0xFF039BE5), // ✨ Darker Blue (Visible on white)
-                                radius = particle.size * (1f - (progress * 0.5f)), // ✨ Full size (don't shrink too fast)
+                                color = color,
+                                radius = particle.size * (1f - (progress * 0.2f)), // Stay chunky
                                 center = center.copy(
                                     x = center.x + (shatterDist * kotlin.math.cos(Math.toRadians(particle.angle.toDouble()))).toFloat(),
                                     y = center.y + (shatterDist * kotlin.math.sin(Math.toRadians(particle.angle.toDouble()))).toFloat() + gravity
