@@ -216,6 +216,11 @@ fun AppNavHost(
             val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
             val userRepo = remember { qa.deals.doha.repository.UserRepository() }
 
+            // ✅ FIX: Collect user role as state to avoid suspend function call in click handler
+            val userId = deviceIdManager.getUserId()
+            val userRole by (userId?.let { userRepo.getCachedUserRoleFlow(it) }
+                ?: kotlinx.coroutines.flow.flowOf(null)).collectAsState(initial = null)
+
             DetailsScreen(
                 dealId = dealId,
                 onBackClick = { navController.popBackStack() },
@@ -224,9 +229,6 @@ fun AppNavHost(
                 },
                 // ✅ FIX: Check authentication state directly without creating FeedViewModel
                 onAccountClick = {
-                    val userId = deviceIdManager.getUserId()
-                    val userRole = userId?.let { userRepo.getCachedUser(it)?.role } ?: "user"
-
                     when {
                         userId == null -> {
                             // Not logged in → Login screen
