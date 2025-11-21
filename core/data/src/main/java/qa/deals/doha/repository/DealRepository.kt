@@ -289,11 +289,15 @@ class DealRepository {
 
         val response = api.castVote(request)
 
-        // ✅ Update local cache with new vote counts (Single Source of Truth)
-        if (response.success == true && response.data != null) {
-            val entity = response.data.toEntity()
-            dealDao.insertDeal(entity)
-            Log.d("Repository", "✅ Vote cast successfully, cache updated")
+        // ✅ FIX: DO NOT update cache here to prevent race conditions
+        // When multiple votes are cast in quick succession, server responses
+        // may arrive out of order, causing stale data to overwrite newer local state.
+        //
+        // Cache updates now happen via:
+        // 1. Optimistic updates in ViewModel (instant feedback)
+        // 2. Pull-to-refresh (eventual consistency)
+        if (response.success == true) {
+            Log.d("Repository", "✅ Vote cast successfully (cache NOT updated to prevent race condition)")
         } else {
             Log.w("Repository", "❌ Vote failed: ${response.error}")
         }
