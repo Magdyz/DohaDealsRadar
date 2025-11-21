@@ -422,7 +422,8 @@ class FeedViewModel(
                     uiState = uiState.copy(
                         loading = false,
                         currentPage = 1,
-                        hasMorePages = true
+                        hasMorePages = true,
+                        optimisticCounts = emptyMap()  // ✅ Clear optimistic counts on preload
                     )
                     preloadRepo.clearCache()
                     return@launch
@@ -441,9 +442,10 @@ class FeedViewModel(
                     uiState = uiState.copy(
                         loading = false,
                         currentPage = 1,
-                        hasMorePages = pagination?.hasMore ?: false
+                        hasMorePages = pagination?.hasMore ?: false,
+                        optimisticCounts = emptyMap()  // ✅ Clear optimistic counts on refresh
                     )
-                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals")
+                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals (optimistic counts cleared)")
                 }.onFailure { error ->
                     Log.e("Feed", "💥 Failed to refresh deals", error)
                     uiState = uiState.copy(loading = false, error = error.message)
@@ -581,12 +583,13 @@ class FeedViewModel(
                 // STEP 5: Handle Response
                 // ========================================
                 if (result.success == true) {
-                    // ✅ SUCCESS: Clear optimistic state (server data is now source of truth)
-                    Log.d("Feed", "✅ Hot vote recorded successfully")
+                    // ✅ SUCCESS: Keep optimistic counts until next refresh
+                    // This prevents race conditions where stale server responses
+                    // would overwrite newer local state
+                    Log.d("Feed", "✅ Hot vote recorded successfully (optimistic count persisted)")
 
-                    val clearedCounts = uiState.optimisticCounts.toMutableMap()
-                    clearedCounts.remove(dealId)
-                    uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    // Optimistic counts will be cleared on next refresh when fresh
+                    // server data arrives
 
                 } else {
                     // ❌ FAILURE: Revert optimistic changes
@@ -680,9 +683,13 @@ class FeedViewModel(
                 )
 
                 if (result.success == true) {
-                    val clearedCounts = uiState.optimisticCounts.toMutableMap()
-                    clearedCounts.remove(dealId)
-                    uiState = uiState.copy(optimisticCounts = clearedCounts)
+                    // ✅ SUCCESS: Keep optimistic counts until next refresh
+                    // This prevents race conditions where stale server responses
+                    // would overwrite newer local state
+                    Log.d("Feed", "✅ Cold vote recorded successfully (optimistic count persisted)")
+
+                    // Optimistic counts will be cleared on next refresh when fresh
+                    // server data arrives
                 } else {
                     // Revert on failure
                     val revertedCounts = uiState.optimisticCounts.toMutableMap()
