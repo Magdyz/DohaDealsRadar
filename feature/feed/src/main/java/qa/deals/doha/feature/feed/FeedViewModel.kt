@@ -442,7 +442,8 @@ class FeedViewModel(
                     uiState = uiState.copy(
                         loading = false,
                         currentPage = 1,
-                        hasMorePages = true
+                        hasMorePages = true,
+                        optimisticCounts = emptyMap()  // ✅ Clear optimistic counts on preload
                     )
                     preloadRepo.clearCache()
                     return@launch
@@ -461,9 +462,10 @@ class FeedViewModel(
                     uiState = uiState.copy(
                         loading = false,
                         currentPage = 1,
-                        hasMorePages = pagination?.hasMore ?: false
+                        hasMorePages = pagination?.hasMore ?: false,
+                        optimisticCounts = emptyMap()  // ✅ Clear optimistic counts on refresh
                     )
-                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals")
+                    Log.d("Feed", "✅ Refreshed ${pagination?.limit ?: 0} deals (optimistic counts cleared)")
                 }.onFailure { error ->
                     Log.e("Feed", "💥 Failed to refresh deals", error)
                     uiState = uiState.copy(loading = false, error = error.message)
