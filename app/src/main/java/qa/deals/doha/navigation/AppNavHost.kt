@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import qa.deals.doha.feature.details.DetailsScreen
 import qa.deals.doha.feature.feed.FeedScreen
+import qa.deals.doha.feature.feed.FeedbackScreen
 import qa.deals.doha.feature.post.PostScreen
 import qa.deals.doha.feature.report.ReportScreen
 import qa.deals.doha.feature.archive.ArchiveScreen
@@ -123,6 +124,10 @@ fun AppNavHost(
                             navController.navigate(Routes.ACCOUNT)
                         }
                     }
+                },
+                // ✅ NEW: Navigate to feedback screen (2025-11-22)
+                onFeedbackClick = {
+                    navController.navigate(Routes.FEEDBACK)
                 }
             )
         }
@@ -137,6 +142,16 @@ fun AppNavHost(
                 onDealClick = { dealId ->
                     navController.navigate(Routes.details(dealId))
                 }
+            )
+        }
+
+        // ========================================
+        // ✅ NEW: Feedback Screen - User feedback submission
+        // Allows users to submit feedback and suggestions
+        // ========================================
+        composable(Routes.FEEDBACK) {
+            FeedbackScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

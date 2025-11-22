@@ -340,4 +340,17 @@ interface SupabaseApiService {
     suspend fun resolveReport(
         @Body request: ResolveReportRequest
     ): ModeratorActionResponse
+
+    /**
+     * Submit user feedback
+     * Allows users to submit feedback and suggestions
+     *
+     * CREATED: 2025-11-22
+     * @param request Contains device_id, feedback_text, user_id (optional)
+     * @return Success response with feedback ID
+     */
+    @POST("submit_feedback")
+    suspend fun submitFeedback(
+        @Body request: SubmitFeedbackRequest
+    ): ApiEnvelope<FeedbackData>
 }

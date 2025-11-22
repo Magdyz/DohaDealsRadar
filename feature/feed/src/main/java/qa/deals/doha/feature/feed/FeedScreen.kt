@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import qa.deals.domain.DealCategory
 import qa.deals.doha.feature.feed.components.DealCard
 import qa.deals.doha.feature.feed.components.VoteAuthDialog  // ✅ NEW: Vote authentication dialog
+import qa.deals.doha.feature.feed.components.GradientMoreMenu  // ✅ NEW: Gradient menu component
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -42,6 +43,8 @@ import kotlinx.coroutines.delay // ✅ NEW: Import (was previously used by Globa
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.graphics.graphicsLayer
+import android.content.Intent
+import android.net.Uri
 
 
 /**
@@ -308,6 +311,7 @@ fun FeedScreen(
     onPostClick: () -> Unit = {},
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
     onAccountClick: () -> Unit = {},  // ✅ SPRINT 5: Navigate to account/login
+    onFeedbackClick: () -> Unit = {},  // ✅ NEW: Navigate to feedback screen (2025-11-22)
 
 ) {
     val context = LocalContext.current
@@ -368,6 +372,20 @@ fun FeedScreen(
                             )
                         }
                     )
+                },
+                actions = {
+                    GradientMoreMenu(
+                        onFeedbackClick = onFeedbackClick,
+                        onRateAppClick = {
+                            // Open Play Store for rating
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse("https://play.google.com/store/apps/details?id=qa.deals.doha")
+                                setPackage("com.android.vending")
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,

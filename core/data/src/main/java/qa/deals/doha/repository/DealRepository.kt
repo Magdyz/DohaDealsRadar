@@ -915,4 +915,44 @@ class DealRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Submit user feedback
+     *
+     * @param deviceId Device ID of the user
+     * @param feedbackText Feedback content (max 500 chars)
+     * @param userId Optional user ID if authenticated
+     * @param email Optional email if user wants a response
+     * @return Result with feedback ID on success
+     */
+    suspend fun submitFeedback(
+        deviceId: String,
+        feedbackText: String,
+        userId: String? = null,
+        email: String? = null
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "💬 Submitting feedback from device: ${deviceId.take(8)}...")
+
+            val response = api.submitFeedback(
+                SubmitFeedbackRequest(
+                    deviceId = deviceId,
+                    feedbackText = feedbackText,
+                    userId = userId,
+                    email = email
+                )
+            )
+
+            if (response.success == true && response.data != null) {
+                Log.d("Repository", "✅ Feedback submitted: ${response.data.id}")
+                Result.success(response.data.id)
+            } else {
+                Log.e("Repository", "❌ Failed to submit feedback: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to submit feedback"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error submitting feedback", e)
+            Result.failure(e)
+        }
+    }
 }
