@@ -9,11 +9,23 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -27,7 +39,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import qa.deals.doha.repository.DealRepository
 
 /**
@@ -59,8 +73,19 @@ fun FeedbackScreen(
     var feedbackText by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showSuccessScreen by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Auto-navigate back after success
+    LaunchedEffect(showSuccessScreen) {
+        if (showSuccessScreen) {
+            delay(3000) // Show success for 3 seconds
+            feedbackText = ""
+            email = ""
+            showSuccessScreen = false
+            onBackClick()
+        }
+    }
 
     val maxCharacters = 500
     val scrollState = rememberScrollState()
@@ -96,11 +121,14 @@ fun FeedbackScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBackClick) {
+                        IconButton(
+                            onClick = onBackClick,
+                            enabled = !isSubmitting  // Disable back button while submitting
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color.White
+                                tint = if (isSubmitting) Color.White.copy(alpha = 0.5f) else Color.White
                             )
                         }
                     },
@@ -112,8 +140,10 @@ fun FeedbackScreen(
         },
         // ✅ Modern 2025: Bottom bar with keyboard handling (matches ReportScreen)
         bottomBar = {
-            // Stick button to keyboard (Snoonu-style)
-            Box(
+            // Only show button when not submitting and not showing success
+            if (!isSubmitting && !showSuccessScreen) {
+                // Stick button to keyboard (Snoonu-style)
+                Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()  // CRITICAL: Makes the bar move up with keyboard
@@ -162,7 +192,7 @@ fun FeedbackScreen(
                                 result.fold(
                                     onSuccess = {
                                         isSubmitting = false
-                                        showSuccessDialog = true
+                                        showSuccessScreen = true
                                     },
                                     onFailure = { error ->
                                         isSubmitting = false
@@ -275,18 +305,23 @@ fun FeedbackScreen(
                     }
                 }
             }
+            }
         }
     ) { paddingValues ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .imeNestedScroll()  // Auto-scroll to keep focused field visible
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Friendly welcome message
+        // Show sending, success, or form
+        when {
+            isSubmitting -> FeedbackSendingContent()
+            showSuccessScreen -> FeedbackSuccessContent()
+            else -> Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .imeNestedScroll()  // Auto-scroll to keep focused field visible
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+            // Hero card - Clean, concise messaging
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -295,52 +330,57 @@ fun FeedbackScreen(
                 shape = MaterialTheme.shapes.medium
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "💜 We'd Love to Hear From You!",
+                        text = "We value your feedback! 💜",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            fontSize = 20.sp
                         ),
                         color = Color(0xFF7B1FA2)
                     )
                     Text(
-                        text = "We are always working to improve DohaDealsRadar and add new features. Your feedback helps us make the app better for everyone!",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "Help us improve DohaDealsRadar by sharing your thoughts or reporting issues.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp
+                        ),
                         color = Color(0xFF4A148C),
-                        lineHeight = 20.sp
+                        lineHeight = 21.sp
                     )
                 }
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
             // Email field (optional)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Email (Optional)",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp
-                    )
-                )
-                Text(
-                    text = "If you'd like us to get back to you, please provide your email",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF6B7280),
-                    fontSize = 13.sp
+                    text = "Email Address (Optional)",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    ),
+                    color = Color(0xFFB0B0B0)
                 )
 
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it.trim() },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     placeholder = {
                         Text(
-                            text = "your.email@example.com",
+                            text = "name@example.com",
+                            fontSize = 16.sp,
                             color = Color(0xFF9CA3AF)
                         )
                     },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp
+                    ),
                     singleLine = true,
                     maxLines = 1,
                     keyboardOptions = KeyboardOptions(
@@ -358,14 +398,17 @@ fun FeedbackScreen(
                 )
             }
 
-            // Feedback text field (matches post deal description styling)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Feedback text field
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Your Feedback",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp
-                    )
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    ),
+                    color = Color(0xFFB0B0B0)
                 )
 
                 OutlinedTextField(
@@ -382,10 +425,14 @@ fun FeedbackScreen(
                         .heightIn(min = 150.dp, max = 300.dp),
                     placeholder = {
                         Text(
-                            text = "Share your thoughts, suggestions, or report issues...",
+                            text = "Tell us what you like or what we can improve...",
+                            fontSize = 16.sp,
                             color = Color(0xFF9CA3AF)
                         )
                     },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp
+                    ),
                     minLines = 5,
                     maxLines = Int.MAX_VALUE,
                     keyboardOptions = KeyboardOptions(
@@ -412,17 +459,10 @@ fun FeedbackScreen(
                 )
             }
 
-            // Privacy note
-            Text(
-                text = "Your feedback is valuable to us. We'll review it carefully and may reach out if we need more details.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF6B7280),
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
             // Error message (if any)
             errorMessage?.let { error ->
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -452,95 +492,206 @@ fun FeedbackScreen(
 
             // Space for keyboard (Snoonu-style)
             Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
+}
 
-    // Success dialog
-    if (showSuccessDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showSuccessDialog = false
-                feedbackText = ""
-                email = ""
-                onBackClick()
-            },
-            icon = {
-                Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = Color(0xFF10B981)  // Green success color
-                )
-            },
-            title = {
-                Text(
-                    text = "Thank You!",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
-                    ),
-                    color = Color(0xFF1F2937)
-                )
-            },
-            text = {
-                Text(
-                    text = "Your feedback has been submitted successfully. We appreciate you taking the time to help us improve DohaDealsRadar!",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 15.sp
-                    ),
-                    color = Color(0xFF4B5563),
-                    lineHeight = 22.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showSuccessDialog = false
-                        feedbackText = ""
-                        email = ""
-                        onBackClick()
-                    },
+/**
+ * Feedback Sending Screen
+ * Matches ReportScreen sending animation style with envelope icon
+ */
+@Composable
+private fun FeedbackSendingContent() {
+    // Pulsing animation for the icon
+    val infiniteTransition = rememberInfiniteTransition(label = "sending")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .padding(vertical = 60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Animated envelope icon
+        Icon(
+            imageVector = Icons.Rounded.Email,
+            contentDescription = "Sending feedback",
+            modifier = Modifier
+                .size(120.dp)
+                .scale(scale)
+                .graphicsLayer { this.alpha = alpha },
+            tint = Color(0xFF9C27B0)  // Purple brand color
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "Sending Feedback...",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 28.sp
+            ),
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LinearProgressIndicator(
+            modifier = Modifier.width(200.dp),
+            color = Color(0xFF9C27B0)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Please wait",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 16.sp
+            ),
+            color = Color(0xFFB0B0B0)
+        )
+    }
+}
+
+/**
+ * Feedback Success Screen
+ * Matches ReportScreen success animation style
+ */
+@Composable
+private fun FeedbackSuccessContent() {
+    // Animation states
+    var visible by remember { mutableStateOf(false) }
+    var checkmarkScale by remember { mutableFloatStateOf(0f) }
+
+    // Launch animations
+    LaunchedEffect(Unit) {
+        delay(100)
+        visible = true
+        checkmarkScale = 1f
+    }
+
+    // Animated scale with bounce
+    val scale by animateFloatAsState(
+        targetValue = checkmarkScale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "checkmark_scale"
+    )
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = tween(300))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(vertical = 60.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Purple checkmark with concentric circles
+            Box(
+                modifier = Modifier
+                    .size(180.dp)
+                    .scale(scale),
+                contentAlignment = Alignment.Center
+            ) {
+                // Outer circle (light purple)
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    contentPadding = PaddingValues(0.dp)
+                        .size(180.dp)
+                        .background(
+                            color = Color(0xFF9C27B0).copy(alpha = 0.15f),
+                            shape = CircleShape
+                        )
+                )
+
+                // Middle circle (medium purple)
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .background(
+                            color = Color(0xFF9C27B0).copy(alpha = 0.3f),
+                            shape = CircleShape
+                        )
+                )
+
+                // Inner solid circle with checkmark
+                Surface(
+                    modifier = Modifier.size(100.dp),
+                    shape = CircleShape,
+                    color = Color(0xFF9C27B0),
+                    shadowElevation = 12.dp
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFFE91E63),  // Pink
-                                        Color(0xFF9C27B0)   // Purple
-                                    )
-                                ),
-                                shape = MaterialTheme.shapes.medium
-                            ),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        Text(
-                            text = "Done",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = Color.White
-                            )
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Feedback sent",
+                            modifier = Modifier.size(70.dp),
+                            tint = Color.White
                         )
                     }
                 }
-            },
-            containerColor = Color.White,
-            shape = MaterialTheme.shapes.extraLarge
-        )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Success messages
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Main title
+                Text(
+                    text = "Thank You!",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp
+                    ),
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+
+                // Subtitle
+                Text(
+                    text = "We appreciate your help in\nmaking DohaDealsRadar better!",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 18.sp,
+                        lineHeight = 26.sp
+                    ),
+                    color = Color(0xFFB0B0B0),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 
