@@ -216,7 +216,7 @@ fun AppNavHost(
             val deviceIdManager = remember { qa.deals.doha.datastore.DeviceIdManager.getInstance(context) }
             val userRepo = remember { qa.deals.doha.repository.UserRepository() }
 
-            // ✅ FIX: Collect user role as state to avoid suspend function call in click handler
+            // Get current user ID and role reactively
             val userId = deviceIdManager.getUserId()
             val userRole by (userId?.let { userRepo.getCachedUserRoleFlow(it) }
                 ?: kotlinx.coroutines.flow.flowOf(null)).collectAsState(initial = null)
@@ -229,12 +229,14 @@ fun AppNavHost(
                 },
                 // ✅ FIX: Check authentication state directly without creating FeedViewModel
                 onAccountClick = {
+                    val currentRole = userRole ?: "user"
+
                     when {
                         userId == null -> {
                             // Not logged in → Login screen
                             navController.navigate(Routes.LOGIN)
                         }
-                        userRole == "admin" || userRole == "moderator" -> {
+                        currentRole == "admin" || currentRole == "moderator" -> {
                             // Moderator/Admin → Check if first time
                             if (!deviceIdManager.hasSeenAccountScreen()) {
                                 // First time → Show account screen
