@@ -9,8 +9,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.Crossfade
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -121,35 +123,68 @@ fun FeedbackScreen(
             ) {
                 Button(
                     onClick = {
-                        if (feedbackText.isNotBlank() && feedbackText.length <= maxCharacters) {
-                            isSubmitting = true
-                            errorMessage = null
+                        // Validate email format if provided
+                        if (email.isNotBlank()) {
+                            val emailRegex = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$".toRegex()
+                            if (!emailRegex.matches(email)) {
+                                errorMessage = "Please enter a valid email address (e.g., name@example.com)"
+                                return@Button
+                            }
+                        }
 
-                            scope.launch {
-                                try {
-                                    val deviceId = deviceIdManager.getDeviceId()
-                                    val userId = deviceIdManager.getUserId()
+                        // Validate feedback text
+                        if (feedbackText.isBlank()) {
+                            errorMessage = "Please enter your feedback before submitting"
+                            return@Button
+                        }
 
-                                    val result = repository.submitFeedback(
-                                        deviceId = deviceId,
-                                        feedbackText = feedbackText,
-                                        userId = userId,
-                                        email = if (email.isNotBlank()) email else null
-                                    )
+                        if (feedbackText.length > maxCharacters) {
+                            errorMessage = "Your feedback is too long. Please keep it under $maxCharacters characters"
+                            return@Button
+                        }
 
-                                    result.fold(
-                                        onSuccess = {
-                                            isSubmitting = false
-                                            showSuccessDialog = true
-                                        },
-                                        onFailure = { error ->
-                                            isSubmitting = false
-                                            errorMessage = error.message ?: "Failed to submit feedback"
+                        // All validations passed - submit feedback
+                        isSubmitting = true
+                        errorMessage = null
+
+                        scope.launch {
+                            try {
+                                val deviceId = deviceIdManager.getDeviceId()
+                                val userId = deviceIdManager.getUserId()
+
+                                val result = repository.submitFeedback(
+                                    deviceId = deviceId,
+                                    feedbackText = feedbackText,
+                                    userId = userId,
+                                    email = if (email.isNotBlank()) email else null
+                                )
+
+                                result.fold(
+                                    onSuccess = {
+                                        isSubmitting = false
+                                        showSuccessDialog = true
+                                    },
+                                    onFailure = { error ->
+                                        isSubmitting = false
+                                        errorMessage = when {
+                                            error.message?.contains("email", ignoreCase = true) == true ->
+                                                "There's an issue with the email address. Please check and try again"
+                                            error.message?.contains("network", ignoreCase = true) == true ->
+                                                "Network error. Please check your connection and try again"
+                                            else ->
+                                                "Unable to submit feedback. Please try again later"
                                         }
-                                    )
-                                } catch (e: Exception) {
-                                    isSubmitting = false
-                                    errorMessage = e.message ?: "An error occurred"
+                                    }
+                                )
+                            } catch (e: Exception) {
+                                isSubmitting = false
+                                errorMessage = when {
+                                    e.message?.contains("network", ignoreCase = true) == true ->
+                                        "Network error. Please check your connection and try again"
+                                    e.message?.contains("timeout", ignoreCase = true) == true ->
+                                        "Request timed out. Please try again"
+                                    else ->
+                                        "Something went wrong. Please try again later"
                                 }
                             }
                         }
@@ -159,28 +194,84 @@ fun FeedbackScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF9C27B0),
-                        contentColor = Color.White
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.Transparent,
+                        disabledContentColor = Color.White
                     ),
-                    shape = MaterialTheme.shapes.medium
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp,
+                        disabledElevation = 0.dp
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Submit Feedback",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = if (feedbackText.isNotBlank() && !isSubmitting && feedbackText.length <= maxCharacters) {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFFE91E63),  // Pink
+                                            Color(0xFF9C27B0)   // Purple
+                                        )
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF4B5563),
+                                            Color(0xFF4B5563)
+                                        )
+                                    )
+                                },
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Crossfade(
+                            targetState = isSubmitting,
+                            label = "submitButtonState"
+                        ) { submitting ->
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (submitting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Submitting...",
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = Color.White
+                                        )
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Submit Feedback",
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = Color.White
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -321,72 +412,6 @@ fun FeedbackScreen(
                 )
             }
 
-            // Submit button with gradient background
-            Button(
-                onClick = {
-                    if (feedbackText.isNotBlank() && feedbackText.length <= maxCharacters) {
-                        isSubmitting = true
-                        errorMessage = null
-
-                        scope.launch {
-                            try {
-                                val deviceId = deviceIdManager.getDeviceId()
-                                val userId = deviceIdManager.getUserId()
-
-                                val result = repository.submitFeedback(
-                                    deviceId = deviceId,
-                                    feedbackText = feedbackText,
-                                    userId = userId,
-                                    email = if (email.isNotBlank()) email else null
-                                )
-
-                                result.fold(
-                                    onSuccess = {
-                                        isSubmitting = false
-                                        showSuccessDialog = true
-                                    },
-                                    onFailure = { error ->
-                                        isSubmitting = false
-                                        errorMessage = error.message ?: "Failed to submit feedback"
-                                    }
-                                )
-                            } catch (e: Exception) {
-                                isSubmitting = false
-                                errorMessage = e.message ?: "An error occurred"
-                            }
-                        }
-                    }
-                },
-                enabled = feedbackText.isNotBlank() && !isSubmitting && feedbackText.length <= maxCharacters,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9C27B0),
-                    contentColor = Color.White
-                ),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Submit Feedback",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
             // Privacy note
             Text(
                 text = "Your feedback is valuable to us. We'll review it carefully and may reach out if we need more details.",
@@ -424,6 +449,9 @@ fun FeedbackScreen(
                     }
                 }
             }
+
+            // Space for keyboard (Snoonu-style)
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -437,24 +465,31 @@ fun FeedbackScreen(
                 onBackClick()
             },
             icon = {
-                Text(
-                    text = "✨",
-                    fontSize = 48.sp
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = Color(0xFF10B981)  // Green success color
                 )
             },
             title = {
                 Text(
                     text = "Thank You!",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = Color(0xFF1F2937)
                 )
             },
             text = {
                 Text(
                     text = "Your feedback has been submitted successfully. We appreciate you taking the time to help us improve DohaDealsRadar!",
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 20.sp
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 15.sp
+                    ),
+                    color = Color(0xFF4B5563),
+                    lineHeight = 22.sp
                 )
             },
             confirmButton = {
@@ -465,15 +500,46 @@ fun FeedbackScreen(
                         email = ""
                         onBackClick()
                     },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF9C27B0)
-                    )
+                        containerColor = Color.Transparent
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Done")
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFE91E63),  // Pink
+                                        Color(0xFF9C27B0)   // Purple
+                                    )
+                                ),
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Done",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                        )
+                    }
                 }
             },
             containerColor = Color.White,
-            shape = MaterialTheme.shapes.large
+            shape = MaterialTheme.shapes.extraLarge
         )
     }
 }
