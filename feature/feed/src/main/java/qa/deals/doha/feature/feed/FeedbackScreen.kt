@@ -182,9 +182,12 @@ fun FeedbackScreen(
                                 val deviceId = deviceIdManager.getDeviceId()
                                 val userId = deviceIdManager.getUserId()
 
+                                // Sanitize text before submission
+                                val sanitizedFeedback = sanitizeInput(feedbackText)
+
                                 val result = repository.submitFeedback(
                                     deviceId = deviceId,
-                                    feedbackText = feedbackText,
+                                    feedbackText = sanitizedFeedback,
                                     userId = userId,
                                     email = if (email.isNotBlank()) email else null
                                 )
@@ -414,10 +417,13 @@ fun FeedbackScreen(
                 OutlinedTextField(
                     value = feedbackText,
                     onValueChange = { newText ->
-                        // Sanitize and filter input (2025 best practices)
-                        val sanitized = sanitizeInput(newText)
-                        if (sanitized.length <= maxCharacters) {
-                            feedbackText = sanitized
+                        // Basic filtering only during typing (remove dangerous characters)
+                        val filtered = newText
+                            .replace(Regex("[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]"), "")
+                            .replace(Regex("[\u200B-\u200D\uFEFF]"), "")
+
+                        if (filtered.length <= maxCharacters) {
+                            feedbackText = filtered
                         }
                     },
                     modifier = Modifier
@@ -696,11 +702,13 @@ private fun FeedbackSuccessContent() {
 }
 
 /**
- * Sanitize user input (2025 best practices)
+ * Sanitize user input before submission (2025 best practices)
+ *
+ * Called only on submit, not during typing, to allow natural text entry.
  *
  * - Remove control characters
  * - Trim excessive whitespace
- * - Filter malicious patterns
+ * - Normalize spacing
  * - Preserve emojis and international characters
  */
 private fun sanitizeInput(input: String): String {
