@@ -153,7 +153,9 @@ fun PendingDealsScreen(
                 // Empty state
                 pendingDeals.isEmpty() && !uiState.loading -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFF9FAFB)),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -184,7 +186,9 @@ fun PendingDealsScreen(
                 else -> {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFF9FAFB)),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
                         items(
@@ -211,7 +215,7 @@ fun PendingDealsScreen(
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    CircularProgressIndicator(color = Color(0xFF9C27B0))
                                 }
                             }
                         }
