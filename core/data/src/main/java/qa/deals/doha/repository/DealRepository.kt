@@ -793,4 +793,126 @@ class DealRepository {
             Result.failure(e)
         }
     }
+
+    // ========================================
+    // ✅ NEW: REPORTS MANAGEMENT (2025-11-22)
+    // Methods for viewing and managing user-submitted reports
+    // ========================================
+
+    /**
+     * Get all submitted reports with details from API (moderator/admin only)
+     * Returns reports with joined deal and user information
+     *
+     * @param userId User ID (must be moderator or admin)
+     * @param page Page number
+     * @param limit Items per page
+     * @return Result with list of reports or error
+     */
+    suspend fun getReports(
+        userId: String,
+        page: Int = 1,
+        limit: Int = 20
+    ): Result<List<ReportWithDetailsDto>> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "🚨 Fetching reports (page: $page, user: $userId)...")
+
+            val response = api.getReports(
+                GetReportsRequest(
+                    userId = userId,
+                    page = page,
+                    limit = limit
+                )
+            )
+
+            if (response.success == true && response.data != null) {
+                Log.d("Repository", "✅ Fetched ${response.data.size} reports")
+                Result.success(response.data)
+            } else {
+                Log.e("Repository", "❌ Failed to fetch reports: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to fetch reports"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error fetching reports", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Dismiss a report without taking action (moderator/admin only)
+     * Marks the report as reviewed but no action needed
+     *
+     * @param reportId Report ID to dismiss
+     * @param userId User ID (must be moderator or admin)
+     * @param reason Optional reason for dismissing
+     * @return Result with success/error
+     */
+    suspend fun dismissReport(
+        reportId: String,
+        userId: String,
+        reason: String? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "❌ Dismissing report: $reportId by user: $userId")
+
+            val response = api.dismissReport(
+                DismissReportRequest(
+                    reportId = reportId,
+                    userId = userId,
+                    reason = reason
+                )
+            )
+
+            if (response.success) {
+                Log.d("Repository", "✅ Report dismissed: $reportId")
+                Result.success(Unit)
+            } else {
+                Log.e("Repository", "❌ Failed to dismiss report: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to dismiss report"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error dismissing report", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Resolve a report with action (moderator/admin only)
+     * Takes action on a report (e.g., delete deal, warn user)
+     *
+     * @param reportId Report ID to resolve
+     * @param userId User ID (must be moderator or admin)
+     * @param action Action to take (e.g., "delete_deal", "warn_user")
+     * @param reason Optional reason for action
+     * @return Result with success/error
+     */
+    suspend fun resolveReport(
+        reportId: String,
+        userId: String,
+        action: String,
+        reason: String? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("Repository", "⚡ Resolving report: $reportId with action: $action by user: $userId")
+
+            val response = api.resolveReport(
+                ResolveReportRequest(
+                    reportId = reportId,
+                    userId = userId,
+                    action = action,
+                    reason = reason
+                )
+            )
+
+            if (response.success) {
+                Log.d("Repository", "✅ Report resolved: $reportId")
+                Result.success(Unit)
+            } else {
+                Log.e("Repository", "❌ Failed to resolve report: ${response.error}")
+                Result.failure(Exception(response.error ?: "Failed to resolve report"))
+            }
+        } catch (e: Exception) {
+            Log.e("Repository", "💥 Error resolving report", e)
+            Result.failure(e)
+        }
+    }
 }

@@ -301,4 +301,43 @@ interface SupabaseApiService {
     suspend fun permanentDeleteDeal(
         @Body request: PermanentDeleteDealRequest
     ): ModeratorActionResponse
+
+    /**
+     * Get all submitted reports with details (moderator/admin only)
+     * Returns reports with joined deal and user information
+     *
+     * CREATED: 2025-11-22
+     * @param request Contains user_id, page, limit
+     * @return List of reports with full context
+     */
+    @POST("get_reports")
+    suspend fun getReports(
+        @Body request: GetReportsRequest
+    ): ApiEnvelope<List<ReportWithDetailsDto>>
+
+    /**
+     * Dismiss a report without taking action (moderator/admin only)
+     * Marks the report as reviewed but no action needed
+     *
+     * CREATED: 2025-11-22
+     * @param request Contains report_id, user_id, reason
+     * @return Success response
+     */
+    @POST("dismiss_report")
+    suspend fun dismissReport(
+        @Body request: DismissReportRequest
+    ): ModeratorActionResponse
+
+    /**
+     * Resolve a report with action (moderator/admin only)
+     * Takes action on a report (e.g., delete deal, warn user)
+     *
+     * CREATED: 2025-11-22
+     * @param request Contains report_id, user_id, action, reason
+     * @return Success response
+     */
+    @POST("resolve_report")
+    suspend fun resolveReport(
+        @Body request: ResolveReportRequest
+    ): ModeratorActionResponse
 }

@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun ModeratorDashboardScreen(
     onBackClick: () -> Unit,
     onPendingDealsClick: () -> Unit,
+    onReportsClick: () -> Unit = {},  // ✅ NEW: Navigate to reports screen (2025-11-22)
     onUserManagementClick: () -> Unit = {},
     onAuditLogClick: () -> Unit = {},
     onLogout: () -> Unit = {},
@@ -47,6 +48,7 @@ fun ModeratorDashboardScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     val pendingDeals by viewModel.pendingDeals.collectAsState()
+    val reports by viewModel.reports.collectAsState()  // ✅ NEW: Reports state (2025-11-22)
 
     // Get DeviceIdManager and set current user
     val deviceIdManager = remember {
@@ -125,6 +127,17 @@ fun ModeratorDashboardScreen(
                 icon = Icons.Default.CheckCircle,
                 iconColor = Color(0xFFEAB308),
                 onClick = onPendingDealsClick
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ NEW: Submitted Reports Card (2025-11-22)
+            DashboardCard(
+                title = "Submitted Reports",
+                subtitle = "Review user-submitted reports",
+                icon = Icons.Default.Warning,
+                iconColor = Color(0xFFEF4444),  // Red for reports
+                onClick = onReportsClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))
