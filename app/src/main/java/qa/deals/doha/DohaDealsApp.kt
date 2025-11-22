@@ -11,6 +11,7 @@ import coil3.request.CachePolicy
 import coil3.util.DebugLogger
 import okio.Path.Companion.toOkioPath
 import qa.deals.doha.util.AppContext
+import qa.deals.doha.BuildConfig
 
 /**
  * ========================================
@@ -91,10 +92,15 @@ class DohaDealsApp : Application(), SingletonImageLoader.Factory {
 
             // ========================================
             // 🐛 DEBUG CONFIGURATION
-            // ⚠️ REMOVE IN PRODUCTION - Only for development
+            // ✅ FIXED: Only enable debug logging in debug builds
             // ========================================
-            .logger(DebugLogger())  // ✅ Log all image loads to Logcat
-            // TODO: Remove .logger() before production release
+            .apply {
+                // Only enable debug logging in debug builds
+                // This prevents performance overhead and log spam in production
+                if (BuildConfig.DEBUG) {
+                    logger(DebugLogger())
+                }
+            }
 
             .build()
             .also {
