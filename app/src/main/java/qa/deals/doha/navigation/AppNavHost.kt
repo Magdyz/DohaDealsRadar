@@ -17,6 +17,7 @@ import qa.deals.onboarding.OnboardingScreen
 // SPRINT 4: Import moderator and profile screens
 import qa.deals.doha.feature.feed.moderator.ModeratorDashboardScreen
 import qa.deals.doha.feature.feed.moderator.PendingDealsScreen
+import qa.deals.doha.feature.feed.moderator.ReportsScreen  // ✅ NEW: Reports screen (2025-11-22)
 import qa.deals.doha.feature.feed.profile.UserProfileScreen
 // SPRINT 5: Import authentication and account screens
 import qa.deals.doha.feature.post.LoginScreen
@@ -282,6 +283,9 @@ fun AppNavHost(
                 onPendingDealsClick = {
                     navController.navigate(Routes.PENDING_DEALS)
                 },
+                onReportsClick = {  // ✅ NEW: Navigate to reports screen (2025-11-22)
+                    navController.navigate(Routes.REPORTS)
+                },
                 onUserManagementClick = {
                     // TODO: Sprint 6 - User management screen
                     // This will navigate to admin panel in future sprint
@@ -305,6 +309,16 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() },
                 onDealClick = { deal ->
                     navController.navigate(Routes.details(deal.id))
+                }
+            )
+        }
+
+        // ✅ NEW: Reports Screen - Review user-submitted reports (2025-11-22)
+        composable(Routes.REPORTS) {
+            ReportsScreen(
+                onBackClick = { navController.popBackStack() },
+                onDealClick = { dealId ->
+                    navController.navigate(Routes.details(dealId))
                 }
             )
         }

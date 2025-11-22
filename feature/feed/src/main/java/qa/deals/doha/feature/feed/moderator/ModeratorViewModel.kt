@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import qa.deals.doha.db.DealEntity
 import qa.deals.doha.network.PaginationMeta
+import qa.deals.doha.network.ReportWithDetailsDto
 import qa.deals.doha.repository.DealRepository
 import qa.deals.doha.repository.UserRepository
 
@@ -25,7 +26,12 @@ data class ModeratorUiState(
     val isLoadingMore: Boolean = false,
     val actionInProgress: Boolean = false,
     val actionSuccess: String? = null,
-    val actionError: String? = null
+    val actionError: String? = null,
+    // ✅ NEW: Reports state (2025-11-22)
+    val reportsCurrentPage: Int = 1,
+    val reportsHasMorePages: Boolean = true,
+    val isLoadingReports: Boolean = false,
+    val isLoadingMoreReports: Boolean = false
 )
 
 /**
@@ -53,6 +59,10 @@ class ModeratorViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    // ✅ NEW: Reports state (2025-11-22)
+    private val _reports = MutableStateFlow<List<ReportWithDetailsDto>>(emptyList())
+    val reports: StateFlow<List<ReportWithDetailsDto>> = _reports.asStateFlow()
 
     init {
         Log.d("ModeratorVM", "Initializing ModeratorViewModel")
@@ -118,6 +128,23 @@ class ModeratorViewModel(
         if (!wasModerator && isModerator && _currentUserId.value != null) {
             Log.d("ModeratorVM", "Role loaded as moderator, fetching pending deals")
             refreshPendingDeals()
+        }
+    }
+
+    /**
+     * Request reports refresh from external trigger
+     * This is called by ReportsScreen when it first loads
+     */
+    fun requestReportsRefresh() {
+        Log.d("ModeratorVM", "Reports refresh requested, isModerator=${_uiState.value.isModerator}, userId=${_currentUserId.value?.take(8)}")
+
+        if (_uiState.value.isModerator && _currentUserId.value != null) {
+            // Role already loaded, fetch immediately
+            refreshReports()
+        } else {
+            // Role not loaded yet - refreshReports will be called automatically
+            // when updateRole() detects moderator/admin status
+            Log.d("ModeratorVM", "Role not yet loaded, will fetch reports after role loads")
         }
     }
 
@@ -368,5 +395,215 @@ class ModeratorViewModel(
      */
     fun clearError() {
         _uiState.update { it.copy(error = null, actionError = null) }
+    }
+
+    // ========================================
+    // ✅ NEW: REPORTS MANAGEMENT (2025-11-22)
+    // Functions for viewing and managing user-submitted reports
+    // ========================================
+
+    /**
+     * Refresh reports from API
+     * Fetches the first page of reports and replaces existing list
+     */
+    fun refreshReports() {
+        val userId = _currentUserId.value
+        Log.d("ModeratorVM", "refreshReports() called - userId=${userId?.take(8)}, isModerator=${_uiState.value.isModerator}")
+
+        if (userId == null) {
+            Log.w("ModeratorVM", "❌ Cannot refresh reports: user ID not set")
+            return
+        }
+
+        if (!_uiState.value.isModerator) {
+            Log.w("ModeratorVM", "❌ User is not a moderator, cannot fetch reports (role=${_uiState.value.currentUserRole})")
+            _uiState.update { it.copy(error = "You don't have permission to view reports") }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoadingReports = true, error = null) }
+                Log.d("ModeratorVM", "🚨 Fetching reports for user: $userId")
+
+                val result = dealRepo.getReports(
+                    userId = userId,
+                    page = 1,
+                    limit = 20
+                )
+
+                if (result.isSuccess) {
+                    val reportsList = result.getOrNull() ?: emptyList()
+                    _reports.value = reportsList
+
+                    _uiState.update { it.copy(
+                        isLoadingReports = false,
+                        reportsCurrentPage = 1,
+                        reportsHasMorePages = reportsList.size >= 20
+                    )}
+                    Log.d("ModeratorVM", "Reports fetched successfully: ${reportsList.size} items")
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Failed to fetch reports"
+                    _uiState.update { it.copy(isLoadingReports = false, error = error) }
+                    Log.e("ModeratorVM", "Failed to fetch reports: $error")
+                }
+            } catch (e: Exception) {
+                Log.e("ModeratorVM", "Error refreshing reports", e)
+                _uiState.update { it.copy(isLoadingReports = false, error = "Error: ${e.message}") }
+            }
+        }
+    }
+
+    /**
+     * Load more reports (pagination)
+     * Appends the next page of reports to the existing list
+     */
+    fun loadMoreReports() {
+        val userId = _currentUserId.value ?: return
+        if (!_uiState.value.reportsHasMorePages || _uiState.value.isLoadingMoreReports) return
+
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoadingMoreReports = true) }
+                val nextPage = _uiState.value.reportsCurrentPage + 1
+
+                Log.d("ModeratorVM", "Loading more reports, page: $nextPage")
+
+                val result = dealRepo.getReports(
+                    userId = userId,
+                    page = nextPage,
+                    limit = 20
+                )
+
+                if (result.isSuccess) {
+                    val newReports = result.getOrNull() ?: emptyList()
+                    _reports.value = _reports.value + newReports
+
+                    _uiState.update { it.copy(
+                        isLoadingMoreReports = false,
+                        reportsCurrentPage = nextPage,
+                        reportsHasMorePages = newReports.size >= 20
+                    )}
+                    Log.d("ModeratorVM", "Loaded ${newReports.size} more reports")
+                } else {
+                    _uiState.update { it.copy(isLoadingMoreReports = false) }
+                }
+            } catch (e: Exception) {
+                Log.e("ModeratorVM", "Error loading more reports", e)
+                _uiState.update { it.copy(isLoadingMoreReports = false) }
+            }
+        }
+    }
+
+    /**
+     * Dismiss a report without taking action
+     * Removes the report from the list
+     */
+    fun dismissReport(reportId: String, reason: String? = null) {
+        val userId = _currentUserId.value
+        if (userId == null) {
+            Log.w("ModeratorVM", "Cannot dismiss report: user ID not set")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(
+                    actionInProgress = true,
+                    actionError = null,
+                    actionSuccess = null
+                )}
+
+                Log.d("ModeratorVM", "Dismissing report: $reportId")
+
+                val result = dealRepo.dismissReport(reportId, userId, reason)
+
+                if (result.isSuccess) {
+                    // Remove dismissed report from list
+                    _reports.value = _reports.value.filter { it.id != reportId }
+
+                    _uiState.update { it.copy(
+                        actionInProgress = false,
+                        actionSuccess = "Report dismissed"
+                    )}
+                    Log.d("ModeratorVM", "Report dismissed: $reportId")
+
+                    clearActionMessage()
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Failed to dismiss report"
+                    _uiState.update { it.copy(
+                        actionInProgress = false,
+                        actionError = error
+                    )}
+                    Log.e("ModeratorVM", "Failed to dismiss report: $error")
+                }
+            } catch (e: Exception) {
+                Log.e("ModeratorVM", "Error dismissing report", e)
+                _uiState.update { it.copy(
+                    actionInProgress = false,
+                    actionError = "Error: ${e.message}"
+                )}
+            }
+        }
+    }
+
+    /**
+     * Resolve a report with action
+     * Takes specific action on the reported content
+     */
+    fun resolveReport(reportId: String, action: String, reason: String? = null) {
+        val userId = _currentUserId.value
+        if (userId == null) {
+            Log.w("ModeratorVM", "Cannot resolve report: user ID not set")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(
+                    actionInProgress = true,
+                    actionError = null,
+                    actionSuccess = null
+                )}
+
+                Log.d("ModeratorVM", "Resolving report: $reportId with action: $action")
+
+                val result = dealRepo.resolveReport(reportId, userId, action, reason)
+
+                if (result.isSuccess) {
+                    // Remove resolved report from list
+                    _reports.value = _reports.value.filter { it.id != reportId }
+
+                    _uiState.update { it.copy(
+                        actionInProgress = false,
+                        actionSuccess = "Report resolved - $action"
+                    )}
+                    Log.d("ModeratorVM", "Report resolved: $reportId")
+
+                    clearActionMessage()
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Failed to resolve report"
+                    _uiState.update { it.copy(
+                        actionInProgress = false,
+                        actionError = error
+                    )}
+                    Log.e("ModeratorVM", "Failed to resolve report: $error")
+                }
+            } catch (e: Exception) {
+                Log.e("ModeratorVM", "Error resolving report", e)
+                _uiState.update { it.copy(
+                    actionInProgress = false,
+                    actionError = "Error: ${e.message}"
+                )}
+            }
+        }
+    }
+
+    /**
+     * Get the current count of reports
+     * Useful for displaying badges in the UI
+     */
+    fun getReportsCount(): Int {
+        return _reports.value.size
     }
 }

@@ -1,5 +1,6 @@
 package qa.deals.doha.feature.feed.moderator
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,16 +22,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import qa.deals.doha.db.DealEntity
 
 /**
- * Screen showing pending deals queue for moderators
+ * Screen showing submitted reports for moderators to review
+ *
+ * CREATED: 2025-11-22
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PendingDealsScreen(
+fun ReportsScreen(
     onBackClick: () -> Unit,
-    onDealClick: (DealEntity) -> Unit,
+    onDealClick: (String) -> Unit,  // Navigate to deal by dealId
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -44,8 +46,11 @@ fun PendingDealsScreen(
     )
 
     val uiState by viewModel.uiState.collectAsState()
-    val pendingDeals by viewModel.pendingDeals.collectAsState()
+    val reports by viewModel.reports.collectAsState()
     val listState = rememberLazyListState()
+
+    var showActionDialog by remember { mutableStateOf(false) }
+    var selectedReportId by remember { mutableStateOf<String?>(null) }
 
     // Get DeviceIdManager and set current user
     val deviceIdManager = remember {
@@ -56,14 +61,22 @@ fun PendingDealsScreen(
         val userId = deviceIdManager.getUserId()
         if (userId != null) {
             viewModel.setCurrentUser(userId)
+            // Request reports refresh (will wait for role to load if needed)
+            viewModel.requestReportsRefresh()
         }
     }
 
+    // Also refresh reports when role becomes moderator
+    LaunchedEffect(uiState.isModerator) {
+        if (uiState.isModerator && reports.isEmpty() && !uiState.isLoadingReports) {
+            Log.d("ReportsScreen", "Role confirmed as moderator, refreshing reports")
+            viewModel.refreshReports()
+        }
+    }
 
     Scaffold(
         topBar = {
-            // ✅ Purple gradient header (matches Archive styling)
-
+            // Purple gradient header (matches moderator dashboard theme)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -82,7 +95,7 @@ fun PendingDealsScreen(
                     title = {
                         Column {
                             Text(
-                                text = "⏳ Pending Deals",
+                                text = "🚨 Submitted Reports",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 24.sp
@@ -90,7 +103,7 @@ fun PendingDealsScreen(
                                 color = Color.White
                             )
                             Text(
-                                text = "${pendingDeals.size} deals awaiting review",
+                                text = "${reports.size} reports to review",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                                 color = Color.White.copy(alpha = 0.85f)
                             )
@@ -113,15 +126,15 @@ fun PendingDealsScreen(
         }
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = uiState.loading,
-            onRefresh = { viewModel.refreshPendingDeals() },
+            isRefreshing = uiState.isLoadingReports,
+            onRefresh = { viewModel.refreshReports() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
             when {
                 // Error state
-                uiState.error != null -> {
+                uiState.error != null && !uiState.isLoadingReports -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -131,7 +144,7 @@ fun PendingDealsScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Error loading pending deals",
+                                text = "Error loading reports",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF6B7280)
@@ -143,7 +156,7 @@ fun PendingDealsScreen(
                                 color = Color(0xFFEF4444)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.refreshPendingDeals() }) {
+                            Button(onClick = { viewModel.refreshReports() }) {
                                 Text("Retry")
                             }
                         }
@@ -151,7 +164,7 @@ fun PendingDealsScreen(
                 }
 
                 // Empty state
-                pendingDeals.isEmpty() && !uiState.loading -> {
+                reports.isEmpty() && !uiState.isLoadingReports -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -167,14 +180,14 @@ fun PendingDealsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No pending deals",
+                                text = "No reports to review",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1F2937)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "All caught up!",
+                                text = "All clear!",
                                 fontSize = 14.sp,
                                 color = Color(0xFF6B7280)
                             )
@@ -182,7 +195,7 @@ fun PendingDealsScreen(
                     }
                 }
 
-                // List of pending deals
+                // List of reports
                 else -> {
                     LazyColumn(
                         state = listState,
@@ -192,22 +205,31 @@ fun PendingDealsScreen(
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
                         items(
-                            items = pendingDeals,
-                            key = { it.id }
-                        ) { deal ->
-                            DealApprovalCard(
-                                deal = deal,
-                                onApprove = { viewModel.approveDeal(deal.id) },
-                                onReject = { reason -> viewModel.rejectDeal(deal.id, reason) },  // ✅ Pass reason
-                                onDelete = { reason -> viewModel.deleteDeal(deal.id, reason) },  // ✅ Pass reason
-                                onClick = { onDealClick(deal) },
+                            items = reports,
+                            key = { it.id ?: it.dealId ?: System.currentTimeMillis() }
+                        ) { report ->
+                            ReportCard(
+                                report = report,
+                                onViewDeal = {
+                                    report.dealId?.let { dealId ->
+                                        onDealClick(dealId)
+                                    }
+                                },
+                                onDismiss = { reason ->
+                                    report.id?.let { reportId ->
+                                        viewModel.dismissReport(reportId, reason)
+                                    }
+                                },
+                                onTakeAction = {
+                                    selectedReportId = report.id
+                                    showActionDialog = true
+                                },
                                 actionInProgress = uiState.actionInProgress
                             )
                         }
 
                         // Loading more indicator (only during pagination, not initial load)
-
-                        if (uiState.isLoadingMore && !uiState.loading) {
+                        if (uiState.isLoadingMoreReports && !uiState.isLoadingReports) {
                             item {
                                 Box(
                                     modifier = Modifier
@@ -229,8 +251,8 @@ fun PendingDealsScreen(
                             val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                             lastVisibleItem >= totalItems - 3
                         }.collect { shouldLoadMore ->
-                            if (shouldLoadMore && uiState.hasMorePages && !uiState.isLoadingMore) {
-                                viewModel.loadMorePendingDeals()
+                            if (shouldLoadMore && uiState.reportsHasMorePages && !uiState.isLoadingMoreReports) {
+                                viewModel.loadMoreReports()
                             }
                         }
                     }
@@ -257,4 +279,110 @@ fun PendingDealsScreen(
             }
         }
     }
+
+    // Action Dialog
+    if (showActionDialog && selectedReportId != null) {
+        TakeActionDialog(
+            onConfirm = { action, reason ->
+                showActionDialog = false
+                selectedReportId?.let { reportId ->
+                    viewModel.resolveReport(reportId, action, reason)
+                }
+                selectedReportId = null
+            },
+            onDismiss = {
+                showActionDialog = false
+                selectedReportId = null
+            }
+        )
+    }
+}
+
+/**
+ * Dialog for taking action on a report
+ */
+@Composable
+private fun TakeActionDialog(
+    onConfirm: (action: String, reason: String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedAction by remember { mutableStateOf("delete_deal") }
+    var reason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Take Action on Report") },
+        text = {
+            Column {
+                Text("What action would you like to take?")
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action selection
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        RadioButton(
+                            selected = selectedAction == "delete_deal",
+                            onClick = { selectedAction = "delete_deal" }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Delete the reported deal", fontSize = 14.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        RadioButton(
+                            selected = selectedAction == "warn_user",
+                            onClick = { selectedAction = "warn_user" }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Warn the user who posted", fontSize = 14.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        RadioButton(
+                            selected = selectedAction == "ban_user",
+                            onClick = { selectedAction = "ban_user" }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ban the user who posted", fontSize = 14.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Reason field
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Reason (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    placeholder = { Text("E.g., Violates community guidelines") }
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedAction, reason.takeIf { it.isNotBlank() }) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFEF4444)
+                )
+            ) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

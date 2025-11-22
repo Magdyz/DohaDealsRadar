@@ -20,6 +20,7 @@ object Routes {
     // SPRINT 4: Moderator routes
     const val MODERATOR_DASHBOARD = "moderator/dashboard"
     const val PENDING_DEALS = "moderator/pending"
+    const val REPORTS = "moderator/reports"  // ✅ NEW: Reports screen route (2025-11-22)
     const val USER_PROFILE = "profile/{userId}"
 
     /**
