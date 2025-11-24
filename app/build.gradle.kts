@@ -12,8 +12,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21 // Added voting authentication
-        versionName = "1.2.1"
+        versionCode = 22 // drop down menu, feedback and analytics
+        versionName = "1.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -117,4 +117,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     // This library contains HorizontalPager
     implementation("androidx.compose.foundation:foundation:1.7.0") // Or any other recent version
+
+    // PostHog Analytics (correct dependency: com.posthog:posthog-android)
+    implementation(libs.posthog.android)
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import qa.deals.doha.analytics.AnalyticsManager
 
 /**
  * ✨ REDESIGNED: Modern card with vote buttons overlaid on image
@@ -96,6 +97,26 @@ fun DealCard(
     val TAG = "DealCard"
     val context = androidx.compose.ui.platform.LocalContext.current
     val isArchived = deal.isArchived
+
+    // ========================================
+    // 📊 ANALYTICS: Track Deal_Viewed
+    // Track when deal card becomes visible
+    // ========================================
+    LaunchedEffect(deal.id) {
+        val priceLevel = AnalyticsManager.calculatePriceLevel(deal.discountedPrice ?: deal.originalPrice)
+        val temperature = AnalyticsManager.calculateTemperature(
+            hotVotes = optimisticHotCount ?: (deal.hotCount ?: 0),
+            coldVotes = optimisticColdCount ?: (deal.coldCount ?: 0)
+        )
+
+        AnalyticsManager.trackDealViewed(
+            dealId = deal.id,
+            category = deal.category,
+            priceLevel = priceLevel,
+            temperature = temperature,
+            position = 0  // Position will be set by parent if needed
+        )
+    }
 
     // ========================================
     // Vote count calculations
@@ -322,6 +343,14 @@ fun DealCard(
                                     Log.d(TAG, "🔥 HOT VOTE BUTTON CLICKED")
                                     Log.d(TAG, "   DealID: ${deal.id}")
                                     Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                    // 📊 ANALYTICS: Track Vote_Cast (Feature Adoption)
+                                    AnalyticsManager.trackVoteCast(
+                                        dealId = deal.id,
+                                        voteType = "fire",
+                                        isFirstVote = !hasVoted
+                                    )
+
                                     // ✅ NEW: Use unified callback if available, fallback to legacy
                                     onVote?.invoke("hot") ?: onVoteHot?.invoke()
                                 }
@@ -342,6 +371,14 @@ fun DealCard(
                                     Log.d(TAG, "❄️ COLD VOTE BUTTON CLICKED")
                                     Log.d(TAG, "   DealID: ${deal.id}")
                                     Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                    // 📊 ANALYTICS: Track Vote_Cast (Feature Adoption)
+                                    AnalyticsManager.trackVoteCast(
+                                        dealId = deal.id,
+                                        voteType = "ice",
+                                        isFirstVote = !hasVoted
+                                    )
+
                                     // ✅ NEW: Use unified callback if available, fallback to legacy
                                     onVote?.invoke("cold") ?: onVoteCold?.invoke()
                                 }
@@ -397,6 +434,15 @@ fun DealCard(
                     Button(
                         onClick = {
                             Log.d(TAG, "🔘 View Deal button clicked for deal: ${deal.id}, archived: $isArchived")
+
+                            // 📊 ANALYTICS: Track Deal_Link_Clicked (THE CONVERSION)
+                            val priceLevel = AnalyticsManager.calculatePriceLevel(deal.discountedPrice ?: deal.originalPrice)
+                            AnalyticsManager.trackDealLinkClicked(
+                                dealId = deal.id,
+                                category = deal.category,
+                                priceLevel = priceLevel
+                            )
+
                             onClick?.invoke()
                         },
                         enabled = true,  // ✅ Always enabled (even for archived deals)

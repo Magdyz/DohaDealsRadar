@@ -104,4 +104,7 @@ dependencies {
     implementation(libs.coil.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    // PostHog Analytics (for AnalyticsManager wrapper)
+    implementation(libs.posthog.android)
 }

@@ -74,3 +74,9 @@
 # Compose
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# PostHog Analytics
+-keep class com.posthog.** { *; }
+-keep interface com.posthog.** { *; }
+-dontwarn com.posthog.**
+-keepattributes *Annotation*,Signature,Exception

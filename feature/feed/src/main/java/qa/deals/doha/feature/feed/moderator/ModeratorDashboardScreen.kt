@@ -31,6 +31,7 @@ fun ModeratorDashboardScreen(
     onBackClick: () -> Unit,
     onPendingDealsClick: () -> Unit,
     onReportsClick: () -> Unit = {},  // ✅ NEW: Navigate to reports screen (2025-11-22)
+    onAnalyticsClick: () -> Unit = {},  // ✅ NEW: Navigate to analytics dashboard (2025-11-24)
     onUserManagementClick: () -> Unit = {},
     onAuditLogClick: () -> Unit = {},
     onLogout: () -> Unit = {},
@@ -138,6 +139,17 @@ fun ModeratorDashboardScreen(
                 icon = Icons.Default.Warning,
                 iconColor = Color(0xFFEF4444),  // Red for reports
                 onClick = onReportsClick
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ NEW: Analytics Dashboard Card (2025-11-24)
+            DashboardCard(
+                title = "Analytics Dashboard",
+                subtitle = "View user behavior and conversion metrics",
+                icon = Icons.Default.BarChart,
+                iconColor = Color(0xFF2563EB),  // Blue for analytics
+                onClick = onAnalyticsClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))

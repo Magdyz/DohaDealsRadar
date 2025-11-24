@@ -340,17 +340,17 @@ fun FeedbackScreen(
                         text = "We value your feedback! 💜",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontSize = 18.sp
                         ),
                         color = Color(0xFF7B1FA2)
                     )
                     Text(
                         text = "Help us improve DohaDealsRadar by sharing your thoughts or reporting issues.",
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         ),
                         color = Color(0xFF4A148C),
-                        lineHeight = 21.sp
+                        lineHeight = 19.5.sp
                     )
                 }
             }

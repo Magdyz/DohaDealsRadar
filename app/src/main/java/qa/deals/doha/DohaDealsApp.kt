@@ -11,6 +11,9 @@ import coil3.request.CachePolicy
 import coil3.util.DebugLogger
 import okio.Path.Companion.toOkioPath
 import qa.deals.doha.util.AppContext
+import qa.deals.doha.BuildConfig
+import com.posthog.android.PostHogAndroid
+import com.posthog.android.PostHogAndroidConfig
 
 /**
  * ========================================
@@ -48,6 +51,54 @@ class DohaDealsApp : Application(), SingletonImageLoader.Factory {
         AppContext.init(this)
 
         Log.d("DohaDealsApp", "✅ AppContext initialized")
+
+        // ✨ NEW: Initialize PostHog Analytics
+        initializePostHog()
+    }
+
+    /**
+     * ✨ POSTHOG ANALYTICS INITIALIZATION
+     *
+     * Initializes PostHog analytics SDK for tracking user behavior, DAU, retention, etc.
+     *
+     * Features enabled:
+     * - Automatic screen view tracking
+     * - App lifecycle events
+     * - Session replay (optional)
+     * - Feature flags
+     * - A/B testing
+     *
+     * Privacy:
+     * - No PII collected by default
+     * - Events are batched for efficiency
+     * - Debug mode only in DEBUG builds
+     */
+    private fun initializePostHog() {
+        try {
+            val config = PostHogAndroidConfig(
+                apiKey = "phc_syEtMzMy8W2JVYaW1bPcvqVBBaWnot73WjeUXQlK7k5",
+                host = "https://app.posthog.com"
+            ).apply {
+                // Enable automatic screen tracking
+                captureScreenViews = true
+
+                // Enable app lifecycle events (app opened, app backgrounded)
+                captureApplicationLifecycleEvents = true
+
+                // ✨ Enable Session Replay (includes Rage Click detection!)
+                // This records user sessions so you can watch exactly what they do
+                sessionReplay = true
+
+                // Enable debug logging only in debug builds
+                debug = BuildConfig.DEBUG
+            }
+
+            PostHogAndroid.setup(this, config)
+
+            Log.d("DohaDealsApp", "✅ PostHog Analytics initialized successfully")
+        } catch (e: Exception) {
+            Log.e("DohaDealsApp", "❌ Failed to initialize PostHog Analytics", e)
+        }
     }
 
     /**
@@ -91,10 +142,15 @@ class DohaDealsApp : Application(), SingletonImageLoader.Factory {
 
             // ========================================
             // 🐛 DEBUG CONFIGURATION
-            // ⚠️ REMOVE IN PRODUCTION - Only for development
+            // ✅ FIXED: Only enable debug logging in debug builds
             // ========================================
-            .logger(DebugLogger())  // ✅ Log all image loads to Logcat
-            // TODO: Remove .logger() before production release
+            .apply {
+                // Only enable debug logging in debug builds
+                // This prevents performance overhead and log spam in production
+                if (BuildConfig.DEBUG) {
+                    logger(DebugLogger())
+                }
+            }
 
             .build()
             .also {
