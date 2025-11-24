@@ -22,6 +22,7 @@ object Routes {
     const val MODERATOR_DASHBOARD = "moderator/dashboard"
     const val PENDING_DEALS = "moderator/pending"
     const val REPORTS = "moderator/reports"  // ✅ NEW: Reports screen route (2025-11-22)
+    const val ANALYTICS_DASHBOARD = "moderator/analytics"  // ✅ NEW: Analytics dashboard route (2025-11-24)
     const val USER_PROFILE = "profile/{userId}"
 
     /**

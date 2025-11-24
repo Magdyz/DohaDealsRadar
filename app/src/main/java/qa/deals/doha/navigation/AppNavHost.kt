@@ -19,6 +19,7 @@ import qa.deals.onboarding.OnboardingScreen
 import qa.deals.doha.feature.feed.moderator.ModeratorDashboardScreen
 import qa.deals.doha.feature.feed.moderator.PendingDealsScreen
 import qa.deals.doha.feature.feed.moderator.ReportsScreen  // ✅ NEW: Reports screen (2025-11-22)
+import qa.deals.doha.feature.feed.moderator.AnalyticsDashboardScreen  // ✅ NEW: Analytics dashboard (2025-11-24)
 import qa.deals.doha.feature.feed.profile.UserProfileScreen
 // SPRINT 5: Import authentication and account screens
 import qa.deals.doha.feature.post.LoginScreen
@@ -301,6 +302,9 @@ fun AppNavHost(
                 onReportsClick = {  // ✅ NEW: Navigate to reports screen (2025-11-22)
                     navController.navigate(Routes.REPORTS)
                 },
+                onAnalyticsClick = {  // ✅ NEW: Navigate to analytics dashboard (2025-11-24)
+                    navController.navigate(Routes.ANALYTICS_DASHBOARD)
+                },
                 onUserManagementClick = {
                     // TODO: Sprint 6 - User management screen
                     // This will navigate to admin panel in future sprint
@@ -335,6 +339,13 @@ fun AppNavHost(
                 onDealClick = { dealId ->
                     navController.navigate(Routes.details(dealId))
                 }
+            )
+        }
+
+        // ✅ NEW: Analytics Dashboard - View PostHog analytics (2025-11-24)
+        composable(Routes.ANALYTICS_DASHBOARD) {
+            AnalyticsDashboardScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

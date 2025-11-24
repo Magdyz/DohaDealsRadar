@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Intent
 import android.net.Uri
+import qa.deals.doha.analytics.AnalyticsManager
 
 
 /**
@@ -337,6 +338,36 @@ fun FeedScreen(
     // ✅ PRESERVED: Grid and pull-to-refresh states
     val gridState = rememberLazyGridState()
     val pullToRefreshState = rememberPullToRefreshState()
+
+    // ========================================
+    // 📊 ANALYTICS: Track Scroll Depth
+    // Measures if users scroll to see "Cold" deals or only view top "Hot" deals
+    // ========================================
+    LaunchedEffect(gridState) {
+        var lastTrackedPosition = 0
+
+        snapshotFlow { gridState.firstVisibleItemIndex }
+            .collect { currentPosition ->
+                // Track the maximum scroll position reached
+                if (currentPosition > lastTrackedPosition) {
+                    lastTrackedPosition = currentPosition
+
+                    // Track after user scrolls past 10 items
+                    if (currentPosition >= 10 && currentPosition % 10 == 0) {
+                        val totalDeals = deals.size
+                        val scrollPercentage = if (totalDeals > 0) {
+                            ((currentPosition.toFloat() / totalDeals) * 100).toInt().coerceIn(0, 100)
+                        } else 0
+
+                        AnalyticsManager.trackScrollDepth(
+                            maxPosition = currentPosition,
+                            totalDeals = totalDeals,
+                            scrollPercentage = scrollPercentage
+                        )
+                    }
+                }
+            }
+    }
 
 // ========================================
     // ✅ FIX (1.3): Get a lifecycle-aware CoroutineScope
