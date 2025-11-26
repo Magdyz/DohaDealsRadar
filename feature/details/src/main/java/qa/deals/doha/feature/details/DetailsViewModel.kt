@@ -127,8 +127,9 @@ class DetailsViewModel(
                             // Keep loading state true while fetching
                             _uiState.value = _uiState.value.copy(loading = true, error = null)
 
+                            // ✅ FIX: Fetch by "newest" to include newly approved deals (they have 0 votes)
                             // Trigger network refresh (this will populate the cache)
-                            val result = repo.refreshDeals(page = 1, append = false, sortBy = "hottest")
+                            val result = repo.refreshDeals(page = 1, append = false, sortBy = "newest")
 
                             result.onFailure { error ->
                                 Log.e("Details", "💥 Failed to fetch deal from network", error)
