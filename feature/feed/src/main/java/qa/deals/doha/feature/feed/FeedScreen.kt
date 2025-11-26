@@ -313,6 +313,7 @@ fun FeedScreen(
     onArchiveClick: () -> Unit = {},  // ✅ SPRINT 6: Navigate to archive screen
     onAccountClick: () -> Unit = {},  // ✅ SPRINT 5: Navigate to account/login
     onFeedbackClick: () -> Unit = {},  // ✅ NEW: Navigate to feedback screen (2025-11-22)
+    onNotificationsClick: () -> Unit = {},  // ✅ NEW: Navigate to notifications screen (2025-11-25)
 
 ) {
     val context = LocalContext.current
@@ -414,7 +415,8 @@ fun FeedScreen(
                                 setPackage("com.android.vending")
                             }
                             context.startActivity(intent)
-                        }
+                        },
+                        onNotificationsClick = onNotificationsClick
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 },

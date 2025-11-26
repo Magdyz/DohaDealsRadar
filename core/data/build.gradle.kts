@@ -84,6 +84,9 @@ android {
 }
 
 dependencies {
+    // ✅ NEW: Core domain dependency (for DealCategory enum) (2025-11-25)
+    implementation(project(":core:domain"))
+
     // Retrofit / OkHttp
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
@@ -107,4 +110,11 @@ dependencies {
 
     // PostHog Analytics (for AnalyticsManager wrapper)
     implementation(libs.posthog.android)
+
+    // ✅ NEW: Firebase Cloud Messaging (for NotificationManager) (2025-11-25)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Kotlin Coroutines (for Firebase Tasks.await())
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 }

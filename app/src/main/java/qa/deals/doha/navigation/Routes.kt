@@ -13,6 +13,7 @@ object Routes {
     const val ARCHIVE = "archive"  // ✅ SPRINT 6: Archive screen route
     const val ONBOARDING = "onboarding" // ✅ ADD THIS NEW ROUTE
     const val FEEDBACK = "feedback"  // ✅ NEW: Feedback screen route (2025-11-22)
+    const val NOTIFICATIONS = "notifications"  // ✅ NEW: Notifications settings route (2025-11-25)
 
     // SPRINT 5: Authentication routes
     const val LOGIN = "login"

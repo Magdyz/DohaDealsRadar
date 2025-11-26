@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +43,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun GradientMoreMenu(
     onFeedbackClick: () -> Unit,
-    onRateAppClick: () -> Unit
+    onRateAppClick: () -> Unit,
+    onNotificationsClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -121,13 +123,13 @@ fun GradientMoreMenu(
                             .background(gradientBrush, RoundedCornerShape(20.dp)) // The Gradient Background
                             .padding(vertical = 8.dp, horizontal = 6.dp)
                     ) {
-                        // Option 1: Feedback
+                        // Option 1: Notifications
                         MenuOptionItem(
-                            icon = Icons.Rounded.Email,
-                            text = "Feedback",
+                            icon = Icons.Rounded.Notifications,
+                            text = "Notifications",
                             onClick = {
                                 expanded = false
-                                onFeedbackClick()
+                                onNotificationsClick()
                             },
                             delayMillis = 50 // Staggered animation
                         )
@@ -143,7 +145,29 @@ fun GradientMoreMenu(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Option 2: Rate App
+                        // Option 2: Feedback
+                        MenuOptionItem(
+                            icon = Icons.Rounded.Email,
+                            text = "Feedback",
+                            onClick = {
+                                expanded = false
+                                onFeedbackClick()
+                            },
+                            delayMillis = 100 // Staggered animation
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Divider (White with low opacity)
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            thickness = 1.dp,
+                            color = Color.White.copy(alpha = 0.2f)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Option 3: Rate App
                         MenuOptionItem(
                             icon = Icons.Rounded.Star,
                             text = "Rate App",
@@ -151,7 +175,7 @@ fun GradientMoreMenu(
                                 expanded = false
                                 onRateAppClick()
                             },
-                            delayMillis = 100 // Staggered animation
+                            delayMillis = 150 // Staggered animation
                         )
                     }
                 }
