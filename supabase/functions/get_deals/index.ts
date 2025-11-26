@@ -51,13 +51,14 @@ serve(async (req) => {
     );
 
     // ========================================
-    // ✅ EXTRACT AND VALIDATE PAGINATION PARAMETERS
+    // ✅ EXTRACT AND VALIDATE PAGINATION + SORT PARAMETERS
     // ========================================
     const url = new URL(req.url);
-    
+
     // Parse pagination parameters with defaults
     let page = parseInt(url.searchParams.get("page") || "1", 10);
     let limit = parseInt(url.searchParams.get("limit") || "20", 10);
+    const sortBy = url.searchParams.get("sort_by") || "hottest";
 
     // ✅ SAFETY: Validate and sanitize parameters
     // Prevent negative, zero, or invalid values
@@ -67,18 +68,30 @@ serve(async (req) => {
     // Calculate offset for database query
     const offset = (page - 1) * limit;
 
-    console.log(`📄 Fetching deals: page=${page}, limit=${limit}, offset=${offset}`);
+    console.log(`📄 Fetching deals: page=${page}, limit=${limit}, offset=${offset}, sort=${sortBy}`);
 
     // ========================================
-    // ✅ FETCH DEALS WITH PAGINATION
+    // ✅ FETCH DEALS WITH PAGINATION AND SORTING
     // ========================================
-    // Use count: "exact" to get total count for pagination metadata
-    const { data, error, count } = await supabase
+    // Determine sort field and order based on sortBy parameter
+    let query = supabase
       .from("deals")
       .select("*", { count: "exact" })
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq("status", "approved");
+
+    // ✅ APPLY SORTING (before pagination)
+    if (sortBy === "newest") {
+      // Sort by creation date (newest first)
+      query = query.order("created_at", { ascending: false });
+    } else {
+      // Default: Sort by hottest (hot_count descending, then created_at descending)
+      query = query
+        .order("hot_count", { ascending: false })
+        .order("created_at", { ascending: false });
+    }
+
+    // ✅ APPLY PAGINATION (after sorting)
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       console.error("❌ Database error:", error);

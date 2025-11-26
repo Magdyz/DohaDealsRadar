@@ -32,7 +32,7 @@ serve(async (req)=>{
         }
       });
     }
-    const { data: deal, error: fetchError } = await supabase.from('deals').select('submitted_by_user_id, title, posted_by, status').eq('id', deal_id).single();
+    const { data: deal, error: fetchError } = await supabase.from('deals').select('submitted_by_user_id, title, posted_by, status, image_url, category').eq('id', deal_id).single();
     if (fetchError || !deal) {
       return new Response(JSON.stringify({
         success: false,
@@ -104,6 +104,37 @@ serve(async (req)=>{
         }
       });
     }
+
+    // ✅ NEW: Send push notification after approval (2025-11-25)
+    try {
+      const notificationUrl = `${supabaseUrl}/functions/v1/send_notification`;
+      const notificationResponse = await fetch(notificationUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
+        body: JSON.stringify({
+          dealId: deal_id,
+          title: updatedDeal.title || 'New Deal',
+          category: updatedDeal.category || 'other',
+          imageUrl: updatedDeal.image_url || null,
+          type: 'new_deal'
+        })
+      });
+
+      if (!notificationResponse.ok) {
+        const notifError = await notificationResponse.text();
+        console.error('❌ Failed to send notification:', notifError);
+        // Don't fail the approval if notification fails
+      } else {
+        console.log('✅ Push notification sent successfully');
+      }
+    } catch (notifError) {
+      console.error('❌ Error sending notification:', notifError);
+      // Don't fail the approval if notification fails
+    }
+
     return new Response(JSON.stringify({
       success: true,
       message: 'Deal approved successfully',

@@ -1,6 +1,7 @@
 package qa.deals.doha
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.messaging.FirebaseMessaging
 import qa.deals.doha.navigation.AppNavHost
 import qa.deals.doha.design.theme.DohaDealsTheme
 // ✅ 1. ADD THIS IMPORT
@@ -39,6 +41,19 @@ class MainActivity : ComponentActivity() {
         // - 40% less memory usage
         // - Smooth 60fps scrolling
         // ========================================
+
+        // ✅ NEW: Get and log FCM token for testing (2025-11-25)
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.d("FCM_TOKEN", "📱 FCM REGISTRATION TOKEN (Copy this for Firebase Console):")
+                Log.d("FCM_TOKEN", token)
+                Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            } else {
+                Log.e("FCM_TOKEN", "❌ Failed to get token", task.exception)
+            }
+        }
 
         // ✅ 3. GET THE DEVICEIDMANAGER INSTANCE
         val deviceIdManager = DeviceIdManager.getInstance(this.applicationContext)

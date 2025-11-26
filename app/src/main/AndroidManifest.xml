@@ -6,6 +6,9 @@
     <!-- Camera is needed only for TakePicture; gallery picker needs no storage permission on API 26+ -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- ✅ NEW: Push notifications (Android 13+) (2025-11-25) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 
     <!-- Read external storage for gallery (Android 12 and below) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -45,6 +48,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- ✅ NEW: Firebase Cloud Messaging Service (2025-11-25) -->
+        <service
+            android:name=".fcm.DohaDealsFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ✅ NEW: Default notification channel (for FCM) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="deals_channel" />
 
     </application>
 

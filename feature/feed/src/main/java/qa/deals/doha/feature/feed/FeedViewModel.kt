@@ -190,15 +190,15 @@ class FeedViewModel(
             initialValue = false
         )
 
-    // ✅ PRESERVED + UPDATED: Deals StateFlow with Search + Category Filtering + Sorting
+    // ✅ UPDATED: Deals StateFlow with Search + Category Filtering (Backend Sorting)
 // ✅ FIX: Use getCachedApprovedActiveDeals() to ensure only approved deals show
-// This prevents pending/rejected deals from appearing in the feed
+// ✅ FIX: Removed local sorting - backend now sorts before pagination
     val deals: StateFlow<List<DealEntity>> = combine(
         repo.getCachedApprovedActiveDeals(),
         _searchQuery,
-        _selectedCategory,
-        _sortOption  // ✨ NEW: Add sort option to the combine
-    ) { allDeals, query, category, sortOption ->
+        _selectedCategory
+        // ✅ REMOVED: _sortOption from combine - sorting happens on backend now
+    ) { allDeals, query, category ->
         var filteredDeals = allDeals
 
         // Apply search filter
@@ -217,11 +217,9 @@ class FeedViewModel(
             }
         }
 
-        // ✨ NEW: Apply sorting based on selected option
-        when (sortOption) {
-            SortOption.HOTTEST -> filteredDeals.sortedByDescending { it.hotCount ?: 0 }
-            SortOption.NEWEST -> filteredDeals.sortedByDescending { it.createdAt }
-        }
+        // ✅ RETURN AS-IS: Backend already sorted before pagination
+        // This preserves the sort order from the API without reshuffling
+        filteredDeals
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -563,11 +561,9 @@ class FeedViewModel(
         }
     }
 
-    // ✨ NEW: Toggle between All (HOTTEST) and Newest
+    // ✨ UPDATED: Toggle between All (HOTTEST) and Newest
+    // ✅ FIX: Refresh feed from backend with new sort order
     fun toggleSortToNewest() {
-        // Show loading spinner
-        uiState = uiState.copy(isFilteringSorting = true)
-
         viewModelScope.launch {
             if (_sortOption.value == SortOption.NEWEST) {
                 // Pressing Newest again → go back to All (HOTTEST)
@@ -579,25 +575,21 @@ class FeedViewModel(
                 Log.d("FeedViewModel", "🔄 Sort changed to: NEWEST")
             }
 
-            // Wait briefly for data to settle, then hide spinner
-            kotlinx.coroutines.delay(200)
-            uiState = uiState.copy(isFilteringSorting = false)
+            // ✅ FIX: Refresh feed with new sort order from backend
+            refreshDeals()
         }
     }
 
-    // ✨ NEW: Set sort to All (HOTTEST) - used when pressing All chip
+    // ✨ UPDATED: Set sort to All (HOTTEST) - used when pressing All chip
+    // ✅ FIX: Refresh feed from backend with new sort order
     fun setSortToAll() {
         if (_sortOption.value != SortOption.HOTTEST) {
-            // Show loading spinner
-            uiState = uiState.copy(isFilteringSorting = true)
-
             viewModelScope.launch {
                 _sortOption.value = SortOption.HOTTEST
                 Log.d("FeedViewModel", "🔄 Sort changed to: HOTTEST (All)")
 
-                // Wait briefly for data to settle, then hide spinner
-                kotlinx.coroutines.delay(200)
-                uiState = uiState.copy(isFilteringSorting = false)
+                // ✅ FIX: Refresh feed with new sort order from backend
+                refreshDeals()
             }
         }
     }
@@ -627,8 +619,13 @@ class FeedViewModel(
             // Normal load from network
             uiState = uiState.copy(loading = true, error = null, currentPage = 1)
             try {
-                Log.d("Feed", "🔄 Refreshing deals (page 1)...")
-                val result = repo.refreshDeals(page = 1, append = false)
+                // ✅ UPDATED: Pass sortBy parameter to backend
+                val sortBy = when (_sortOption.value) {
+                    SortOption.HOTTEST -> "hottest"
+                    SortOption.NEWEST -> "newest"
+                }
+                Log.d("Feed", "🔄 Refreshing deals (page 1, sort: $sortBy)...")
+                val result = repo.refreshDeals(page = 1, append = false, sortBy = sortBy)
 
                 result.onSuccess { pagination ->
                     uiState = uiState.copy(
@@ -660,8 +657,13 @@ class FeedViewModel(
             uiState = uiState.copy(isLoadingMore = true)
 
             try {
-                Log.d("Feed", "📄 Loading more deals (page $nextPage)...")
-                val result = repo.refreshDeals(page = nextPage, append = true)
+                // ✅ UPDATED: Pass sortBy parameter to backend for pagination
+                val sortBy = when (_sortOption.value) {
+                    SortOption.HOTTEST -> "hottest"
+                    SortOption.NEWEST -> "newest"
+                }
+                Log.d("Feed", "📄 Loading more deals (page $nextPage, sort: $sortBy)...")
+                val result = repo.refreshDeals(page = nextPage, append = true, sortBy = sortBy)
 
                 result.onSuccess { pagination ->
                     uiState = uiState.copy(

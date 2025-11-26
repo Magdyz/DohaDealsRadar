@@ -162,6 +162,42 @@ console.log(`✅ Deal will expire at: ${expiresAt.toISOString()} (in ${expires_i
       });
     }
     console.log(`Deal submitted: "${title}" | Status: ${dealStatus} | Category: ${finalCategory}`);
+
+    // ✅ NEW: Send push notification if deal was auto-approved (2025-11-25)
+    if (autoApproved && data && data.length > 0) {
+      try {
+        const dealId = data[0].id;
+        console.log('📨 Sending notification for auto-approved deal:', dealId);
+
+        const notificationUrl = `${supabaseUrl}/functions/v1/send_notification`;
+        const notificationResponse = await fetch(notificationUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`
+          },
+          body: JSON.stringify({
+            dealId: dealId,
+            title: title,
+            category: finalCategory,
+            imageUrl: image_url,
+            type: 'new_deal'
+          })
+        });
+
+        if (!notificationResponse.ok) {
+          const notifError = await notificationResponse.text();
+          console.error('❌ Failed to send notification:', notifError);
+          // Don't fail the deal submission if notification fails
+        } else {
+          console.log('✅ Push notification sent successfully');
+        }
+      } catch (notifError) {
+        console.error('❌ Error sending notification:', notifError);
+        // Don't fail the deal submission if notification fails
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       message: autoApproved ? 'Deal submitted and approved!' : 'Deal submitted for review',

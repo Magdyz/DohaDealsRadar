@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import qa.deals.doha.feature.details.DetailsScreen
 import qa.deals.doha.feature.feed.FeedScreen
 import qa.deals.doha.feature.feed.FeedbackScreen
+import qa.deals.doha.feature.feed.NotificationSettingsScreen
 import qa.deals.doha.feature.post.PostScreen
 import qa.deals.doha.feature.report.ReportScreen
 import qa.deals.doha.feature.archive.ArchiveScreen
@@ -129,6 +130,10 @@ fun AppNavHost(
                 // ✅ NEW: Navigate to feedback screen (2025-11-22)
                 onFeedbackClick = {
                     navController.navigate(Routes.FEEDBACK)
+                },
+                // ✅ NEW: Navigate to notifications screen (2025-11-25)
+                onNotificationsClick = {
+                    navController.navigate(Routes.NOTIFICATIONS)
                 }
             )
         }
@@ -153,6 +158,20 @@ fun AppNavHost(
         composable(Routes.FEEDBACK) {
             FeedbackScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ========================================
+        // ✅ NEW: Notifications Settings Screen (2025-11-25)
+        // Smart push notification preferences management
+        // ========================================
+        composable(Routes.NOTIFICATIONS) {
+            NotificationSettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onLoginClick = {
+                    // Navigate to login screen if user is not authenticated
+                    navController.navigate(Routes.LOGIN)
+                }
             )
         }
 

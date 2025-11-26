@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.google.services)  // ✅ NEW: Firebase support (2025-11-25)
 }
 
 android {
@@ -48,7 +49,7 @@ android {
         debug {
             isMinifyEnabled = false
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            // applicationIdSuffix = ".debug"  // ✅ Disabled for Firebase compatibility (2025-11-25)
             versionNameSuffix = "-DEBUG"
         }
     }
@@ -120,4 +121,11 @@ dependencies {
 
     // PostHog Analytics (correct dependency: com.posthog:posthog-android)
     implementation(libs.posthog.android)
+
+    // ✅ NEW: Firebase Cloud Messaging (FCM) for push notifications (2025-11-25)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Firebase Analytics (optional, but recommended for FCM)
+    implementation("com.google.firebase:firebase-analytics-ktx")
 }
