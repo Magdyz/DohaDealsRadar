@@ -56,15 +56,18 @@ data class ImageUploadResponse(
 interface SupabaseApiService {
 
     /**
-     * Get all approved deals with pagination
+     * Get all approved deals with pagination and sorting
      * ✅ UPDATED: Added pagination support (2025-10-24)
+     * ✅ UPDATED: Added sorting support (2025-11-26)
      * @param page Page number (default: 1)
      * @param limit Items per page (default: 20, max: 50)
+     * @param sortBy Sort option: "hottest" (default) or "newest"
      */
     @GET("get_deals")
     suspend fun getDeals(
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("sort_by") sortBy: String = "hottest"
     ): ApiEnvelope<List<DealDto>>
 
     /**

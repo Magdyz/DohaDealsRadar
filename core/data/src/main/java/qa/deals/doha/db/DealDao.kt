@@ -127,7 +127,9 @@ interface DealDao {
     suspend fun approveDeal(dealId: String, approvedBy: String?, approvedAt: String)
 
     // Get approved, active, non-deleted deals (most restrictive filter)
-    @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY createdAt DESC")
+    // ✅ UPDATED: Order by rowid to preserve backend's sort order (hottest or newest)
+    // Backend sorts before pagination, rowid preserves insertion order
+    @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY rowid ASC")
     fun getApprovedActiveDeals(): Flow<List<DealEntity>>
 
     // Permanently delete a deal from database (admin only)

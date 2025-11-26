@@ -129,12 +129,13 @@ class DealRepository {
      *
      * @param page Page number to fetch (default: 1)
      * @param append If true, appends to existing cache. If false, replaces cache.
+     * @param sortBy Sort option: "hottest" or "newest" (default: "hottest")
      * @return Result with PaginationMeta or error
      */
-    suspend fun refreshDeals(page: Int = 1, append: Boolean = false): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
+    suspend fun refreshDeals(page: Int = 1, append: Boolean = false, sortBy: String = "hottest"): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
         try {
-            Log.d("Repository", "📄 Fetching deals (page: $page, append: $append)...")
-            val response = api.getDeals(page = page, limit = 20)
+            Log.d("Repository", "📄 Fetching deals (page: $page, append: $append, sort: $sortBy)...")
+            val response = api.getDeals(page = page, limit = 20, sortBy = sortBy)
 
             if (response.success == true && response.data != null) {
                 val entities = response.data.map { it.toEntity() }
