@@ -58,9 +58,16 @@ class DetailsViewModel(
         loadDeal()
     }
 
+    // ========================================
+    // ✅ NEW: Track if we've tried to fetch from network
+    // Prevents infinite refresh loop
+    // ========================================
+    private var hasTriedNetworkFetch = false
+
     /**
      * ✅ UPDATED: Load deal from local cache and check vote status
      * Migration: Uses user-based vote tracking
+     * Deep Link Fix: Fetches from network if deal not in cache (2025 pattern)
      */
     private fun loadDeal() {
         viewModelScope.launch {
@@ -108,12 +115,39 @@ class DetailsViewModel(
                         )
                         Log.d("Details", "✅ Deal loaded: ${deal.title}, voted: $hasVoted${if (_uiState.value.voting) " (preserving optimistic counts)" else ""}")
                     } else {
-                        _uiState.value = _uiState.value.copy(
-                            deal = null,
-                            loading = false,
-                            error = "Deal not found"
-                        )
-                        Log.e("Details", "❌ Deal not found: $dealId")
+                        // ========================================
+                        // ✅ NEW: 2025 Deep Link Pattern - Fetch from network if not in cache
+                        // Why: When user taps notification, local DB might be empty
+                        // Solution: Trigger network refresh, collect will re-run when data arrives
+                        // ========================================
+                        if (!hasTriedNetworkFetch) {
+                            hasTriedNetworkFetch = true
+                            Log.d("Details", "📡 Deal not in cache, fetching from network...")
+
+                            // Keep loading state true while fetching
+                            _uiState.value = _uiState.value.copy(loading = true, error = null)
+
+                            // Trigger network refresh (this will populate the cache)
+                            val result = repo.refreshDeals(page = 1, append = false, sortBy = "hottest")
+
+                            result.onFailure { error ->
+                                Log.e("Details", "💥 Failed to fetch deal from network", error)
+                                _uiState.value = _uiState.value.copy(
+                                    deal = null,
+                                    loading = false,
+                                    error = "Deal not found. ${error.message}"
+                                )
+                            }
+                            // On success, collect will automatically re-run with new data
+                        } else {
+                            // Already tried network, deal genuinely doesn't exist
+                            _uiState.value = _uiState.value.copy(
+                                deal = null,
+                                loading = false,
+                                error = "Deal not found"
+                            )
+                            Log.e("Details", "❌ Deal not found even after network fetch: $dealId")
+                        }
                     }
                 }
             } catch (e: Exception) {
