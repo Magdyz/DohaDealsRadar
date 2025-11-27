@@ -190,18 +190,18 @@ class FeedViewModel(
             initialValue = false
         )
 
-    // ✅ UPDATED: Deals StateFlow with Search + Category Filtering (Backend Sorting)
-// ✅ FIX: Use getCachedApprovedActiveDeals() to ensure only approved deals show
-// ✅ FIX: Removed local sorting - backend now sorts before pagination
+    // ✅ UPDATED: Deals StateFlow with Search Filtering ONLY
+    // ✅ BACKEND DOES: Category filtering, sorting, pagination
+    // ✅ CLIENT DOES: Search filtering only (local text search)
     val deals: StateFlow<List<DealEntity>> = combine(
         repo.getCachedApprovedActiveDeals(),
-        _searchQuery,
-        _selectedCategory
-        // ✅ REMOVED: _sortOption from combine - sorting happens on backend now
-    ) { allDeals, query, category ->
+        _searchQuery
+        // ✅ REMOVED: _selectedCategory - backend filters by category now
+        // ✅ REMOVED: _sortOption - backend sorts now
+    ) { allDeals, query ->
         var filteredDeals = allDeals
 
-        // Apply search filter
+        // ✅ KEEP: Search filter (client-side text search is OK)
         if (query.isNotEmpty()) {
             val searchLower = query.lowercase().trim()
             filteredDeals = filteredDeals.filter { deal ->
@@ -210,15 +210,10 @@ class FeedViewModel(
             }
         }
 
-        // Apply category filter
-        if (category != null) {
-            filteredDeals = filteredDeals.filter { deal ->
-                deal.category == category.id
-            }
-        }
+        // ✅ REMOVED: Category filter - backend now handles this
+        // Backend filters by category BEFORE pagination, so we get correct results
 
-        // ✅ RETURN AS-IS: Backend already sorted before pagination
-        // This preserves the sort order from the API without reshuffling
+        // ✅ RETURN AS-IS: Backend already sorted and filtered
         filteredDeals
     }.stateIn(
         scope = viewModelScope,
@@ -538,11 +533,9 @@ class FeedViewModel(
     }
 
     // ✅ UPDATED: Toggle Category Filter (press again to deselect)
+    // ✅ NEW: Refreshes from backend with category parameter
     fun toggleCategory(category: DealCategory?) {
         Log.d("FeedViewModel", "🏷️ Toggling category: ${category?.displayName ?: "All"}")
-
-        // Show loading spinner
-        uiState = uiState.copy(isFilteringSorting = true)
 
         viewModelScope.launch {
             if (_selectedCategory.value == category) {
@@ -555,11 +548,15 @@ class FeedViewModel(
                 Log.d("FeedViewModel", "   → Category selected: ${category?.displayName}")
             }
 
-            // Wait briefly for data to settle, then hide spinner
-            kotlinx.coroutines.delay(200)
-            uiState = uiState.copy(isFilteringSorting = false)
+            // ✅ NEW: Refresh from backend with new category filter
+            // Backend will filter by category BEFORE pagination
+            refreshDeals()
         }
     }
+
+    // ✅ REMOVED: checkAndLoadMoreForCategory() hack
+    // No longer needed - backend filters by category BEFORE pagination
+    // This guarantees we always get results (if category has any deals)
 
     // ✨ UPDATED: Toggle between All (HOTTEST) and Newest
     // ✅ FIX: Refresh feed from backend with new sort order
@@ -575,7 +572,8 @@ class FeedViewModel(
                 Log.d("FeedViewModel", "🔄 Sort changed to: NEWEST")
             }
 
-            // ✅ FIX: Refresh feed with new sort order from backend
+            // ✅ UPDATED: Refresh feed with new sort order from backend
+            // Backend filters by category + sorts + paginates
             refreshDeals()
         }
     }
@@ -588,7 +586,8 @@ class FeedViewModel(
                 _sortOption.value = SortOption.HOTTEST
                 Log.d("FeedViewModel", "🔄 Sort changed to: HOTTEST (All)")
 
-                // ✅ FIX: Refresh feed with new sort order from backend
+                // ✅ UPDATED: Refresh feed with new sort order from backend
+                // Backend filters by category + sorts + paginates
                 refreshDeals()
             }
         }
@@ -619,13 +618,14 @@ class FeedViewModel(
             // Normal load from network
             uiState = uiState.copy(loading = true, error = null, currentPage = 1)
             try {
-                // ✅ UPDATED: Pass sortBy parameter to backend
+                // ✅ UPDATED: Pass sortBy and category parameters to backend
                 val sortBy = when (_sortOption.value) {
                     SortOption.HOTTEST -> "hottest"
                     SortOption.NEWEST -> "newest"
                 }
-                Log.d("Feed", "🔄 Refreshing deals (page 1, sort: $sortBy)...")
-                val result = repo.refreshDeals(page = 1, append = false, sortBy = sortBy)
+                val categoryId = _selectedCategory.value?.id  // null = all categories
+                Log.d("Feed", "🔄 Refreshing deals (page 1, sort: $sortBy, category: ${categoryId ?: "all"})...")
+                val result = repo.refreshDeals(page = 1, append = false, sortBy = sortBy, category = categoryId)
 
                 result.onSuccess { pagination ->
                     uiState = uiState.copy(
@@ -657,13 +657,14 @@ class FeedViewModel(
             uiState = uiState.copy(isLoadingMore = true)
 
             try {
-                // ✅ UPDATED: Pass sortBy parameter to backend for pagination
+                // ✅ UPDATED: Pass sortBy and category parameters to backend for pagination
                 val sortBy = when (_sortOption.value) {
                     SortOption.HOTTEST -> "hottest"
                     SortOption.NEWEST -> "newest"
                 }
-                Log.d("Feed", "📄 Loading more deals (page $nextPage, sort: $sortBy)...")
-                val result = repo.refreshDeals(page = nextPage, append = true, sortBy = sortBy)
+                val categoryId = _selectedCategory.value?.id  // null = all categories
+                Log.d("Feed", "📄 Loading more deals (page $nextPage, sort: $sortBy, category: ${categoryId ?: "all"})...")
+                val result = repo.refreshDeals(page = nextPage, append = true, sortBy = sortBy, category = categoryId)
 
                 result.onSuccess { pagination ->
                     uiState = uiState.copy(
