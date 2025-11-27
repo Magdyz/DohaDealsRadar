@@ -225,8 +225,8 @@ fun DetailsScreen(
                     )
                 }
 
-                // ✅ PRESERVED: Error state unchanged
-                uiState.error != null -> {
+                // ✅ FIX: Only show error if NOT loading (prevents notification timing issue)
+                uiState.error != null && !uiState.loading -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)

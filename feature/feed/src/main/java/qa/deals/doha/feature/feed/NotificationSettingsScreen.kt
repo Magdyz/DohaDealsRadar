@@ -320,7 +320,10 @@ private fun NotificationSettingsContent(
     // State for all deals toggle
     val allDealsEnabled by notificationManager.allDealsEnabledFlow.collectAsState()
 
-    // State for category toggles
+    // ✅ FIX: Confirmation dialog state
+    var showAllDealsConfirmDialog by remember { mutableStateOf(false) }
+
+    // State for category toggles (✅ FIX: Using StateFlow for immediate updates)
     val categoryStates = remember {
         DealCategory.values().associateWith { category ->
             mutableStateOf(notificationManager.isCategoryEnabled(category))
@@ -396,12 +399,17 @@ private fun NotificationSettingsContent(
                     Switch(
                         checked = allDealsEnabled,
                         onCheckedChange = { enabled ->
-                            scope.launch {
-                                try {
-                                    notificationManager.setAllDealsEnabled(enabled)
-                                } catch (e: Exception) {
-                                    // Handle error (could show a snackbar)
-                                    Log.e("NotificationSettings", "Error updating preference", e)
+                            // ✅ FIX: Show confirmation when turning OFF
+                            if (!enabled && allDealsEnabled) {
+                                showAllDealsConfirmDialog = true
+                            } else {
+                                // Turning ON - no confirmation needed
+                                scope.launch {
+                                    try {
+                                        notificationManager.setAllDealsEnabled(enabled)
+                                    } catch (e: Exception) {
+                                        Log.e("NotificationSettings", "Error updating preference", e)
+                                    }
                                 }
                             }
                         },
@@ -487,12 +495,16 @@ private fun NotificationSettingsContent(
                             Switch(
                                 checked = enabled,
                                 onCheckedChange = { newEnabled ->
+                                    // ✅ FIX: Update state IMMEDIATELY for instant feedback (no lag)
+                                    categoryStates[category]?.value = newEnabled
+
+                                    // Then update backend asynchronously
                                     scope.launch {
                                         try {
                                             notificationManager.setCategoryEnabled(category, newEnabled)
-                                            categoryStates[category]?.value = newEnabled
                                         } catch (e: Exception) {
-                                            // Handle error
+                                            // Revert on error
+                                            categoryStates[category]?.value = !newEnabled
                                             Log.e("NotificationSettings", "Error updating category", e)
                                         }
                                     }
@@ -519,66 +531,65 @@ private fun NotificationSettingsContent(
             }
         }
 
-        // ========================================
-        // SECTION 3: COMING SOON - KEYWORD ALERTS
-        // ========================================
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFFFF9C4) // Light yellow background for "coming soon"
-            ),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "🔍",
-                        fontSize = 20.sp
-                    )
-                    Text(
-                        text = "Keyword Alerts",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        ),
-                        color = Color(0xFFF57C00)
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Surface(
-                        color = Color(0xFFF57C00).copy(alpha = 0.2f),
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = "Coming Soon",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            ),
-                            color = Color(0xFFF57C00)
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Soon you'll be able to set custom keywords and get notified when deals match your interests. Stay tuned!",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    ),
-                    color = Color(0xFFE65100)
-                )
-            }
-        }
-
         // Bottom spacing
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // ========================================
+    // ✅ CONFIRMATION DIALOG FOR "ALL DEALS" TOGGLE OFF
+    // ========================================
+    if (showAllDealsConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showAllDealsConfirmDialog = false },
+            title = {
+                Text(
+                    text = "⚠️ Turn Off All Notifications?",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            },
+            text = {
+                Text(
+                    text = "You will no longer receive notifications for new deals. You can always turn them back on later.",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        lineHeight = 22.sp
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // ✅ FIX: Close dialog IMMEDIATELY (no lag)
+                        showAllDealsConfirmDialog = false
+
+                        // Then do async work in background
+                        scope.launch {
+                            try {
+                                notificationManager.setAllDealsEnabled(false)
+                            } catch (e: Exception) {
+                                Log.e("NotificationSettings", "Error disabling notifications", e)
+                                // Note: Switch will revert automatically via Flow
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE91E63)
+                    )
+                ) {
+                    Text("Turn Off", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showAllDealsConfirmDialog = false }
+                ) {
+                    Text("Cancel", color = Color(0xFF9C27B0))
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.large
+        )
     }
 }
 
