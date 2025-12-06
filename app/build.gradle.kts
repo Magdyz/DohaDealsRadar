@@ -13,8 +13,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23 // notifications
-        versionName = "1.2.3"
+        versionCode = 24 // general improvments feed
+        versionName = "1.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
