@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EgyptDealRadar</title>
+<meta name="description" content="EgyptDealRadar — real deals across Egypt, posted and checked by real people. Free, no ads.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f7fb;
+    --text: #17171c;
+    --muted: #5b5b6b;
+    --brand: #9c27b0;
+    --brand2: #e91e63;
+    --border: #e6e6ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121217; --surface: #1b1b22; --text: #f2f2f6;
+      --muted: #a6a6b8; --brand: #c77dff; --brand2: #ff5c8a; --border: #2c2c36;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121217; --surface: #1b1b22; --text: #f2f2f6;
+    --muted: #a6a6b8; --brand: #c77dff; --brand2: #ff5c8a; --border: #2c2c36;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.6;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 56px 16px 72px; }
+  .logo {
+    width: 76px; height: 76px; border-radius: 22px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--brand2), var(--brand)); font-size: 38px;
+  }
+  h1 { font-size: 2.1rem; margin: 18px 0 6px; letter-spacing: -0.5px; }
+  .tag { color: var(--muted); font-size: 1.05rem; margin: 0 0 28px; }
+  h2 { font-size: 1.2rem; margin: 36px 0 10px; color: var(--brand); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .card h3 { margin: 0 0 4px; font-size: 1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .94rem; }
+  a { color: var(--brand); }
+  .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+  .btn {
+    display: inline-block; padding: 12px 20px; border-radius: 12px; text-decoration: none;
+    background: linear-gradient(135deg, var(--brand2), var(--brand)); color: #fff; font-weight: 600;
+  }
+  .btn.secondary { background: none; border: 1px solid var(--border); color: var(--text); }
+  .ar { direction: rtl; text-align: right; font-family: Cairo, system-ui, sans-serif; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 44px 0; }
+  footer { color: var(--muted); font-size: .9rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">🔥</div>
+  <h1>EgyptDealRadar</h1>
+  <p class="tag">Real deals across Egypt, posted and checked by real people. Free, no ads, no tracking.</p>
+
+  <div class="links">
+    <a class="btn" href="https://play.google.com/store/apps/details?id=qa.deals.doha">Get it on Google Play</a>
+    <a class="btn secondary" href="privacy-policy.html">Privacy policy</a>
+  </div>
+
+  <h2>What the app does</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Community deals</h3>
+      <p>People post the deals they find in Egypt — food, groceries, electronics, fashion, telecom and more.</p>
+    </div>
+    <div class="card">
+      <h3>Hot or cold votes</h3>
+      <p>The community votes each deal up or down, so the best offers rise to the top and dead ones sink.</p>
+    </div>
+    <div class="card">
+      <h3>By governorate</h3>
+      <p>Filter to Cairo, Giza, Alexandria or anywhere in Egypt, plus online-only deals.</p>
+    </div>
+    <div class="card">
+      <h3>No duplicates</h3>
+      <p>The same link, photo or title is caught before it can be posted twice.</p>
+    </div>
+    <div class="card">
+      <h3>Arabic and English</h3>
+      <p>Switch language with one tap; the whole app flips, including the layout.</p>
+    </div>
+    <div class="card">
+      <h3>Sign in with Google</h3>
+      <p>One tap, no password. You get a random username, and we never store your email address.</p>
+    </div>
+  </div>
+
+  <h2>Privacy</h2>
+  <p>
+    Browsing needs no account at all. There are no ads, no advertising IDs, no location tracking and no
+    third-party analytics. You can download everything we hold about you, or delete your account for
+    good, from inside the app. Full details in the
+    <a href="privacy-policy.html">privacy policy</a>.
+  </p>
+
+  <h2>Support</h2>
+  <p>
+    Questions, problems or a deal that shouldn't be there? Use <strong>Feedback</strong> in the app menu
+    and leave your email so we can reply.
+  </p>
+
+  <hr>
+
+  <section class="ar" lang="ar">
+    <h1>إيجيبت ديل رادار</h1>
+    <p class="tag">عروض حقيقية من كل مصر، ينشرها ويأكدها ناس زيك. مجاني، بدون إعلانات، وبدون تتبّع.</p>
+    <p>
+      التطبيق مجتمعي: الناس بتنشر العروض اللي بتلاقيها، والمجتمع بيصوّت عليها، وتقدر تفلتر بالمحافظة أو
+      تشوف العروض الأونلاين. التصفّح مش محتاج حساب، وتسجيل الدخول بجوجل بضغطة واحدة من غير ما نخزّن إيميلك.
+    </p>
+    <p><a href="privacy-policy.html">سياسة الخصوصية</a></p>
+  </section>
+
+  <footer>EgyptDealRadar · Egypt</footer>
+</div>
+</body>
+</html>
