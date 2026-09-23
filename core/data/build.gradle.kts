@@ -101,6 +101,10 @@ dependencies {
     implementation(project(":core:domain"))
 
     testImplementation(libs.junit)
+    // Room DAO tests on the JVM (in-memory database)
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     // Credential Manager pulls play-services-auth, which still asks for
     // androidx.fragment 1.5.7 — Play flags that as an outdated SDK.

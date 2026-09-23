@@ -82,7 +82,7 @@ class DetailsViewModel(
                 } else if (!hasTriedNetworkFetch) {
                     hasTriedNetworkFetch = true
                     _uiState.value = _uiState.value.copy(loading = true, error = null)
-                    repo.refreshDeals(page = 1, append = false, sortBy = "newest").onFailure { error ->
+                    repo.cacheNewestDeals().onFailure { error ->
                         _uiState.value = _uiState.value.copy(deal = null, loading = false, error = error.message)
                     }
                 } else {
@@ -171,7 +171,7 @@ class DetailsViewModel(
                     message = ApiErrors.message(res, ApiErrors.Context.EXPIRED)
                 )
             }
-            if (res.archived == true) runCatching { repo.refreshDeals() }
+            if (res.archived == true) repo.markArchivedLocal(dealId)
         }
     }
 

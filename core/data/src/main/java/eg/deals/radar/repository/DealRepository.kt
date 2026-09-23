@@ -5,6 +5,8 @@ import eg.deals.radar.util.AppLanguage
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import eg.deals.radar.db.DatabaseModule
 import eg.deals.radar.db.DealDao
@@ -119,7 +121,7 @@ class DealRepository {
         try {
             Log.d("Repository", "📥 Inserting ${deals.size} preloaded deals into cache...")
             // Replace cache atomically (same as normal refresh)
-            dealDao.replaceAllDeals(deals)
+            dealDao.replaceFeed(deals)
             Log.d("Repository", "✅ Preloaded deals inserted successfully")
         } catch (e: Exception) {
             Log.e("Repository", "💥 Failed to insert preloaded deals", e)
@@ -150,6 +152,8 @@ class DealRepository {
             // Keyset (cursor) pagination: page 1 starts fresh, "load more" continues
             // from the cursor of the previous page of the SAME filters.
             val filterKey = "$sortBy|$category|$governorate|$query"
+            // The newest page-1 request defines the filters the feed is showing
+            if (!append) activeFilterKey = filterKey
             val cursor = if (append && filterKey == lastFilterKey) nextCursor else null
             if (append && cursor == null && page > 1 && filterKey == lastFilterKey && !lastHasMore) {
                 return@withContext Result.success(PaginationMeta(page = page, hasMore = false))
@@ -160,22 +164,22 @@ class DealRepository {
             )
 
             if (response.success == true && response.data != null) {
-                lastFilterKey = filterKey
-                nextCursor = response.pagination?.nextCursor
-                lastHasMore = response.pagination?.hasMore == true
                 val entities = response.data.map { it.toEntity() }
-
-                if (append) {
-                    // Append to existing cache (for pagination - load more)
-                    dealDao.insertAll(entities)
-                    val totalCached = dealDao.getDealsCount()
-                    Log.d("Repository", "➕ Appended ${entities.size} deals (total cached: $totalCached)")
-                } else {
-                    // Replace cache atomically (prevents flash)
-                    dealDao.replaceAllDeals(entities) // ✅ Single atomic operation
-                    Log.d("Repository", "🔄 Replaced cache with ${entities.size} deals")
-
+                val written = feedWriteMutex.withLock {
+                    // A late answer for filters the user already left (e.g. "load more" of
+                    // All arriving after tapping Food) must not touch the feed.
+                    if (filterKey != activeFilterKey) return@withLock false
+                    lastFilterKey = filterKey
+                    nextCursor = response.pagination?.nextCursor
+                    lastHasMore = response.pagination?.hasMore == true
+                    if (append) dealDao.appendFeed(entities) else dealDao.replaceFeed(entities)
+                    true
                 }
+                if (!written) {
+                    Log.d("Repository", "⏭️ Dropped stale feed page for $filterKey")
+                    return@withContext Result.failure(StaleFeedPageException())
+                }
+                Log.d("Repository", "🔄 Feed ${if (append) "appended" else "replaced"}: ${entities.size} deals")
 
                 Result.success(response.pagination)
             } else {
@@ -191,6 +195,8 @@ class DealRepository {
     @Volatile private var nextCursor: String? = null
     @Volatile private var lastFilterKey: String? = null
     @Volatile private var lastHasMore: Boolean = true
+    @Volatile private var activeFilterKey: String? = null
+    private val feedWriteMutex = Mutex()
 
     // ========================================
     // ✅ PRESERVED: Submit Deal (No Changes)
@@ -440,6 +446,31 @@ class DealRepository {
         }
     }
 
+    /** A deal was archived (e.g. marked expired): hide it from the cached feed. */
+    suspend fun markArchivedLocal(dealId: String) = withContext(Dispatchers.IO) {
+        runCatching { dealDao.markArchived(dealId) }
+    }
+
+    /**
+     * Details opened for a deal that isn't cached (e.g. from a notification):
+     * cache the newest deals so it can be found, WITHOUT replacing the feed
+     * the user is looking at.
+     */
+    suspend fun cacheNewestDeals(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getDeals(page = 1, limit = 20, sortBy = "newest", category = null,
+                governorate = null, query = null, cursor = null)
+            if (response.success == true && response.data != null) {
+                dealDao.insertAll(response.data.map { it.toEntity() })
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(ApiErrors.message(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(ApiErrors.message(e), e))
+        }
+    }
+
     // ========================================
     // ✅ PRESERVED: Report Deal (No Changes)
     // ========================================
@@ -575,13 +606,13 @@ class DealRepository {
      * @param requestingUserId User ID making the request
      * @param targetUserId User ID whose deals to fetch (null = requesting user's own deals)
      * @param page Page number
-     * @return Result with PaginationMeta or error
+     * @return Result with UserDealsPage (pagination + optional stats on page 1) or error
      */
     suspend fun getDealsByUser(
         requestingUserId: String,
         targetUserId: String? = null,
         page: Int = 1
-    ): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
+    ): Result<UserDealsPage> = withContext(Dispatchers.IO) {
         try {
             val userToFetch = targetUserId ?: requestingUserId
             Log.d("Repository", "👤 Fetching deals by user: $userToFetch (page: $page)...")
@@ -602,7 +633,7 @@ class DealRepository {
                 dealDao.insertAll(entities)
                 Log.d("Repository", "💾 Cached ${entities.size} deals for user: $userToFetch")
 
-                Result.success(response.pagination)
+                Result.success(UserDealsPage(pagination = response.pagination, stats = response.stats))
             } else {
                 Log.e("Repository", "❌ Failed to fetch user deals: ${response.error}")
                 Result.failure(Exception(response.error ?: "Failed to fetch user deals"))
@@ -996,3 +1027,11 @@ class DealRepository {
         }
     }
 }
+/** A feed page that arrived after the user switched filters; it was not written. */
+class StaleFeedPageException : Exception("Stale feed page")
+
+/** Result of [DealRepository.getDealsByUser]: pagination info, plus stats when the server includes them (page 1). */
+data class UserDealsPage(
+    val pagination: PaginationMeta?,
+    val stats: UserDealStatsDto?
+)

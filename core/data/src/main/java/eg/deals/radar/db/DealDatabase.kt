@@ -8,10 +8,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DealEntity::class,
+        FeedEntryEntity::class,
         UserEntity::class
     ],
 
-    version = 15,  // ✨ Egypt 2.0: governorate, store, userVote, expiredVotes (cache: destructive migration)
+    version = 16,  // feed_entries: feed membership + order (cache: destructive migration)
     exportSchema = false
 )
 

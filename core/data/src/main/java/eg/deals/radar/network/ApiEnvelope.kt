@@ -17,6 +17,8 @@ data class ApiEnvelope<T>(
     val limit: Int? = null,
     val data: T? = null,
     val pagination: PaginationMeta? = null,
+    // get_user_deals page 1
+    val stats: UserDealStatsDto? = null,
     // cast_vote: the caller's resulting vote ("hot" | "cold" | null)
     @SerializedName("user_vote") val userVote: String? = null,
     // submit_deal: "approved" | "pending"
@@ -40,6 +42,13 @@ data class PaginationMeta(
     val totalPages: Int? = null,
     val hasMore: Boolean = false,
     @SerializedName("next_cursor") val nextCursor: String? = null
+)
+
+data class UserDealStatsDto(
+    val total: Int = 0,
+    val approved: Int = 0,
+    val pending: Int = 0,
+    val rejected: Int = 0
 )
 
 /** A deal that looks like the one being posted. */

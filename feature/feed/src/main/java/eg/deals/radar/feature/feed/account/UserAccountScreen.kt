@@ -3,6 +3,12 @@ package eg.deals.radar.feature.feed.account
 
 
 import eg.deals.core.design.components.PrivacyPolicyDialog
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
@@ -555,7 +561,7 @@ private fun UserProfileCard(
 
 private fun StatisticsCard(
 
-    stats: UserStats,
+    stats: UserStats?,
 
     modifier: Modifier = Modifier
 
@@ -613,7 +619,7 @@ private fun StatisticsCard(
 
                     label = stringResource(R.string.account_stat_total),
 
-                    value = stats.totalDeals,
+                    value = stats?.totalDeals,
 
                     color = Color(0xFF6B7280)
 
@@ -623,7 +629,7 @@ private fun StatisticsCard(
 
                     label = stringResource(R.string.status_approved),
 
-                    value = stats.approvedDeals,
+                    value = stats?.approvedDeals,
 
                     color = Color(0xFF059669)
 
@@ -633,7 +639,7 @@ private fun StatisticsCard(
 
                     label = stringResource(R.string.status_pending),
 
-                    value = stats.pendingDeals,
+                    value = stats?.pendingDeals,
 
                     color = Color(0xFFF59E0B)
 
@@ -643,7 +649,7 @@ private fun StatisticsCard(
 
                     label = stringResource(R.string.status_rejected),
 
-                    value = stats.rejectedDeals,
+                    value = stats?.rejectedDeals,
 
                     color = Color(0xFFDC2626)
 
@@ -671,7 +677,7 @@ private fun StatItem(
 
     label: String,
 
-    value: Int,
+    value: Int?,
 
     color: Color,
 
@@ -689,17 +695,21 @@ private fun StatItem(
 
     ) {
 
-        Text(
+        if (value == null) {
+            StatValueSkeleton()
+        } else {
+            Text(
 
-            text = value.toString(),
+                text = value.toString(),
 
-            fontSize = 28.sp,
+                fontSize = 28.sp,
 
-            fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Bold,
 
-            color = color
+                color = color
 
-        )
+            )
+        }
 
         Text(
 
@@ -712,6 +722,57 @@ private fun StatItem(
         )
 
     }
+
+}
+
+
+
+/**
+
+ * Pulsing placeholder for a stat number while stats are still loading.
+ * Mirrors the shimmer approach used by [eg.deals.radar.feature.feed.components.SkeletonDealCard].
+
+ */
+
+@Composable
+
+private fun StatValueSkeleton() {
+
+    val infiniteTransition = rememberInfiniteTransition(label = "stat_shimmer")
+
+    val shimmerAlpha by infiniteTransition.animateFloat(
+
+        initialValue = 0.3f,
+
+        targetValue = 0.6f,
+
+        animationSpec = infiniteRepeatable(
+
+            animation = tween(1000, easing = LinearEasing),
+
+            repeatMode = RepeatMode.Reverse
+
+        ),
+
+        label = "stat_shimmer_alpha"
+
+    )
+
+    val baseColor = Color(0xFFE0E0E0)
+
+    Box(
+
+        modifier = Modifier
+
+            .height(24.dp)
+
+            .width(36.dp)
+
+            .clip(RoundedCornerShape(6.dp))
+
+            .background(baseColor.copy(alpha = shimmerAlpha))
+
+    )
 
 }
 

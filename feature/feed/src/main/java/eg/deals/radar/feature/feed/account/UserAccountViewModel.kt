@@ -62,7 +62,8 @@ data class UserAccountUiState(
 
     val user: UserDto? = null,
 
-    val stats: UserStats = UserStats(),
+    // null = not loaded yet (renders a skeleton instead of 0s)
+    val stats: UserStats? = null,
 
     val currentPage: Int = 1,
 
@@ -91,6 +92,13 @@ class UserAccountViewModel(
     private val userRepo: UserRepository = UserRepository()
 
 ) : ViewModel() {
+
+    companion object {
+        // Remembers the last stats seen per userId (in-memory only) so reopening
+        // Account shows the previous numbers immediately instead of a skeleton
+        // while a fresh page-1 fetch happens silently in the background.
+        private val lastStatsByUser = mutableMapOf<String, UserStats>()
+    }
 
 
 
@@ -164,6 +172,11 @@ class UserAccountViewModel(
 
                     _userId.value = userId
 
+                    // Show previous stats immediately (no skeleton) while refreshing silently
+                    lastStatsByUser[userId]?.let { cached ->
+                        _uiState.update { it.copy(stats = cached) }
+                    }
+
                     loadUserProfile(userId)
 
                     loadUserDeals(userId)
@@ -221,7 +234,6 @@ class UserAccountViewModel(
                         user = cachedUser.toDto(),
                         loading = false
                     )}
-                    calculateStats(userId)
                 }
 
                 // Always refresh from the API (role/trust may have changed)
@@ -235,7 +247,6 @@ class UserAccountViewModel(
                             user = userDto,
                             loading = false
                         )}
-                        calculateStats(userId)
                     }
                 } else if (cachedUser == null) {
                     Log.e("UserAccountVM", "Failed to load user profile: ${result.exceptionOrNull()}")
@@ -298,7 +309,8 @@ class UserAccountViewModel(
 
                 if (result.isSuccess) {
 
-                    val pagination = result.getOrNull()
+                    val page = result.getOrNull()
+                    val pagination = page?.pagination
 
                     _uiState.update { it.copy(
 
@@ -310,11 +322,31 @@ class UserAccountViewModel(
 
                     Log.d("UserAccountVM", "Deals loaded successfully")
 
-                    calculateStats(userId)
+                    val statsDto = page?.stats
+                    if (statsDto != null) {
+                        val stats = UserStats(
+                            totalDeals = statsDto.total,
+                            approvedDeals = statsDto.approved,
+                            pendingDeals = statsDto.pending,
+                            rejectedDeals = statsDto.rejected
+                        )
+                        lastStatsByUser[userId] = stats
+                        _uiState.update { it.copy(stats = stats) }
+                        Log.d("UserAccountVM", "Stats from server: $stats")
+                    } else {
+                        // Older server without the stats field: fall back to
+                        // computing from the (page-1) cached deals.
+                        calculateStats(userId)
+                    }
 
                 } else {
 
                     Log.e("UserAccountVM", "Failed to load deals: ${result.exceptionOrNull()}")
+
+                    // Don't leave the cards stuck in skeleton forever
+                    if (_uiState.value.stats == null) {
+                        calculateStats(userId)
+                    }
 
                 }
 
@@ -349,6 +381,7 @@ class UserAccountViewModel(
                     rejectedDeals = deals.count { it.status == "rejected" }
                 )
 
+                lastStatsByUser[userId] = stats
                 _uiState.update { it.copy(stats = stats) }
                 Log.d("UserAccountVM", "Stats calculated: $stats")
                 Log.d("UserAccountVM", "  Total: ${stats.totalDeals}, Approved: ${stats.approvedDeals}, Pending: ${stats.pendingDeals}, Rejected: ${stats.rejectedDeals}")
@@ -422,7 +455,7 @@ class UserAccountViewModel(
 
                 if (result.isSuccess) {
 
-                    val pagination = result.getOrNull()
+                    val pagination = result.getOrNull()?.pagination
 
                     _uiState.update { it.copy(
 

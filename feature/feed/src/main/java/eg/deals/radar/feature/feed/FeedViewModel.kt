@@ -15,6 +15,7 @@ import eg.deals.radar.db.DealEntity
 import eg.deals.radar.network.ApiErrors
 import eg.deals.radar.repository.DealRepository
 import eg.deals.radar.repository.PreloadRepository
+import eg.deals.radar.repository.StaleFeedPageException
 import eg.deals.radar.repository.UserRepository
 import eg.deals.radar.util.AppLanguage
 import kotlinx.coroutines.Job
@@ -23,11 +24,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 /** Feed sort order (backend sorts). */
@@ -117,6 +120,7 @@ class FeedViewModel(
     private val pendingVoteIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private var searchJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
 
     init {
         refreshDeals()
@@ -197,6 +201,9 @@ class FeedViewModel(
 
     fun refreshDeals(showFilteringSpinner: Boolean = false) {
         refreshJob?.cancel()
+        // A "load more" for the previous filters must not land in the new feed
+        loadMoreJob?.cancel()
+        uiState = uiState.copy(isLoadingMore = false)
         refreshJob = viewModelScope.launch {
             // Deals preloaded during onboarding: show them instantly (default filters only)
             val preloaded = preloadRepo.getCachedDeals()
@@ -206,6 +213,7 @@ class FeedViewModel(
             }
 
             uiState = uiState.copy(loading = true, isFilteringSorting = showFilteringSpinner, error = null, currentPage = 1)
+            val before = deals.value
             val result = repo.refreshDeals(
                 page = 1,
                 append = false,
@@ -214,6 +222,11 @@ class FeedViewModel(
                 governorate = _governorate.value?.id,
                 query = _searchQuery.value.trim().takeIf { it.isNotEmpty() }
             )
+            if (result.exceptionOrNull() is StaleFeedPageException) return@launch
+            if (showFilteringSpinner && result.isSuccess) {
+                // Keep the spinner until the new list reached the screen (no flash of the old tab)
+                withTimeoutOrNull(700) { deals.first { it != before } }
+            }
             result.onSuccess { pagination ->
                 uiState = uiState.copy(
                     loading = false, isFilteringSorting = false, isOffline = false, loadedOnce = true,
@@ -232,7 +245,7 @@ class FeedViewModel(
 
     fun loadMoreDeals() {
         if (uiState.isLoadingMore || !uiState.hasMorePages || uiState.loading) return
-        viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             val nextPage = uiState.currentPage + 1
             uiState = uiState.copy(isLoadingMore = true)
             repo.refreshDeals(

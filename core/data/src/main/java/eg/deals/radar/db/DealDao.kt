@@ -22,11 +22,41 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface DealDao {
+    /**
+     * Page 1 of the feed: replace the feed (deals + order) in one transaction.
+     * Only the previous feed's deals are removed; deals cached by other screens
+     * (account, moderation, archive, details) are left alone.
+     */
     @Transaction
-    suspend fun replaceAllDeals(deals: List<DealEntity>) {
-        clearAll()
+    suspend fun replaceFeed(deals: List<DealEntity>) {
+        deleteFeedDeals()
+        clearFeedEntries()
         insertAll(deals)
+        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(d.id, i) })
     }
+
+    /** "Load more": add a page after the current feed (deals already listed keep their place). */
+    @Transaction
+    suspend fun appendFeed(deals: List<DealEntity>) {
+        val start = (getMaxFeedPosition() ?: -1) + 1
+        insertAll(deals)
+        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(d.id, start + i) })
+    }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertFeedEntries(entries: List<FeedEntryEntity>)
+
+    @Query("DELETE FROM feed_entries")
+    suspend fun clearFeedEntries()
+
+    @Query("DELETE FROM deals WHERE id IN (SELECT dealId FROM feed_entries)")
+    suspend fun deleteFeedDeals()
+
+    @Query("UPDATE deals SET isArchived = 1 WHERE id = :dealId")
+    suspend fun markArchived(dealId: String)
+
+    @Query("SELECT MAX(position) FROM feed_entries")
+    suspend fun getMaxFeedPosition(): Int?
 
     @Transaction
     suspend fun replaceArchivedDeals(deals: List<DealEntity>) {
@@ -126,10 +156,13 @@ interface DealDao {
     @Query("UPDATE deals SET status = 'approved', approvedBy = :approvedBy, approvedAt = :approvedAt WHERE id = :dealId")
     suspend fun approveDeal(dealId: String, approvedBy: String?, approvedAt: String)
 
-    // Get approved, active, non-deleted deals (most restrictive filter)
-    // ✅ UPDATED: Order by rowid to preserve backend's sort order (hottest or newest)
-    // Backend sorts before pagination, rowid preserves insertion order
-    @Query("SELECT * FROM deals WHERE status = 'approved' AND isArchived = 0 AND deletedAt IS NULL ORDER BY rowid ASC")
+    // Main feed: only deals the backend returned for the current filters (feed_entries),
+    // in the backend's order. Deals cached by other screens never leak in.
+    @Query(
+        """SELECT d.* FROM feed_entries f INNER JOIN deals d ON d.id = f.dealId
+           WHERE d.status = 'approved' AND d.isArchived = 0 AND d.deletedAt IS NULL
+           ORDER BY f.position ASC"""
+    )
     fun getApprovedActiveDeals(): Flow<List<DealEntity>>
 
     // Permanently delete a deal from database (admin only)

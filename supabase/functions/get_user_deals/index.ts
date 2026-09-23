@@ -27,5 +27,22 @@ Deno.serve(handler(async (req) => {
   if (error) throw error;
 
   const totalPages = Math.ceil((count ?? 0) / limit);
-  return ok({ data: data ?? [], pagination: { page, limit, total: count ?? 0, totalPages, hasMore: page < totalPages } });
+
+  // Status counts for the account header (page 1 only; same filter as the list)
+  let stats: Record<string, number> | undefined;
+  if (page === 1) {
+    const countStatus = async (status: string) => {
+      const { count: c, error: e } = await admin().from("deals")
+        .select("id", { count: "exact", head: true })
+        .eq("submitted_by_user_id", target)
+        .is("deleted_at", null)
+        .eq("status", status);
+      if (e) throw e;
+      return c ?? 0;
+    };
+    const [approved, pending, rejected] = await Promise.all(["approved", "pending", "rejected"].map(countStatus));
+    stats = { total: count ?? 0, approved, pending, rejected };
+  }
+
+  return ok({ data: data ?? [], pagination: { page, limit, total: count ?? 0, totalPages, hasMore: page < totalPages }, stats });
 }));
