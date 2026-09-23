@@ -44,14 +44,14 @@ fi
 
 # 5. Verify the code is correct
 echo "5. Verifying source code..."
-if grep -q "🗳️ Optimistic vote" core/data/src/main/java/qa/deals/doha/repository/DealRepository.kt; then
+if grep -q "🗳️ Optimistic vote" core/data/src/main/java/eg/deals/radar/repository/DealRepository.kt; then
     echo "   ✅ Repository code is CORRECT (has emoji log)"
 else
     echo "   ❌ Repository code is WRONG!"
     exit 1
 fi
 
-if grep -q "user_id: String" core/data/src/main/java/qa/deals/doha/network/VoteRequest.kt; then
+if grep -q "user_id: String" core/data/src/main/java/eg/deals/radar/network/VoteRequest.kt; then
     echo "   ✅ VoteRequest code is CORRECT (has user_id)"
 else
     echo "   ❌ VoteRequest code is WRONG!"
@@ -63,7 +63,7 @@ echo "==========================================="
 echo "✅ Clean complete! Now rebuild in Android Studio:"
 echo "   1. File → Invalidate Caches → Invalidate and Restart"
 echo "   2. Build → Rebuild Project"
-echo "   3. Uninstall app from phone (Settings → Apps → Doha Deals → Uninstall)"
+echo "   3. Uninstall app from phone (Settings → Apps → EgyptDealRadar → Uninstall)"
 echo "   4. Run app (green play button)"
 echo ""
 echo "Expected logs after rebuild:"

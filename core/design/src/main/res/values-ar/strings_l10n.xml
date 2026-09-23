@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="privacy_title">الخصوصية والشروط</string>
+    <string name="privacy_intro">رادار عروض مصر تطبيق مجتمعي لمشاركة العروض في مصر. بنجمع أقل بيانات ممكنة ومبنبيعش بياناتك أبداً.</string>
+    <string name="privacy_collect_title">إيه اللي بنجمعه</string>
+    <string name="privacy_collect_body">• تسجيل دخولك بجوجل (إحنا عمرنا ما بنخزّن إيميلك)\n• اسم مستخدم عشوائي بنعمله لك\n• العروض اللي بتنشرها (النص، الصورة، اللينك، المكان، الأسعار)\n• تصويتك وبلاغاتك وتأكيدات \"العرض خلص\"\n• رقم عشوائي للتطبيق على جهازك، بنستخدمه بس لمنع السبام والتلاعب</string>
+    <string name="privacy_not_collect_title">اللي مبنجمعهوش</string>
+    <string name="privacy_not_collect_body">مفيش أرقام إعلانات، مفيش تتبع للمكان، مفيش جهات اتصال، ومفيش أدوات تحليل أو تسجيل للاستخدام من شركات تانية. تقدر تتصفح العروض من غير حساب.</string>
+    <string name="privacy_why_title">ليه</string>
+    <string name="privacy_why_body">بس علشان التطبيق يشتغل: عرض العروض، صوت واحد لكل شخص، مراجعة المنشورات، منع النصب، وإرسال الإشعارات اللي إنت بتفعّلها.</string>
+    <string name="privacy_where_title">البيانات بتتخزن فين</string>
+    <string name="privacy_where_body">على سيرفرات سحابية آمنة (Supabase). تسجيل الدخول بيتم عن طريق جوجل و Supabase Auth اللي بيحتفظ بهوية الحساب؛ وقاعدة بياناتنا نفسها مفيهاش غير اسم المستخدم ورقم داخلي. الإشعارات بتوصل عن طريق Google Firebase. تسجيل دخولك بيتخزن مشفّر على موبايلك.</string>
+    <string name="privacy_retention_title">بنحتفظ بيها قد إيه</string>
+    <string name="privacy_retention_body">العروض اللي خلصت بتتمسح بعد 90 يوم، والمرفوضة بعد 30 يوم، والبلاغات بعد 90 يوم، والآراء بعد سنة. لو مسحت حسابك بياناتك بتتمسح فوراً.</string>
+    <string name="privacy_rights_title">حقوقك</string>
+    <string name="privacy_rights_body">من صفحة حسابك تقدر تنزّل كل بياناتك أو تمسح حسابك نهائياً في أي وقت. وتقدر تغيّر اسم المستخدم كمان.</string>
+    <string name="privacy_rules_title">قواعد المجتمع</string>
+    <string name="privacy_rules_body">انشر عروض حقيقية بس. ممنوع النصب والسبام والأسعار المزيفة والعروض المتكررة. العروض بينشرها المستخدمين، فاتأكد دايماً من التفاصيل مع المتجر قبل الشراء. لازم يكون سنك 18 سنة أو أكتر، أو تستخدم التطبيق بموافقة ولي أمرك.</string>
+    <string name="privacy_contact_title">تواصل معانا</string>
+    <string name="privacy_contact_body">عندك سؤال أو طلب؟ استخدم \"رأيك يهمنا\" من قايمة التطبيق وسيب إيميلك علشان نرد عليك.</string>
+    <string name="privacy_updated">آخر تحديث: سبتمبر 2026</string>
+    <string name="privacy_close">إغلاق</string>
+    <string name="privacy_link">الخصوصية والشروط</string>
+</resources>

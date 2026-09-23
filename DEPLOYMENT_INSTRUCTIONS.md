@@ -16,7 +16,7 @@ This is the most important step - it fixes the vote counting issue.
 
 ```bash
 # Navigate to project root
-cd /home/user/DohaDealsRadar
+cd /home/user/EgyptDealRadar
 
 # Deploy the updated cast_vote edge function
 supabase functions deploy cast_vote

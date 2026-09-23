@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="onboarding_welcome_title">Welcome to EgyptDealRadar!</string>
+    <string name="onboarding_welcome_subtitle">Your community guide to the best deals and savings across Egypt.</string>
+    <string name="onboarding_engage_title">Engage &amp; Interact!</string>
+    <string name="onboarding_engage_subtitle">Vote hot or cold, view details &amp; grab promo codes.</string>
+    <string name="onboarding_share_title">Share Your Finds!</string>
+    <string name="onboarding_share_subtitle">Snap, post &amp; spread the savings with everyone.</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+</resources>

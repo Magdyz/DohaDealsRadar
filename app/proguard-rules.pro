@@ -22,9 +22,9 @@
 -keep class * implements com.google.gson.JsonDeserializer
 
 # DATA CLASSES - Only keep what's needed for serialization
--keep class qa.deals.doha.network.** { *; }  # API DTOs (needed by Retrofit/Gson)
--keep class qa.deals.doha.db.** { *; }       # Database entities (needed by Room)
--keep class qa.deals.domain.** { *; }        # Domain models (small, safe to keep)
+-keep class eg.deals.radar.network.** { *; }  # API DTOs (needed by Retrofit/Gson)
+-keep class eg.deals.radar.db.** { *; }       # Database entities (needed by Room)
+-keep class eg.deals.domain.** { *; }        # Domain models (small, safe to keep)
 
 # ViewModels - Keep class names (used by reflection in ViewModelProvider.Factory)
 -keep class * extends androidx.lifecycle.ViewModel {
@@ -37,7 +37,7 @@
 -keep class **.BuildConfig { *; }
 
 # Obfuscate everything else for security
--keepclassmembers class qa.deals.doha.** {
+-keepclassmembers class eg.deals.radar.** {
     @com.google.gson.annotations.SerializedName <fields>;
 }
 
@@ -53,7 +53,7 @@
 }
 
 # Remove ALL SecureLogger methods in release builds
--assumenosideeffects class qa.deals.doha.util.SecureLogger {
+-assumenosideeffects class eg.deals.radar.util.SecureLogger {
     public static *** d(...);
     public static *** i(...);
     public static *** w(...);
@@ -75,8 +75,4 @@
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
-# PostHog Analytics
--keep class com.posthog.** { *; }
--keep interface com.posthog.** { *; }
--dontwarn com.posthog.**
 -keepattributes *Annotation*,Signature,Exception

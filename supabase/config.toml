@@ -1,12 +1,7 @@
-[functions.upload_image]
-verify_jwt = false
+# Edge Function settings
+# All functions verify a JWT at the gateway (anon key or user session).
+# Identity and roles are then checked inside each function from the user's JWT.
 
-[functions.submit_deal]
+[functions.maintenance]
+# Called by pg_cron via pg_net; authenticated with the CRON_SECRET header instead.
 verify_jwt = false
-
-[functions.cast_vote_once]
-verify_jwt = false
-
-[functions.create_report]
-verify_jwt = false
-

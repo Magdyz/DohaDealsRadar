@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="report_title_bar">Report Deal</string>
+    <string name="report_submit">Submit Report</string>
+    <string name="report_sending">Sending Report...</string>
+    <string name="report_please_wait">Please wait</string>
+    <string name="report_sent_cd">Report sent</string>
+    <string name="report_sent_title">Report Sent! 🛡️</string>
+    <string name="report_sent_thanks">Thank you for helping keep\nour community safe.</string>
+    <string name="report_sent_review">Our team will review this report shortly</string>
+    <string name="report_closing">Closing automatically...</string>
+    <string name="report_already_title">Already Reported</string>
+    <string name="report_already_message">You\'ve already reported this deal.\nThank you for helping keep our community safe.</string>
+    <string name="report_limit_title">Daily Limit Reached</string>
+    <string name="report_limit_message">You\'ve reached the maximum number of reports for today (5).\nPlease try again tomorrow.</string>
+    <string name="report_instructions">Help us understand what\'s wrong</string>
+    <string name="report_select_reason">Select a reason *</string>
+    <string name="report_details_required">Details required</string>
+    <string name="report_additional_details">Additional details</string>
+    <string name="report_optional"> (optional)</string>
+    <string name="report_details_hint">⚠️ Please provide specific details about why this is %1$s. Include evidence or context (minimum 30 characters).</string>
+    <string name="report_placeholder_scam">Example: This seller requested payment outside the platform, refused to provide tracking info, or the product description is completely false...</string>
+    <string name="report_placeholder_spam">Example: This is a duplicate post, contains promotional links to other sites, or is irrelevant advertising...</string>
+    <string name="report_placeholder_expired">Optional: When did this expire? Is there a replacement deal?</string>
+    <string name="report_placeholder_other">Provide any additional context...</string>
+    <string name="report_min_chars">Minimum 30 characters required</string>
+    <string name="report_details_ok">✓ Details provided</string>
+    <string name="report_required_field">* Required field</string>
+    <string name="report_error_select_reason">Please select a reason</string>
+    <string name="report_error_details">For \'%1$s\' reports, please provide at least %2$d characters explaining the issue</string>
+    <string name="report_error_already">You have already reported this deal</string>
+    <string name="report_error_limit">Daily report limit reached</string>
+    <string name="report_error_submit">Failed to submit report</string>
+    <string name="report_error_network">Network error. Please try again.</string>
+    <string name="report_error_login">Please log in to report a deal. This keeps reports fair and stops abuse.</string>
+</resources>

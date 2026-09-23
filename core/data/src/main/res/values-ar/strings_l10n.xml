@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="auth_error_invalid_email">الإيميل مش صحيح. راجعه وحاول تاني.</string>
+    <string name="auth_error_too_many_requests">طلبات كتير. استنى شوية.</string>
+    <string name="auth_error_send_code">مقدرناش نبعت الكود. حاول تاني.</string>
+    <string name="auth_error_network">مشكلة في الاتصال. اتأكد من النت.</string>
+    <string name="auth_error_invalid_code">كود التأكيد غلط. حاول تاني.</string>
+    <string name="auth_error_too_many_attempts">محاولات كتير. استنى شوية.</string>
+    <string name="auth_error_verification_failed">التأكيد فشل. حاول تاني.</string>
+    <string name="err_unauthorized">من فضلك سجّل دخول تاني علشان تكمّل.</string>
+    <string name="err_banned">الحساب ده اتوقف. كلمنا لو شايف إن ده حصل بالغلط.</string>
+    <string name="err_forbidden">مش مسموحلك تعمل ده.</string>
+    <string name="err_not_found">ملقيناش اللي بتدور عليه.</string>
+    <string name="err_deal_not_found">العرض ده مبقاش متاح.</string>
+    <string name="err_rate_post">تقدر تنشر لحد %1$d عروض في اليوم. حاول تاني بعد %2$s.</string>
+    <string name="err_rate_generic">إنت بتعمل ده كتير. حاول تاني بعد %1$s.</string>
+    <string name="err_duplicate">العرض ده موجود بالفعل على رادار عروض مصر.</string>
+    <string name="err_possible_duplicate">فيه عروض شبه ده متنشرة بالفعل.</string>
+    <string name="err_link_blocked">اللينك ده مينفعش يتنشر لأسباب أمان. استخدم لينك المتجر كامل.</string>
+    <string name="err_own_deal_vote">مينفعش تصوّت على عرضك.</string>
+    <string name="err_own_deal_report">مينفعش تبلّغ عن عرضك.</string>
+    <string name="err_already_reported">إنت بلّغت عن العرض ده قبل كده. شكراً!</string>
+    <string name="err_already_marked_expired">شكراً، إنت قولتلنا قبل كده إن العرض خلص.</string>
+    <string name="err_already_done">ده اتعمل بالفعل.</string>
+    <string name="err_deal_unavailable">العرض ده خلص أو اتشال.</string>
+    <string name="err_invalid_code">الكود غلط أو انتهى. راجعه أو اطلب كود جديد.</string>
+    <string name="err_network">إنت مش متصل بالنت. اتأكد من الاتصال وحاول تاني.</string>
+    <string name="err_timeout">الاتصال بطيء. حاول تاني.</string>
+    <string name="err_server">حصلت مشكلة عندنا. حاول تاني.</string>
+    <string name="err_validation">من فضلك راجع البيانات وحاول تاني.</string>
+    <string name="err_field_title">راجع العنوان (من 5 لـ 150 حرف ومن غير لينكات).</string>
+    <string name="err_field_description">الوصف طويل أوي (أقصى حد 2000 حرف).</string>
+    <string name="err_field_link">من فضلك اكتب لينك صحيح يبدأ بـ https.</string>
+    <string name="err_field_location">من فضلك اكتب مكان صحيح.</string>
+    <string name="err_field_image">من فضلك ضيف الصورة تاني.</string>
+    <string name="err_field_price">راجع الأسعار. السعر بعد الخصم لازم يكون أقل من الأصلي.</string>
+    <string name="err_field_email">من فضلك اكتب إيميل صحيح.</string>
+    <string name="err_field_consent">من فضلك وافق على سياسة الخصوصية علشان تعمل حساب.</string>
+    <string name="err_field_note">من فضلك اكتب 30 حرف على الأقل توضّح المشكلة.</string>
+    <string name="err_field_reason">من فضلك اختار السبب.</string>
+    <string name="err_field_username">اسم المستخدم لازم يكون من 3 لـ 20 حرف إنجليزي أو أرقام أو _.</string>
+    <string name="err_field_feedback">من فضلك اكتب رأيك (أقصى حد 500 حرف).</string>
+    <string name="wait_minute">دقيقة</string>
+    <string name="wait_minutes">%1$d دقيقة</string>
+    <string name="wait_hours">%1$d ساعة</string>
+    <string name="session_expired_title">سجّل دخول تاني</string>
+    <string name="session_expired_message">علشان أمانك، الجلسة انتهت. سجّل دخول تاني علشان تنشر وتصوّت.</string>
+</resources>

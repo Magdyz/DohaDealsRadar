@@ -1,151 +1,36 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// ============================================================================
+// submit_feedback
+// Anyone can send feedback (login optional). Rate limited per device/IP.
+// The email field is optional and only used to reply.
+// ============================================================================
+import { admin, getCaller } from "../_shared/auth.ts";
+import { ApiError, clientIp, handler, ok, readJson, str } from "../_shared/http.ts";
+import { DAY, rateLimit } from "../_shared/ratelimit.ts";
 
-/**
- * Submit user feedback
- *
- * CREATED: 2025-11-22
- *
- * Required: device_id, feedback_text
- * Optional: user_id (if authenticated)
- */
+Deno.serve(handler(async (req) => {
+  const caller = await getCaller(req).catch(() => null);
+  const body = await readJson(req);
+  const deviceId = str(body.device_id ?? req.headers.get("x-device-id"), 100) ?? "unknown";
+  const text = str(body.feedback_text, 2000);
+  const email = str(body.email, 254);
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-};
-
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (!text) throw new ApiError("VALIDATION", "Please write your feedback.", { field: "feedback_text" });
+  if (text.length > 500) throw new ApiError("VALIDATION", "Feedback is too long (max 500 characters).", { field: "feedback_text" });
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    throw new ApiError("VALIDATION", "Please enter a valid email address.", { field: "email" });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+  await rateLimit(`feedback:dev:${deviceId}`, 5, DAY, "Thanks! You've sent a lot of feedback today. Please try again tomorrow.");
+  await rateLimit(`feedback:ip:${clientIp(req)}`, 20, DAY, "Please try again tomorrow.");
 
-    const { device_id, feedback_text, user_id, email } = await req.json();
+  const { data, error } = await admin().from("feedback").insert({
+    device_id: deviceId,
+    user_id: caller?.profile.id ?? null,
+    feedback_text: text,
+    email: email ?? null,
+    status: "pending",
+  }).select("id, created_at").single();
+  if (error) throw error;
 
-    // Validate required fields
-    if (!device_id || !feedback_text) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing required fields: device_id and feedback_text"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Validate email format if provided
-    if (email && email.trim() !== "") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Invalid email format"
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-    }
-
-    // Validate feedback length (max 500 characters)
-    if (feedback_text.length > 500) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Feedback text exceeds maximum length of 500 characters"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Sanitize feedback text (basic validation)
-    const sanitizedText = feedback_text.trim();
-    if (sanitizedText.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Feedback text cannot be empty"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Check if user exists (optional, just for linking)
-    let validatedUserId = null;
-    if (user_id) {
-      const { data: user } = await supabase
-        .from("users")
-        .select("id")
-        .eq("device_id", device_id)
-        .maybeSingle();
-
-      if (user) {
-        validatedUserId = user.id;
-      }
-    }
-
-    // Insert feedback into database
-    const { data, error } = await supabase
-      .from("feedback")
-      .insert({
-        device_id,
-        user_id: validatedUserId,
-        feedback_text: sanitizedText,
-        email: email && email.trim() !== "" ? email.trim() : null,
-        status: "pending"
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error inserting feedback:", error);
-      throw error;
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Feedback submitted successfully",
-        data: {
-          id: data.id,
-          created_at: data.created_at
-        }
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200
-      }
-    );
-  } catch (error) {
-    console.error("Server error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "Server error"
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500
-      }
-    );
-  }
-});
+  return ok({ message: "Feedback submitted", data });
+}));

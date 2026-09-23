@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.doha.feature.details"
+    namespace = "eg.deals.radar.feature.details"
     compileSdk = 36
 
     defaultConfig {

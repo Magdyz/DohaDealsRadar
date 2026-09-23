@@ -9,7 +9,7 @@ ERRORS=0
 
 # Check 1: Repository has emoji logs
 echo "1. Checking DealRepository.kt for emoji logs..."
-if grep -q "🗳️ Optimistic vote" core/data/src/main/java/qa/deals/doha/repository/DealRepository.kt; then
+if grep -q "🗳️ Optimistic vote" core/data/src/main/java/eg/deals/radar/repository/DealRepository.kt; then
     echo "   ✅ PASS: Repository has emoji log (new code)"
 else
     echo "   ❌ FAIL: Repository missing emoji log"
@@ -18,7 +18,7 @@ fi
 
 # Check 2: VoteRequest uses user_id
 echo "2. Checking VoteRequest.kt for user_id..."
-if grep -q "val user_id: String" core/data/src/main/java/qa/deals/doha/network/VoteRequest.kt; then
+if grep -q "val user_id: String" core/data/src/main/java/eg/deals/radar/network/VoteRequest.kt; then
     echo "   ✅ PASS: VoteRequest has user_id field"
 else
     echo "   ❌ FAIL: VoteRequest missing user_id"
@@ -27,7 +27,7 @@ fi
 
 # Check 3: VoteRequest does NOT have device_id
 echo "3. Checking VoteRequest.kt does NOT have device_id..."
-if grep -q "device_id" core/data/src/main/java/qa/deals/doha/network/VoteRequest.kt; then
+if grep -q "device_id" core/data/src/main/java/eg/deals/radar/network/VoteRequest.kt; then
     echo "   ❌ FAIL: VoteRequest still has device_id (old code!)"
     ERRORS=$((ERRORS + 1))
 else
@@ -36,7 +36,7 @@ fi
 
 # Check 4: Repository creates VoteRequest with user_id
 echo "4. Checking Repository creates VoteRequest with user_id..."
-if grep -A 3 "val request = VoteRequest" core/data/src/main/java/qa/deals/doha/repository/DealRepository.kt | grep -q "user_id = userId"; then
+if grep -A 3 "val request = VoteRequest" core/data/src/main/java/eg/deals/radar/repository/DealRepository.kt | grep -q "user_id = userId"; then
     echo "   ✅ PASS: Repository passes userId to VoteRequest"
 else
     echo "   ❌ FAIL: Repository not passing userId"
@@ -45,7 +45,7 @@ fi
 
 # Check 5: FeedViewModel has showLoginDialog
 echo "5. Checking FeedViewModel has login dialog state..."
-if grep -q "showLoginDialog: Boolean" feature/feed/src/main/java/qa/deals/doha/feature/feed/FeedViewModel.kt; then
+if grep -q "showLoginDialog: Boolean" feature/feed/src/main/java/eg/deals/radar/feature/feed/FeedViewModel.kt; then
     echo "   ✅ PASS: FeedViewModel has showLoginDialog"
 else
     echo "   ❌ FAIL: FeedViewModel missing showLoginDialog"
@@ -54,7 +54,7 @@ fi
 
 # Check 6: DetailsViewModel has showLoginDialog
 echo "6. Checking DetailsViewModel has login dialog state..."
-if grep -q "showLoginDialog: Boolean" feature/details/src/main/java/qa/deals/doha/feature/details/DetailsViewModel.kt; then
+if grep -q "showLoginDialog: Boolean" feature/details/src/main/java/eg/deals/radar/feature/details/DetailsViewModel.kt; then
     echo "   ✅ PASS: DetailsViewModel has showLoginDialog"
 else
     echo "   ❌ FAIL: DetailsViewModel missing showLoginDialog"
@@ -63,7 +63,7 @@ fi
 
 # Check 7: FeedScreen renders VoteLoginDialog
 echo "7. Checking FeedScreen renders VoteLoginDialog..."
-if grep -q "VoteLoginDialog" feature/feed/src/main/java/qa/deals/doha/feature/feed/FeedScreen.kt; then
+if grep -q "VoteLoginDialog" feature/feed/src/main/java/eg/deals/radar/feature/feed/FeedScreen.kt; then
     echo "   ✅ PASS: FeedScreen has VoteLoginDialog"
 else
     echo "   ❌ FAIL: FeedScreen missing VoteLoginDialog"
@@ -72,7 +72,7 @@ fi
 
 # Check 8: DetailsScreen renders VoteLoginDialog
 echo "8. Checking DetailsScreen renders VoteLoginDialog..."
-if grep -q "VoteLoginDialog" feature/details/src/main/java/qa/deals/doha/feature/details/DetailsScreen.kt; then
+if grep -q "VoteLoginDialog" feature/details/src/main/java/eg/deals/radar/feature/details/DetailsScreen.kt; then
     echo "   ✅ PASS: DetailsScreen has VoteLoginDialog"
 else
     echo "   ❌ FAIL: DetailsScreen missing VoteLoginDialog"
@@ -81,7 +81,7 @@ fi
 
 # Check 9: DealDao has getDealById
 echo "9. Checking DealDao has getDealById for optimistic updates..."
-if grep -q "suspend fun getDealById" core/data/src/main/java/qa/deals/doha/db/DealDao.kt; then
+if grep -q "suspend fun getDealById" core/data/src/main/java/eg/deals/radar/db/DealDao.kt; then
     echo "   ✅ PASS: DealDao has getDealById"
 else
     echo "   ❌ FAIL: DealDao missing getDealById"
@@ -90,7 +90,7 @@ fi
 
 # Check 10: Repository does optimistic update
 echo "10. Checking Repository does optimistic Room DB update..."
-if grep -q "⚡ Optimistic update applied to Room DB" core/data/src/main/java/qa/deals/doha/repository/DealRepository.kt; then
+if grep -q "⚡ Optimistic update applied to Room DB" core/data/src/main/java/eg/deals/radar/repository/DealRepository.kt; then
     echo "   ✅ PASS: Repository has optimistic update log"
 else
     echo "   ❌ FAIL: Repository missing optimistic update"

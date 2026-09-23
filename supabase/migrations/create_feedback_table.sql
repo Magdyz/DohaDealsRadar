@@ -1,5 +1,5 @@
 -- ========================================
--- Feedback Table for DohaDealsRadar
+-- Feedback Table for EgyptDealRadar
 -- Stores user feedback and suggestions
 -- CREATED: 2025-11-22
 -- ========================================
@@ -67,7 +67,7 @@ USING (
 GRANT SELECT, INSERT ON feedback TO authenticated;
 GRANT SELECT, INSERT ON feedback TO anon;
 
-COMMENT ON TABLE feedback IS 'User feedback and suggestions for DohaDealsRadar';
+COMMENT ON TABLE feedback IS 'User feedback and suggestions for EgyptDealRadar';
 COMMENT ON COLUMN feedback.device_id IS 'Device ID of the user submitting feedback';
 COMMENT ON COLUMN feedback.user_id IS 'Optional user ID if user is authenticated';
 COMMENT ON COLUMN feedback.feedback_text IS 'The actual feedback content (max 500 chars enforced by app)';

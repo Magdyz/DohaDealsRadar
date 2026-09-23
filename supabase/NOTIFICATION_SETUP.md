@@ -61,8 +61,8 @@ You need to add 3 secrets to Supabase. Here's how:
 
 | Secret Name | Value | Example |
 |-------------|-------|---------|
-| `FIREBASE_PROJECT_ID` | Your Firebase project ID | `doha-deals-radar` |
-| `FIREBASE_CLIENT_EMAIL` | Service account email | `firebase-adminsdk-xxxxx@doha-deals-radar.iam.gserviceaccount.com` |
+| `FIREBASE_PROJECT_ID` | Your Firebase project ID | `egypt-deal-radar` |
+| `FIREBASE_CLIENT_EMAIL` | Service account email | `firebase-adminsdk-xxxxx@egypt-deal-radar.iam.gserviceaccount.com` |
 | `FIREBASE_PRIVATE_KEY` | Base64 encoded private key | (see below) |
 
 #### **Option B: Using Supabase CLI**

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="onboarding_welcome_title">أهلاً بيك في رادار عروض مصر!</string>
+    <string name="onboarding_welcome_subtitle">دليلك من الناس للناس لأحسن العروض والتخفيضات في مصر.</string>
+    <string name="onboarding_engage_title">اتفاعل وشارك!</string>
+    <string name="onboarding_engage_subtitle">صوّت 🔥 أو ❄️، شوف التفاصيل وخُد أكواد الخصم.</string>
+    <string name="onboarding_share_title">شارك اللي لقيته!</string>
+    <string name="onboarding_share_subtitle">صوّر، انشر، وخلّي الكل يستفيد من التوفير.</string>
+    <string name="onboarding_get_started">يلا نبدأ</string>
+    <string name="onboarding_skip">تخطي</string>
+    <string name="onboarding_next">التالي</string>
+</resources>

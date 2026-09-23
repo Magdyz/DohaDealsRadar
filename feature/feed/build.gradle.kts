@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.doha.feature.feed"
+    namespace = "eg.deals.radar.feature.feed"
     compileSdk = 36
 
     defaultConfig {
@@ -48,5 +48,4 @@ dependencies {
 
     // Coil for image loading
     implementation(libs.accompanist.swiperefresh)
-    implementation("com.google.accompanist:accompanist-placeholder-material:0.36.0")
 }

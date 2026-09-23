@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.doha.feature.post"
+    namespace = "eg.deals.radar.feature.post"
     compileSdk = 36
 
     defaultConfig {
@@ -41,17 +41,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
 
     // Activity Compose - for activity result APIs
-    implementation("androidx.activity:activity-compose:1.9.0")
+    implementation(libs.androidx.activity.compose)
 
-    // Permissions handling
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     // Core modules
     implementation(project(":core:data"))
     implementation(project(":core:design"))
     implementation("androidx.exifinterface:exifinterface:1.3.3")
     implementation(libs.androidx.compose.ui.graphics)
-    implementation("com.google.accompanist:accompanist-placeholder-material:0.32.0")
     // ✅ This one contains ALL Material Icons
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
     implementation(projects.core.domain)  // ✅ Must be present

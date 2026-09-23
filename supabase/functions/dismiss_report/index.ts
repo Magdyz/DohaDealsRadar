@@ -1,130 +1,29 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// ============================================================================
+// dismiss_report (moderator/admin)
+// Removes a report without action. If the deal was auto-hidden and no
+// reports remain, it goes back live.
+// ============================================================================
+import { admin, logAction, requireRole } from "../_shared/auth.ts";
+import { ApiError, handler, isUuid, ok, readJson, str } from "../_shared/http.ts";
 
-/**
- * Dismiss a report without taking action
- * Marks the report as reviewed but no action needed
- *
- * CREATED: 2025-11-22
- *
- * Required: report_id, user_id (moderator/admin)
- * Optional: reason
- */
+Deno.serve(handler(async (req) => {
+  const caller = await requireRole(req, ["moderator", "admin"]);
+  const body = await readJson(req);
+  if (!isUuid(body.report_id)) throw new ApiError("VALIDATION", "Missing report.");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-};
+  const { data: report } = await admin().from("reports").select("id, deal_id").eq("id", body.report_id).maybeSingle();
+  if (!report) throw new ApiError("NOT_FOUND", "Report not found.");
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const { error } = await admin().from("reports").delete().eq("id", report.id);
+  if (error) throw error;
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+  const { count } = await admin().from("reports").select("id", { count: "exact", head: true }).eq("deal_id", report.deal_id);
+  const { data: deal } = await admin().from("deals").select("status").eq("id", report.deal_id).maybeSingle();
+  await admin().from("deals").update({
+    report_count: count ?? 0,
+    ...(deal?.status === "hidden" && (count ?? 0) === 0 ? { status: "approved", requires_review: false } : {}),
+  }).eq("id", report.deal_id);
 
-    const { report_id, user_id, reason } = await req.json();
-
-    if (!report_id || !user_id) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing required fields: report_id, user_id"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Check permissions (moderator or admin only)
-    const { data: hasPermission } = await supabase.rpc('check_permission', {
-      p_user_id: user_id,
-      p_permission: 'manage_reports'
-    });
-
-    if (!hasPermission) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Unauthorized: Only moderators/admins can dismiss reports"
-        }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Check if report exists
-    const { data: report, error: fetchError } = await supabase
-      .from("reports")
-      .select("id")
-      .eq("id", report_id)
-      .single();
-
-    if (fetchError || !report) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Report not found"
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Delete the report (dismissing it)
-    // Note: You could also update a status field if you want to keep dismissed reports
-    const { error: deleteError } = await supabase
-      .from("reports")
-      .delete()
-      .eq("id", report_id);
-
-    if (deleteError) {
-      console.error("Error dismissing report:", deleteError);
-      throw deleteError;
-    }
-
-    // Optionally log the dismissal action in an audit log
-    // (This would be a separate audit_log table if you have one)
-    // await supabase.from("audit_log").insert({
-    //   action: "dismiss_report",
-    //   report_id,
-    //   user_id,
-    //   reason,
-    //   timestamp: new Date().toISOString()
-    // });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Report dismissed successfully"
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200
-      }
-    );
-  } catch (error) {
-    console.error("Server error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "Server error"
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500
-      }
-    );
-  }
-});
+  await logAction("report_dismissed", caller.profile.id, { dealId: report.deal_id, reason: str(body.reason, 300) });
+  return ok({ message: "Report dismissed" });
+}));

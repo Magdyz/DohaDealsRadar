@@ -1,0 +1,22 @@
+package eg.deals.radar.network
+
+import com.google.gson.annotations.SerializedName
+
+/**
+ * Request to return an archived deal back to feed
+ * Admin-only endpoint that:
+ * - Sets isArchived = false
+ * - Extends expiresAt by [expiresInDays] days from now
+ * - Keeps original createdAt (real age)
+ */
+
+data class ReturnToFeedRequest(
+    @SerializedName("admin_user_id")
+    val userId: String,
+
+    @SerializedName("deal_id")
+    val dealId: String,
+
+    @SerializedName("expires_in_days")
+    val expiresInDays: Int = 10
+)

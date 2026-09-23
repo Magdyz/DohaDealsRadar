@@ -14,7 +14,7 @@ dependencyResolutionManagement {
 }
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "DohaDealsRadar"
+rootProject.name = "EgyptDealRadar"
 
 include(":app")
 include(":core:design")

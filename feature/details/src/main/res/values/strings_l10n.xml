@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="vote_auth_title">Please verify you\'re human</string>
+    <string name="vote_auth_message">To keep voting fair and prevent fraud, we need to verify your identity. It only takes a minute!</string>
+    <string name="vote_auth_login">Log In (Quick!)</string>
+    <string name="vote_auth_later">Maybe Later</string>
+    <string name="vote_auth_footer">One vote per deal, per person. Your email stays private.</string>
+    <string name="time_just_now">Just now</string>
+    <string name="time_yesterday">Yesterday</string>
+    <string name="details_expires_less_than_day">Expires in less than 1 day</string>
+    <string name="details_title_bar">Deal Details</string>
+    <string name="details_share_deal">Share deal</string>
+    <string name="details_share">Share</string>
+    <string name="details_error_generic">Something went wrong</string>
+    <string name="details_go_back">Go Back</string>
+    <string name="details_image_failed">Image failed to load</string>
+    <string name="details_posted">Posted %1$s</string>
+    <string name="details_show_less">Show less</string>
+    <string name="details_show_more">Show more</string>
+    <string name="details_posted_by">Posted by</string>
+    <string name="details_view_online">🔗 View Online</string>
+    <string name="details_disclaimer_title">Disclaimer</string>
+    <string name="details_disclaimer">All deals are posted by users and are the sole responsibility of the original poster. EgyptDealRadar is not responsible for the accuracy, validity, or availability of any deals. By clicking on deal links, you will be redirected to third-party websites. EgyptDealRadar is not liable for any transactions, issues, or disputes that may arise from these external sites. Please verify all deal details independently before making any purchase.</string>
+    <string name="details_view_deal">View Deal</string>
+    <string name="details_location">Location</string>
+    <string name="details_copied">Copied to clipboard</string>
+    <string name="details_promo_code">Promo Code</string>
+    <string name="details_promo_copied">Promo code copied</string>
+    <string name="details_error_not_found_detail">Deal not found. %1$s</string>
+    <string name="details_error_not_found">Deal not found</string>
+    <string name="details_error_unknown">Unknown error</string>
+    <string name="details_error_vote">Failed to record vote</string>
+    <string name="details_error_network">Network error</string>
+    <string name="details_share_text">🔥 Check out this deal!\n\n%1$s\n%2$s\n\nShared from Egypt Deal Radar</string>
+    <string name="details_expired_ask">Deal ended?</string>
+    <string name="details_expired_marked">Thanks for telling us</string>
+    <string name="details_expired_thanks">Thanks! If others confirm, we\'ll mark it as ended.</string>
+    <string name="details_expired_done">Thanks! This deal is now marked as ended.</string>
+</resources>

@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.onboarding"
+    namespace = "eg.deals.onboarding"
 
     // Using 36 as seen in your previous build logs
     compileSdk = 36

@@ -131,3 +131,11 @@ lint-results.*
 *.rej
 
 /app/release
+# macOS metadata (external drive)
+._*
+
+# Firebase service account keys (never commit)
+*firebase-adminsdk*.json
+
+# Internal security audit - keep local only
+docs/EgyptDealRadar_Master_Plan.md

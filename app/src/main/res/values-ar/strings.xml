@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">رادار عروض الدوحة</string>
-    <string name="hello_home">مرحبًا! رادار عروض الدوحة جاهز.</string>
+    <string name="app_name">رادار عروض مصر</string>
+    <string name="hello_home">أهلاً! رادار عروض مصر جاهز.</string>
+    <string name="notification_new_deal_title">عرض جديد في مصر!</string>
+    <string name="notification_new_deal_body">شوف أحدث العروض</string>
+    <string name="notification_channel_name">إشعارات العروض</string>
+    <string name="notification_channel_description">إشعارات بالعروض الجديدة في مصر</string>
 </resources>

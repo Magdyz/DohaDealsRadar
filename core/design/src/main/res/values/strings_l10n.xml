@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="privacy_title">Privacy &amp; Terms</string>
+    <string name="privacy_intro">EgyptDealRadar is a community app for sharing deals in Egypt. We collect as little as possible and never sell your data.</string>
+    <string name="privacy_collect_title">What we collect</string>
+    <string name="privacy_collect_body">• Your Google sign-in (we never store your email address)\n• A random username we generate for you\n• Deals you post (text, photo, link, location, prices)\n• Your votes, reports and \"expired\" confirmations\n• A random app ID for this install, used only to stop spam and abuse</string>
+    <string name="privacy_not_collect_title">What we don\'t collect</string>
+    <string name="privacy_not_collect_body">No advertising IDs, no location tracking, no contacts, no third-party analytics or session recording. Browsing deals needs no account.</string>
+    <string name="privacy_why_title">Why</string>
+    <string name="privacy_why_body">Only to run the app: showing deals, keeping one vote per person, reviewing posts, preventing fraud and sending the notifications you turn on.</string>
+    <string name="privacy_where_title">Where it\'s stored</string>
+    <string name="privacy_where_body">On secure cloud servers (Supabase). Sign-in is handled by Google and Supabase Auth, which holds the account identity; our own database keeps only your username and an internal id. Push notifications are delivered by Google Firebase. Your login is stored encrypted on your phone.</string>
+    <string name="privacy_retention_title">How long we keep it</string>
+    <string name="privacy_retention_body">Expired deals are deleted 90 days after they end, rejected deals after 30 days, reports after 90 days and feedback after 1 year. Deleting your account removes your data right away.</string>
+    <string name="privacy_rights_title">Your rights</string>
+    <string name="privacy_rights_body">From your account page you can download all your data or permanently delete your account at any time. You can change your username too.</string>
+    <string name="privacy_rules_title">Community rules</string>
+    <string name="privacy_rules_body">Post real deals only. No scams, spam, fake prices or duplicate posts. Deals are shared by users; always check details with the store before buying. You must be 18 or older, or use the app with a parent\'s permission.</string>
+    <string name="privacy_contact_title">Contact</string>
+    <string name="privacy_contact_body">Questions or requests? Use \"Feedback\" in the app menu and leave your email so we can reply.</string>
+    <string name="privacy_updated">Last updated: September 2026</string>
+    <string name="privacy_close">Close</string>
+    <string name="privacy_link">Privacy &amp; Terms</string>
+</resources>

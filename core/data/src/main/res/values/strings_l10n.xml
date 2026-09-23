@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="auth_error_invalid_email">Invalid email address. Please check and try again.</string>
+    <string name="auth_error_too_many_requests">Too many requests. Please wait a moment.</string>
+    <string name="auth_error_send_code">Failed to send code. Please try again.</string>
+    <string name="auth_error_network">Network error. Please check your connection.</string>
+    <string name="auth_error_invalid_code">Invalid verification code. Please try again.</string>
+    <string name="auth_error_too_many_attempts">Too many attempts. Please wait a moment.</string>
+    <string name="auth_error_verification_failed">Verification failed. Please try again.</string>
+    <string name="err_unauthorized">Please log in again to continue.</string>
+    <string name="err_banned">This account has been suspended. Contact us if you think this is a mistake.</string>
+    <string name="err_forbidden">You don\'t have permission to do this.</string>
+    <string name="err_not_found">We couldn\'t find that.</string>
+    <string name="err_deal_not_found">This deal isn\'t available anymore.</string>
+    <string name="err_rate_post">You can post up to %1$d deals per day. Try again in %2$s.</string>
+    <string name="err_rate_generic">You\'re doing that too often. Please try again in %1$s.</string>
+    <string name="err_duplicate">This deal is already on EgyptDealRadar.</string>
+    <string name="err_possible_duplicate">Similar deals are already posted.</string>
+    <string name="err_link_blocked">This link can\'t be posted for safety reasons. Please use the full store link.</string>
+    <string name="err_own_deal_vote">You can\'t vote on your own deal.</string>
+    <string name="err_own_deal_report">You can\'t report your own deal.</string>
+    <string name="err_already_reported">You\'ve already reported this deal. Thank you!</string>
+    <string name="err_already_marked_expired">Thanks, you already told us this deal ended.</string>
+    <string name="err_already_done">That\'s already done.</string>
+    <string name="err_deal_unavailable">This deal has ended or was removed.</string>
+    <string name="err_invalid_code">The code is wrong or has expired. Check it or request a new one.</string>
+    <string name="err_network">You\'re offline. Check your internet connection and try again.</string>
+    <string name="err_timeout">The connection is slow. Please try again.</string>
+    <string name="err_server">Something went wrong on our side. Please try again.</string>
+    <string name="err_validation">Please check the details and try again.</string>
+    <string name="err_field_title">Please check the title (5–150 characters, no links).</string>
+    <string name="err_field_description">The description is too long (max 2000 characters).</string>
+    <string name="err_field_link">Please enter a valid https link.</string>
+    <string name="err_field_location">Please enter a valid location.</string>
+    <string name="err_field_image">Please add the photo again.</string>
+    <string name="err_field_price">Please check the prices. The discounted price must be lower than the original.</string>
+    <string name="err_field_email">Please enter a valid email address.</string>
+    <string name="err_field_consent">Please accept the privacy policy to create an account.</string>
+    <string name="err_field_note">Please add at least 30 characters explaining the problem.</string>
+    <string name="err_field_reason">Please choose a reason.</string>
+    <string name="err_field_username">Username must be 3–20 letters, numbers or _.</string>
+    <string name="err_field_feedback">Please write your feedback (max 500 characters).</string>
+    <string name="wait_minute">a minute</string>
+    <string name="wait_minutes">%1$d minutes</string>
+    <string name="wait_hours">%1$d hours</string>
+    <string name="session_expired_title">Please log in again</string>
+    <string name="session_expired_message">For your security, your session ended. Log in again to post and vote.</string>
+</resources>

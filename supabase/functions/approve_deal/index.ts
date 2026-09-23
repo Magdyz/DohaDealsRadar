@@ -1,163 +1,52 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
-serve(async (req)=>{
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
+// ============================================================================
+// approve_deal (moderator/admin)
+// Publishes a pending deal (or restores a report-hidden one). Counters and
+// trust levels are updated by the DB trigger only (no double counting).
+// Broadcasts new deals; tells the poster their deal is live.
+// ============================================================================
+import { admin, logAction, requireRole } from "../_shared/auth.ts";
+import { ApiError, handler, isUuid, ok, readJson } from "../_shared/http.ts";
+import { STAFF_DEAL_COLUMNS } from "../_shared/deals.ts";
+import { notifyDealStatus, notifyNewDeal } from "../_shared/fcm.ts";
+
+Deno.serve(handler(async (req) => {
+  const caller = await requireRole(req, ["moderator", "admin"]);
+  const { deal_id: dealId } = await readJson(req);
+  if (!isUuid(dealId)) throw new ApiError("VALIDATION", "Missing deal.");
+
+  const { data: deal } = await admin().from("deals")
+    .select("id, status, title, category, image_url, submitted_by_user_id, approved_at")
+    .eq("id", dealId).maybeSingle();
+  if (!deal) throw new ApiError("NOT_FOUND", "Deal not found.");
+
+  if (deal.status === "approved") {
+    const { data } = await admin().from("deals").select(STAFF_DEAL_COLUMNS).eq("id", dealId).single();
+    return ok({ message: "Deal already approved", data });
   }
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-    const { deal_id, moderator_user_id } = await req.json();
-    if (!deal_id) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Missing deal_id'
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    const { data: deal, error: fetchError } = await supabase.from('deals').select('submitted_by_user_id, title, posted_by, status, image_url, category').eq('id', deal_id).single();
-    if (fetchError || !deal) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Deal not found'
-      }), {
-        status: 404,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    if (deal.status === 'approved') {
-      // Fetch the full deal data to return
-      const { data: approvedDeal } = await supabase.from('deals').select('*').eq('id', deal_id).single();
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Deal already approved',
-        data: approvedDeal
-      }), {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    // Update the deal to approved status
-    const { error: updateError } = await supabase.from('deals').update({
-      status: 'approved',
-      approved_by: moderator_user_id || null,
-      approved_at: new Date().toISOString()
-    }).eq('id', deal_id);
-    if (updateError) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Failed to approve deal',
-        details: updateError.message
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    // Increment approved deals count for the user
-    if (deal.submitted_by_user_id) {
-      const { error: rpcError } = await supabase.rpc('increment_approved_deals', {
-        p_user_id: deal.submitted_by_user_id
-      });
-      if (rpcError) {
-        console.error('Failed to increment count:', rpcError);
-      }
-    }
-    // Fetch the updated deal to return in response
-    const { data: updatedDeal, error: fetchUpdatedError } = await supabase.from('deals').select('*').eq('id', deal_id).single();
-    if (fetchUpdatedError) {
-      console.error('Failed to fetch updated deal:', fetchUpdatedError);
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Deal approved successfully but failed to fetch updated data',
-        error: fetchUpdatedError.message
-      }), {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-
-    // ✅ NEW: Send push notification after approval (2025-11-25)
-    try {
-      const notificationUrl = `${supabaseUrl}/functions/v1/send_notification`;
-      const notificationResponse = await fetch(notificationUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`
-        },
-        body: JSON.stringify({
-          dealId: deal_id,
-          title: updatedDeal.title || 'New Deal',
-          category: updatedDeal.category || 'other',
-          imageUrl: updatedDeal.image_url || null,
-          type: 'new_deal'
-        })
-      });
-
-      if (!notificationResponse.ok) {
-        const notifError = await notificationResponse.text();
-        console.error('❌ Failed to send notification:', notifError);
-        // Don't fail the approval if notification fails
-      } else {
-        console.log('✅ Push notification sent successfully');
-      }
-    } catch (notifError) {
-      console.error('❌ Error sending notification:', notifError);
-      // Don't fail the approval if notification fails
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Deal approved successfully',
-      data: updatedDeal
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Server error',
-      details: error.message
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+  if (deal.status !== "pending" && deal.status !== "hidden") {
+    throw new ApiError("VALIDATION", "Only pending or hidden deals can be approved.");
   }
-});
+
+  const wasHidden = deal.status === "hidden";
+  const { data: updated, error } = await admin().from("deals").update({
+    status: "approved",
+    requires_review: false,
+    approved_by: caller.profile.id,
+    approved_at: deal.approved_at ?? new Date().toISOString(),
+    ...(wasHidden ? { report_count: 0 } : {}),
+  }).eq("id", dealId).select(STAFF_DEAL_COLUMNS).single();
+  if (error) throw error;
+
+  if (wasHidden) await admin().from("reports").delete().eq("deal_id", dealId); // reviewed: reports cleared
+
+  await logAction(wasHidden ? "deal_restored" : "deal_approved", caller.profile.id, {
+    dealId, targetUserId: deal.submitted_by_user_id,
+  });
+
+  if (!wasHidden) {
+    await notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url });
+    if (deal.submitted_by_user_id) await notifyDealStatus(deal.submitted_by_user_id, deal, "approved");
+  }
+
+  return ok({ message: wasHidden ? "Deal restored" : "Deal approved", data: updated });
+}));

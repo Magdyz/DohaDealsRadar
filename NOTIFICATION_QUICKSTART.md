@@ -174,7 +174,7 @@ FCMService: ✅ Notification displayed
                    ▼
 ┌─────────────────────────────────────────────────┐
 │  User's Device                                  │
-│  - DohaDealsFirebaseMessagingService receives   │
+│  - EgyptDealsFirebaseMessagingService receives   │
 │  - Creates notification channel                 │
 │  - Shows in system tray                         │
 │  - User taps → Opens app                        │

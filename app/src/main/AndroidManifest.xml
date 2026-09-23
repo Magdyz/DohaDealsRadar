@@ -9,29 +9,23 @@
     <!-- ✅ NEW: Push notifications (Android 13+) (2025-11-25) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-
-    <!-- Read external storage for gallery (Android 12 and below) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-
-    <!-- Photo picker for Android 13+ -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Photos come from the system photo picker: no storage/media permission needed -->
 
     <application
         android:enableOnBackInvokedCallback="true"
-        android:name=".DohaDealsApp"
+        android:name=".EgyptDealsApp"
+        android:resizeableActivity="true"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.DohaDealsRadar"
+        android:theme="@style/Theme.EgyptDealRadar"
         android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
-            android:configChanges="orientation|screenSize|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTop">
             <intent-filter>
@@ -52,7 +46,7 @@
 
         <!-- ✅ NEW: Firebase Cloud Messaging Service (2025-11-25) -->
         <service
-            android:name=".fcm.DohaDealsFirebaseMessagingService"
+            android:name=".fcm.EgyptDealsFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,16 +7,43 @@ plugins {
     alias(libs.plugins.google.services)  // ✅ NEW: Firebase support (2025-11-25)
 }
 
+// ============================================================================
+// Release signing
+// Values come from local.properties (never committed) or environment variables,
+// so the keystore password is not in the repo or in any command line.
+//   RELEASE_STORE_FILE=C:/path/to/upload-keystore.jks
+//   RELEASE_STORE_PASSWORD=...
+//   RELEASE_KEY_ALIAS=...
+//   RELEASE_KEY_PASSWORD=...
+// Missing values simply leave the release build unsigned (Studio's
+// "Generate Signed App Bundle" wizard still works as before).
+// ============================================================================
+val signingProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun signingValue(name: String): String? =
+    (signingProps.getProperty(name) ?: System.getenv(name))?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = signingValue("RELEASE_STORE_FILE")?.let { file(it) }
+val hasReleaseSigning = releaseStoreFile?.exists() == true &&
+    signingValue("RELEASE_STORE_PASSWORD") != null &&
+    signingValue("RELEASE_KEY_ALIAS") != null &&
+    signingValue("RELEASE_KEY_PASSWORD") != null
+
 android {
-    namespace = "qa.deals.doha"
+    namespace = "eg.deals.radar"
     compileSdk = 36
 
     defaultConfig {
+        // Play Store listing package - must never change (existing listing, shipped as an update).
+        // Code namespace is eg.deals.radar; the published app ID stays qa.deals.doha.
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24 // general improvments feed
-        versionName = "1.2.4"
+        versionCode = 25 // 25 = EgyptDealRadar 2.0 (last Doha release was 24)
+        versionName = "2.0.0"
+
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -27,6 +56,19 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true  // Enable BuildConfig for production
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = signingValue("RELEASE_STORE_PASSWORD")
+                keyAlias = signingValue("RELEASE_KEY_ALIAS")
+                keyPassword = signingValue("RELEASE_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
     }
 
     // ✅ FIXED: buildTypes - for ProGuard and optimization
@@ -42,8 +84,8 @@ android {
             // Production-specific settings
             isDebuggable = false
 
-            // ✅ TODO: Add signing config when keystore is ready
-            // signingConfig = signingConfigs.getByName("release")
+            // Signed only when the keystore details are configured (see above)
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
 
         debug {
@@ -116,16 +158,13 @@ dependencies {
     implementation(libs.coil.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
-    // This library contains HorizontalPager
-    implementation("androidx.compose.foundation:foundation:1.7.0") // Or any other recent version
+    // HorizontalPager lives in foundation (version managed by the Compose BOM)
+    implementation(libs.androidx.compose.foundation)
 
-    // PostHog Analytics (correct dependency: com.posthog:posthog-android)
-    implementation(libs.posthog.android)
 
     // ✅ NEW: Firebase Cloud Messaging (FCM) for push notifications (2025-11-25)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
 
-    // Firebase Analytics (optional, but recommended for FCM)
-    implementation("com.google.firebase:firebase-analytics-ktx")
+    // No Firebase Analytics: push notifications only (privacy-first)
 }

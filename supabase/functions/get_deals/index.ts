@@ -1,206 +1,122 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// ============================================================================
+// get_deals - public feed
+//
+// Query params:
+//   sort_by     hottest (default) | newest | top_week
+//   category    one of CATEGORIES (omit / "all" = everything)
+//   governorate one of GOVERNORATES (omit = everywhere; "all_egypt" deals are
+//               always included because they apply nationwide/online)
+//   q           search text (English/Arabic, title)
+//   cursor      opaque cursor from the previous page (keyset pagination)
+//   page        legacy offset pagination (used only when no cursor is given)
+//   limit       1..50 (default 20)
+//
+// Only approved, non-archived, non-deleted, non-expired deals. Only public
+// columns. If the caller is logged in, each deal carries `user_vote`.
+// ============================================================================
+import { admin, getCaller } from "../_shared/auth.ts";
+import { handler, json } from "../_shared/http.ts";
+import { CATEGORIES, GOVERNORATES, normalizeTitle, PUBLIC_DEAL_COLUMNS } from "../_shared/deals.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+type Cursor = { h?: number; c: string; i: string };
 
-/**
- * ========================================
- * ✨ GET DEALS WITH PAGINATION & CATEGORY FILTERING
- * ========================================
- *
- * Performance Improvement: 2025-01
- * - Added pagination support to reduce response time by 50-70%
- * - Previously fetched ALL deals (could be 1000+ items)
- * - Now fetches only requested page (default: 20 items)
- *
- * Category Filtering: 2025-11-27
- * - Added category parameter to filter deals by category BEFORE pagination
- * - Fixes bug where "Newest + Food & Dining" showed empty results
- * - Backend filters → sorts → paginates (correct order)
- *
- * Query Parameters:
- * - page: Page number (default: 1, minimum: 1)
- * - limit: Items per page (default: 20, range: 1-100)
- * - sort_by: Sort order ("hottest" | "newest", default: "hottest")
- * - category: Category filter (optional, e.g., "food_dining", "electronics")
- *   - If null/empty/missing → returns all categories
- *   - If "all" → returns all categories
- *   - If specific category → filters to that category only
- *
- * Valid Categories:
- * - food_dining
- * - shopping_fashion
- * - entertainment
- * - home_services
- * - other
- *
- * Response Format:
- * {
- *   success: true,
- *   data: [...deals],
- *   pagination: {
- *     page: 1,
- *     limit: 20,
- *     total: 100,
- *     totalPages: 5,
- *     hasMore: true
- *   }
- * }
- *
- * Backward Compatibility:
- * - If parameters are missing, defaults to page=1, limit=20, category=null (all)
- * - Invalid parameters are sanitized to safe values
- * - Response format matches ApiEnvelope<PaginationMeta> expected by frontend
- *
- * Examples:
- * - GET /deals?page=1&limit=20&sort_by=hottest
- *   → All deals sorted by hot_count (backward compatible)
- *
- * - GET /deals?page=1&limit=20&sort_by=newest&category=food_dining
- *   → Only food_dining deals sorted by created_at
- *
- * - GET /deals?page=1&limit=20&sort_by=hottest&category=all
- *   → All deals sorted by hot_count (same as no category)
- */
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+function encodeCursor(c: Cursor) {
+  return btoa(JSON.stringify(c)).replace(/=+$/, "");
+}
+function decodeCursor(s: string | null): Cursor | null {
+  if (!s) return null;
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // ========================================
-    // ✅ EXTRACT AND VALIDATE PARAMETERS
-    // ========================================
-    const url = new URL(req.url);
-
-    // Parse pagination parameters with defaults
-    let page = parseInt(url.searchParams.get("page") || "1", 10);
-    let limit = parseInt(url.searchParams.get("limit") || "20", 10);
-    const sortBy = url.searchParams.get("sort_by") || "hottest";
-
-    // ✅ NEW: Parse category parameter
-    const categoryParam = url.searchParams.get("category") || null;
-
-    // ✅ SAFETY: Validate and sanitize parameters
-    // Prevent negative, zero, or invalid values
-    page = Math.max(1, page);  // Minimum page is 1
-    limit = Math.max(1, Math.min(100, limit));  // Limit between 1 and 100 (prevent abuse)
-
-    // ✅ VALIDATE CATEGORY: Only allow known categories
-    const validCategories = [
-      "food_dining",
-      "shopping_fashion",
-      "entertainment",
-      "home_services",
-      "other"
-    ];
-
-    // Normalize category: null, empty, "all" → no filter
-    let category: string | null = null;
-    if (categoryParam && categoryParam !== "all" && categoryParam.trim() !== "") {
-      // Only set category if it's a valid category
-      if (validCategories.includes(categoryParam)) {
-        category = categoryParam;
-      } else {
-        console.warn(`⚠️ Invalid category: ${categoryParam}, ignoring filter`);
-        // Don't fail the request, just ignore invalid category
-      }
-    }
-
-    // Calculate offset for database query
-    const offset = (page - 1) * limit;
-
-    console.log(`📄 Fetching deals: page=${page}, limit=${limit}, offset=${offset}, sort=${sortBy}, category=${category || "all"}`);
-
-    // ========================================
-    // ✅ FETCH DEALS WITH CATEGORY FILTER, PAGINATION, AND SORTING
-    // ========================================
-
-    // Start building query
-    let query = supabase
-      .from("deals")
-      .select("*", { count: "exact" })
-      .eq("status", "approved");
-
-    // ✅ APPLY CATEGORY FILTER (BEFORE sorting and pagination)
-    // This is the key fix: filter first, then sort, then paginate
-    if (category !== null) {
-      console.log(`   🏷️ Filtering by category: ${category}`);
-      query = query.eq("category", category);
-    }
-
-    // ✅ APPLY SORTING (after filtering, before pagination)
-    if (sortBy === "newest") {
-      // Sort by creation date (newest first)
-      query = query.order("created_at", { ascending: false });
-    } else {
-      // Default: Sort by hottest (hot_count descending, then created_at descending)
-      query = query
-        .order("hot_count", { ascending: false })
-        .order("created_at", { ascending: false });
-    }
-
-    // ✅ APPLY PAGINATION (after filtering and sorting)
-    const { data, error, count } = await query.range(offset, offset + limit - 1);
-
-    if (error) {
-      console.error("❌ Database error:", error);
-      throw error;
-    }
-
-    // ========================================
-    // ✅ CALCULATE PAGINATION METADATA
-    // ========================================
-    const total = count || 0;
-    const totalPages = Math.ceil(total / limit);
-    const hasMore = offset + limit < total;
-
-    console.log(`✅ Retrieved ${data?.length || 0} deals (total: ${total}, page: ${page}/${totalPages}${category ? `, category: ${category}` : ""})`);
-
-    // ========================================
-    // ✅ RETURN RESPONSE WITH PAGINATION METADATA
-    // ========================================
-    // Format matches ApiEnvelope<List<DealDto>> with PaginationMeta
-    // Field names use camelCase to match Kotlin data class:
-    // - totalPages (not total_pages)
-    // - hasMore (not has_next)
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: data || [],
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasMore
-        }
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
-  } catch (error) {
-    console.error("❌ Server error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "Internal server error",
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    const c = JSON.parse(atob(s));
+    return typeof c?.c === "string" && typeof c?.i === "string" ? c : null;
+  } catch {
+    return null;
   }
-});
+}
+/** Escape a value for a PostgREST filter inside or(...) */
+const q = (v: string | number) => `"${String(v).replace(/"/g, '\\"')}"`;
+const likeSafe = (s: string) => s.replace(/[%_\\,()"]/g, " ").trim();
+
+Deno.serve(handler(async (req) => {
+  const url = new URL(req.url);
+  const sortBy = ["newest", "top_week"].includes(url.searchParams.get("sort_by") ?? "") ? url.searchParams.get("sort_by")! : "hottest";
+  const category = url.searchParams.get("category");
+  const governorate = url.searchParams.get("governorate");
+  const search = likeSafe((url.searchParams.get("q") ?? "").slice(0, 60));
+  const cursor = decodeCursor(url.searchParams.get("cursor"));
+  const limit = Math.max(1, Math.min(50, parseInt(url.searchParams.get("limit") ?? "20", 10) || 20));
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+
+  const caller = await getCaller(req).catch(() => null); // feed stays public even if the token expired
+  const nowIso = new Date().toISOString();
+
+  let query = admin().from("deals")
+    .select(PUBLIC_DEAL_COLUMNS, { count: cursor ? undefined : "exact" })
+    .eq("status", "approved")
+    .eq("is_archived", false)
+    .is("deleted_at", null)
+    .or(`expires_at.is.null,expires_at.gt.${q(nowIso)}`);
+
+  if (category && category !== "all" && CATEGORIES.includes(category)) query = query.eq("category", category);
+  if (governorate && GOVERNORATES.includes(governorate) && governorate !== "all_egypt") {
+    query = query.or(`governorate.eq.${governorate},governorate.eq.all_egypt,governorate.is.null`);
+  }
+  if (search) {
+    const norm = likeSafe(normalizeTitle(search));
+    query = query.or(`title.ilike.${q(`%${search}%`)},title_norm.ilike.${q(`%${norm}%`)},description.ilike.${q(`%${search}%`)}`);
+  }
+  if (sortBy === "top_week") {
+    query = query.gte("created_at", new Date(Date.now() - 7 * 86400_000).toISOString());
+  }
+
+  const byHot = sortBy !== "newest";
+  if (cursor) {
+    if (byHot) {
+      const h = Number(cursor.h ?? 0);
+      query = query.or(
+        `hot_count.lt.${h},and(hot_count.eq.${h},created_at.lt.${q(cursor.c)}),and(hot_count.eq.${h},created_at.eq.${q(cursor.c)},id.lt.${q(cursor.i)})`,
+      );
+    } else {
+      query = query.or(`created_at.lt.${q(cursor.c)},and(created_at.eq.${q(cursor.c)},id.lt.${q(cursor.i)})`);
+    }
+  }
+
+  query = byHot
+    ? query.order("hot_count", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false })
+    : query.order("created_at", { ascending: false }).order("id", { ascending: false });
+
+  const offset = cursor ? 0 : (page - 1) * limit;
+  const { data, error, count } = await query.range(offset, offset + limit); // one extra row = "has more"
+  if (error) throw error;
+
+  const rows = (data ?? []) as any[];
+  const hasMore = rows.length > limit;
+  const deals = rows.slice(0, limit);
+
+  if (caller && deals.length) {
+    const { data: votes } = await admin().from("votes")
+      .select("deal_id, vote_type")
+      .eq("user_id", caller.profile.id)
+      .in("deal_id", deals.map((d) => d.id));
+    const byDeal = new Map((votes ?? []).map((v: any) => [v.deal_id, v.vote_type]));
+    for (const d of deals) d.user_vote = byDeal.get(d.id) ?? null;
+  }
+
+  const last = deals[deals.length - 1];
+  const nextCursor = hasMore && last
+    ? encodeCursor(byHot ? { h: last.hot_count ?? 0, c: last.created_at, i: last.id } : { c: last.created_at, i: last.id })
+    : null;
+
+  const total = count ?? null;
+  return json({
+    success: true,
+    data: deals,
+    pagination: {
+      page,
+      limit,
+      total: total ?? deals.length,
+      totalPages: total !== null ? Math.ceil(total / limit) : null,
+      hasMore,
+      next_cursor: nextCursor,
+    },
+  }, 200, caller ? { "Cache-Control": "private, no-store" } : { "Cache-Control": "public, max-age=15" });
+}));

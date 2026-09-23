@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arabic plural forms: zero / one / two / few (3-10) / many (11-99) / other -->
+<resources>
+    <plurals name="time_minutes_ago">
+        <item quantity="zero">من %d دقيقة</item>
+        <item quantity="one">من دقيقة</item>
+        <item quantity="two">من دقيقتين</item>
+        <item quantity="few">من %d دقايق</item>
+        <item quantity="many">من %d دقيقة</item>
+        <item quantity="other">من %d دقيقة</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="zero">من %d ساعة</item>
+        <item quantity="one">من ساعة</item>
+        <item quantity="two">من ساعتين</item>
+        <item quantity="few">من %d ساعات</item>
+        <item quantity="many">من %d ساعة</item>
+        <item quantity="other">من %d ساعة</item>
+    </plurals>
+    <plurals name="time_days_ago">
+        <item quantity="zero">من %d يوم</item>
+        <item quantity="one">من يوم</item>
+        <item quantity="two">من يومين</item>
+        <item quantity="few">من %d أيام</item>
+        <item quantity="many">من %d يوم</item>
+        <item quantity="other">من %d يوم</item>
+    </plurals>
+    <plurals name="time_weeks_ago">
+        <item quantity="zero">من %d أسبوع</item>
+        <item quantity="one">من أسبوع</item>
+        <item quantity="two">من أسبوعين</item>
+        <item quantity="few">من %d أسابيع</item>
+        <item quantity="many">من %d أسبوع</item>
+        <item quantity="other">من %d أسبوع</item>
+    </plurals>
+    <plurals name="time_months_ago">
+        <item quantity="zero">من %d شهر</item>
+        <item quantity="one">من شهر</item>
+        <item quantity="two">من شهرين</item>
+        <item quantity="few">من %d شهور</item>
+        <item quantity="many">من %d شهر</item>
+        <item quantity="other">من %d شهر</item>
+    </plurals>
+    <plurals name="time_years_ago">
+        <item quantity="zero">من %d سنة</item>
+        <item quantity="one">من سنة</item>
+        <item quantity="two">من سنتين</item>
+        <item quantity="few">من %d سنين</item>
+        <item quantity="many">من %d سنة</item>
+        <item quantity="other">من %d سنة</item>
+    </plurals>
+    <plurals name="details_expires_in_days">
+        <item quantity="zero">ينتهي بعد %d يوم</item>
+        <item quantity="one">ينتهي بعد يوم</item>
+        <item quantity="two">ينتهي بعد يومين</item>
+        <item quantity="few">ينتهي بعد %d أيام</item>
+        <item quantity="many">ينتهي بعد %d يوم</item>
+        <item quantity="other">ينتهي بعد %d يوم</item>
+    </plurals>
+</resources>

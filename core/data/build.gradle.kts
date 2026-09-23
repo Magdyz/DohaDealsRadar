@@ -3,7 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
+    id("com.google.devtools.ksp")
 
 }
 
@@ -19,6 +19,12 @@ if (localPropertiesFile.exists()) {
 
 // Helper function to get property with fallback to environment variables
 // Priority: local.properties -> environment variables -> error
+
+/** Optional property: empty string when it isn't configured yet. */
+fun getPropertyOrEmpty(propertyName: String): String =
+    localProperties.getProperty(propertyName)
+        ?: System.getenv("ORG_GRADLE_PROJECT_$propertyName")
+        ?: ""
 
 fun getPropertyOrEnv(propertyName: String): String {
     // Try local.properties first
@@ -46,7 +52,7 @@ fun getPropertyOrEnv(propertyName: String): String {
 }
 
 android {
-    namespace = "qa.deals.doha.core.data"
+    namespace = "eg.deals.radar.core.data"
     compileSdk = 36
 
     defaultConfig {
@@ -65,6 +71,13 @@ android {
 
         buildConfigField("String", "SUPABASE_STORAGE_URL", "\"${getPropertyOrEnv("SUPABASE_STORAGE_URL")}\"")
         buildConfigField("String", "SUPABASE_PUBLIC_URL", "\"${getPropertyOrEnv("SUPABASE_PUBLIC_URL")}\"")
+
+        // Google Sign-In: OAuth *Web* client id from Google Cloud (not the Android one).
+        // Optional so the project still builds before it is configured.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${getPropertyOrEmpty("GOOGLE_WEB_CLIENT_ID")}\"")
+
+        // Project base URL (https://<ref>.supabase.co) for Supabase Auth (token refresh)
+        buildConfigField("String", "SUPABASE_PROJECT_URL", "\"${getPropertyOrEnv("SUPABASE_PUBLIC_URL").substringBefore("/storage")}\"")
 
     }
 
@@ -87,6 +100,17 @@ dependencies {
     // ✅ NEW: Core domain dependency (for DealCategory enum) (2025-11-25)
     implementation(project(":core:domain"))
 
+    testImplementation(libs.junit)
+
+    // Credential Manager pulls play-services-auth, which still asks for
+    // androidx.fragment 1.5.7 — Play flags that as an outdated SDK.
+    implementation("androidx.fragment:fragment:1.8.6")
+
+    // 🔐 Sign in with Google (Credential Manager: system account picker)
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
     // Retrofit / OkHttp
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
@@ -97,7 +121,7 @@ dependencies {
     implementation(libs.datastore.preferences)
 
     implementation("androidx.room:room-runtime:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")  // Now this will work
+    ksp("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     // ✅ NEW: EXIF Interface for reading image orientation
     implementation("androidx.exifinterface:exifinterface:1.3.7")
@@ -108,8 +132,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
-    // PostHog Analytics (for AnalyticsManager wrapper)
-    implementation(libs.posthog.android)
 
     // ✅ NEW: Firebase Cloud Messaging (for NotificationManager) (2025-11-25)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

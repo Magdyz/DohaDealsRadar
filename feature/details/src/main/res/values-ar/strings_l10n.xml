@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="vote_auth_title">من فضلك أكّد إنك مش روبوت</string>
+    <string name="vote_auth_message">علشان التصويت يفضل عادل ونمنع التلاعب، محتاجين نتأكد من هويتك. مش هتاخد غير دقيقة!</string>
+    <string name="vote_auth_login">سجّل دخول (بسرعة!)</string>
+    <string name="vote_auth_later">بعدين</string>
+    <string name="vote_auth_footer">صوت واحد لكل عرض لكل شخص. إيميلك بيفضل سري.</string>
+    <string name="time_just_now">دلوقتي</string>
+    <string name="time_yesterday">امبارح</string>
+    <string name="details_expires_less_than_day">ينتهي خلال أقل من يوم</string>
+    <string name="details_title_bar">تفاصيل العرض</string>
+    <string name="details_share_deal">شارك العرض</string>
+    <string name="details_share">مشاركة</string>
+    <string name="details_error_generic">حصل خطأ</string>
+    <string name="details_go_back">ارجع</string>
+    <string name="details_image_failed">الصورة مش راضية تحمّل</string>
+    <string name="details_posted">اتنشر %1$s</string>
+    <string name="details_show_less">عرض أقل</string>
+    <string name="details_show_more">عرض المزيد</string>
+    <string name="details_posted_by">نشره</string>
+    <string name="details_view_online">🔗 شوف العرض أونلاين</string>
+    <string name="details_disclaimer_title">إخلاء مسؤولية</string>
+    <string name="details_disclaimer">كل العروض بينشرها المستخدمين وصاحب العرض هو المسؤول عنه. رادار عروض مصر مش مسؤول عن دقة العروض أو صلاحيتها أو توفرها. لما تدوس على لينك العرض هتتحوّل لمواقع تانية. رادار عروض مصر مش مسؤول عن أي عمليات شراء أو مشاكل أو خلافات ممكن تحصل مع المواقع دي. من فضلك اتأكد من تفاصيل العرض بنفسك قبل ما تشتري.</string>
+    <string name="details_view_deal">شوف العرض</string>
+    <string name="details_location">المكان</string>
+    <string name="details_copied">اتنسخ</string>
+    <string name="details_promo_code">كود الخصم</string>
+    <string name="details_promo_copied">اتنسخ كود الخصم</string>
+    <string name="details_error_not_found_detail">العرض مش موجود. %1$s</string>
+    <string name="details_error_not_found">العرض مش موجود</string>
+    <string name="details_error_unknown">خطأ غير معروف</string>
+    <string name="details_error_vote">مقدرناش نسجّل صوتك</string>
+    <string name="details_error_network">مشكلة في الاتصال</string>
+    <string name="details_share_text">🔥 شوف العرض ده!\n\n%1$s\n%2$s\n\nمن تطبيق رادار عروض مصر</string>
+    <string name="details_expired_ask">العرض خلص؟</string>
+    <string name="details_expired_marked">شكراً إنك قولتلنا</string>
+    <string name="details_expired_thanks">شكراً! لو ناس تانية أكدت، هنعلّم العرض إنه خلص.</string>
+    <string name="details_expired_done">شكراً! العرض اتعلّم إنه خلص.</string>
+</resources>

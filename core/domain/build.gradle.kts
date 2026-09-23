@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "qa.deals.domain"  // ✅ CORRECTED: Match actual package structure
+    namespace = "eg.deals.domain"  // ✅ CORRECTED: Match actual package structure
     compileSdk = 36
 
     defaultConfig {
@@ -29,4 +29,5 @@ android {
 dependencies {
     // Keep it pure; domain should not depend on Android heavy libs.
     // (Kotlin stdlib is implicit)
+    testImplementation(libs.junit)
 }

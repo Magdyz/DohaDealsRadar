@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Relative time / expiry texts for the deal details screen (EN default / AR). -->
+<resources>
+    <plurals name="time_minutes_ago">
+        <item quantity="one">%dm ago</item>
+        <item quantity="other">%dm ago</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="one">%dh ago</item>
+        <item quantity="other">%dh ago</item>
+    </plurals>
+    <plurals name="time_days_ago">
+        <item quantity="one">%dd ago</item>
+        <item quantity="other">%dd ago</item>
+    </plurals>
+    <plurals name="time_weeks_ago">
+        <item quantity="one">%dw ago</item>
+        <item quantity="other">%dw ago</item>
+    </plurals>
+    <plurals name="time_months_ago">
+        <item quantity="one">%dmo ago</item>
+        <item quantity="other">%dmo ago</item>
+    </plurals>
+    <plurals name="time_years_ago">
+        <item quantity="one">%dy ago</item>
+        <item quantity="other">%dy ago</item>
+    </plurals>
+    <plurals name="details_expires_in_days">
+        <item quantity="one">Expires in %d day</item>
+        <item quantity="other">Expires in %d days</item>
+    </plurals>
+</resources>

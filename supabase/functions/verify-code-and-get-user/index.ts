@@ -1,207 +1,130 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
-// Username generation
-function generateUsername() {
-  const adjectives = [
-    // Original generic terms
-    'Hunter',
-    'Hero',
-    'Warrior',
-    'Scout',
-    'Finder',
-    'Master',
-    'Pro',
-    'Expert',
-    'Ninja',
-    'Legend',
-    'Guru',
-    'Wizard',
-    'Champion',
-    'Star',
-    'King',
-    'Queen',
-    'Boss',
-    'Chief',
-    'Captain',
-    'Ace',
-    'Elite',
-    'Prime',
-    'Supreme',
-    'Ultra',
-    'Mega',
-    // Qatar-specific locations and culture
-    'Doha',
-    'Qatar',
-    'Souq',
-    'Pearl',
-    'Lusail',
-    'Corniche',
-    'Katara',
-    'Aspire',
-    'WestBay',
-    'Msheireb',
-    'Villaggio',
-    // Arabic/Gulf culture terms
-    'Yalla',
-    'Habibi',
-  ];
+// ============================================================================
+// verify-code-and-get-user
+// Verifies the email code and returns a real Supabase Auth session
+// (access + refresh token) plus the app profile. Every other function then
+// identifies the caller from that session's JWT.
+//
+// New accounts must send `consent: true` (PDPL: informed consent).
+// ============================================================================
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { admin } from "../_shared/auth.ts";
+import { ApiError, clientIp, handler, ok, readJson, str } from "../_shared/http.ts";
+import { HOUR, rateLimit } from "../_shared/ratelimit.ts";
 
-  // Qatar-specific numbers (country code, World Cup year, etc.)
-  const qatarNumbers = [974, 2022, 365, 247, 123];
+const ADJECTIVES = [
+  "Hunter", "Hero", "Scout", "Finder", "Master", "Pro", "Expert", "Ninja", "Legend", "Guru",
+  "Wizard", "Champion", "Star", "King", "Queen", "Boss", "Captain", "Ace", "Elite", "Prime",
+  "Cairo", "Alex", "Giza", "Nile", "Pyramid", "Pharaoh", "Zamalek", "Maadi", "Heliopolis",
+  "Dokki", "Tahrir", "Sahel", "Luxor", "Aswan", "Khalili", "Yalla", "Ahwa", "Koshary",
+];
+const EGYPT_NUMBERS = [20, 2030, 10, 11, 12, 15, 365];
 
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-
-  // 40% chance to use Qatar-specific number, 60% random 3-digit number
-  const useQatarNumber = Math.random() < 0.4;
-  const number = useQatarNumber
-    ? qatarNumbers[Math.floor(Math.random() * qatarNumbers.length)]
+function generateUsername(): string {
+  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const number = Math.random() < 0.4
+    ? EGYPT_NUMBERS[Math.floor(Math.random() * EGYPT_NUMBERS.length)]
     : Math.floor(Math.random() * 900) + 100;
-
   return `Deal${adjective}${number}`;
 }
-serve(async (req)=>{
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
+
+Deno.serve(handler(async (req) => {
+  const body = await readJson(req);
+  const email = String(body.email ?? "").trim().toLowerCase();
+  const code = String(body.code ?? "").trim();
+  const deviceId = str(body.device_id ?? req.headers.get("x-device-id"), 100) ?? "unknown";
+  const consent = body.consent === true;
+
+  if (!email || !/^\d{6}$/.test(code)) {
+    throw new ApiError("VALIDATION", "Please enter the 6-digit code.", { field: "code" });
   }
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-    const { email, code, device_id } = await req.json();
-    if (!email || !code || !device_id) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Missing email, code, or device_id'
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
+
+  // Brute-force protection: 10 attempts per email per hour, 30 per IP
+  await rateLimit(`verify:email:${email}`, 10, HOUR, "Too many attempts. Please request a new code later.");
+  await rateLimit(`verify:ip:${clientIp(req)}`, 30, HOUR, "Too many attempts. Please try again later.");
+
+  const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: auth, error: authError } = await anon.auth.verifyOtp({ email, token: code, type: "email" });
+  if (authError || !auth?.session || !auth.user) {
+    throw new ApiError("INVALID_CODE", "The code is wrong or has expired. Please try again or request a new code.");
+  }
+
+  const db = admin();
+  const authUserId = auth.user.id;
+
+  // 1. Existing profile linked to this auth user
+  let { data: profile } = await db.from("users")
+    .select("id, email, username, role, auto_approve, banned_at, consent_at")
+    .eq("auth_user_id", authUserId).maybeSingle();
+
+  // 2. Legacy profile (created before sessions existed) -> link it
+  if (!profile) {
+    const { data: legacy } = await db.from("users")
+      .select("id, email, username, role, auto_approve, banned_at, consent_at")
+      .ilike("email", email).maybeSingle();
+    if (legacy) {
+      await db.from("users").update({ auth_user_id: authUserId }).eq("id", legacy.id);
+      profile = legacy;
     }
-    // ========================================
-    // ✅ FIX: Use ANON client for Auth verification
-    // ========================================
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
-    console.log(`Verifying code for: ${email}`);
-    const { data: authData, error: authError } = await supabaseAuth.auth.verifyOtp({
-      email: email,
-      token: code,
-      type: 'email'
-    });
-    if (authError) {
-      console.error('OTP verification failed:', authError.message);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Invalid or expired code. Please try again.'
-      }), {
-        status: 401,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
+  }
+
+  let isNew = false;
+  if (!profile) {
+    if (!consent) {
+      throw new ApiError("VALIDATION", "Please accept the privacy policy to create an account.", { field: "consent" });
     }
-    console.log('✅ Code verified successfully');
-    // ========================================
-    // ✅ FIX: Use SERVICE client for database operations
-    // ========================================
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-    // Check if user exists
-    const { data: existingUser, error: userError } = await supabaseAdmin.from('users').select('*').eq('email', email).maybeSingle();
-    let user = existingUser;
-    if (!existingUser) {
-      // Generate unique username
-      let username = generateUsername();
-      let attempts = 0;
-      while(attempts < 10){
-        const { data: usernameCheck } = await supabaseAdmin.from('users').select('username').eq('username', username).maybeSingle();
-        if (!usernameCheck) break;
-        username = generateUsername();
-        attempts++;
-      }
-      if (attempts >= 10) {
-        username = `${generateUsername()}_${Date.now() % 10000}`;
-      }
-      // Create new user
-      const { data: newUser, error: createError } = await supabaseAdmin.from('users').insert({
-        email: email,
-        username: username,
-        device_id: device_id,
+    // 3. Brand new account
+    for (let attempt = 0; attempt < 10 && !profile; attempt++) {
+      const username = attempt < 9 ? generateUsername() : `${generateUsername()}_${Date.now() % 10000}`;
+      const { data: created, error } = await db.from("users").insert({
+        email,
+        username,
+        auth_user_id: authUserId,
+        device_id: deviceId,
         email_verified: true,
         created_at: new Date().toISOString(),
         last_login_at: new Date().toISOString(),
+        consent_at: new Date().toISOString(),
         total_deals_posted: 0,
         approved_deals_count: 0,
         rejected_deals_count: 0,
-        trust_level: 'new'
-      }).select().single();
-      if (createError) {
-        console.error('Create user error:', createError);
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Failed to create account. Please try again.'
-        }), {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        });
+        trust_level: "new",
+      }).select("id, email, username, role, auto_approve, banned_at, consent_at").single();
+      if (created) profile = created;
+      else if (error?.code !== "23505") {
+        console.error("create user failed:", error?.message);
+        throw new ApiError("SERVER_ERROR", "We couldn't create your account. Please try again.");
       }
-      user = newUser;
-      console.log(`✅ New user created: ${username} (${email})`);
-    } else {
-      // Update existing user
-      const { error: updateError } = await supabaseAdmin.from('users').update({
-        device_id: device_id,
-        last_login_at: new Date().toISOString()
-      }).eq('email', email);
-      if (updateError) {
-        console.error('Update user error:', updateError);
-      }
-      console.log(`👋 Returning user: ${existingUser.username} (${email})`);
     }
-    return new Response(JSON.stringify({
-      success: true,
-      message: existingUser ? '👋 Welcome back!' : '🎉 Account created!',
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        is_new: !existingUser
-      }
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Server error. Please try again.',
-      details: error.message
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+    if (!profile) throw new ApiError("SERVER_ERROR", "We couldn't create your account. Please try again.");
+    isNew = true;
   }
-});
+
+  if (profile.banned_at) throw new ApiError("BANNED", "This account has been suspended.");
+
+  await db.from("users").update({
+    device_id: deviceId,
+    last_login_at: new Date().toISOString(),
+    ...(consent && !profile.consent_at ? { consent_at: new Date().toISOString() } : {}),
+  }).eq("id", profile.id);
+
+  const s = auth.session;
+  return ok({
+    message: isNew ? "Account created" : "Welcome back",
+    user: {
+      id: profile.id,
+      email: profile.email,
+      username: profile.username,
+      role: profile.role,
+      auto_approve: profile.auto_approve,
+      is_new: isNew,
+    },
+    session: {
+      access_token: s.access_token,
+      refresh_token: s.refresh_token,
+      expires_at: s.expires_at,
+      expires_in: s.expires_in,
+    },
+  });
+}));

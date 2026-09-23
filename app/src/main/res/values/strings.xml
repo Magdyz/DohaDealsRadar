@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DohaDealsRadar</string>
-    <string name="hello_home">Hello! Doha Deals Radar is ready.</string>
+    <string name="app_name">EgyptDealRadar</string>
+    <string name="hello_home">Hello! Egypt Deal Radar is ready.</string>
+    <string name="notification_new_deal_title">New Deal in Egypt!</string>
+    <string name="notification_new_deal_body">Check out the latest deals</string>
+    <string name="notification_channel_name">Deal Notifications</string>
+    <string name="notification_channel_description">Notifications for new deals in Egypt</string>
 </resources>

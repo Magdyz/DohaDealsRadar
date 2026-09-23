@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated for EgyptDealRadar localization (EN default / AR). Keep keys in sync across values/ and values-ar/. -->
+<resources>
+    <string name="report_title_bar">الإبلاغ عن العرض</string>
+    <string name="report_submit">ابعت البلاغ</string>
+    <string name="report_sending">جاري إرسال البلاغ...</string>
+    <string name="report_please_wait">استنى شوية</string>
+    <string name="report_sent_cd">تم إرسال البلاغ</string>
+    <string name="report_sent_title">البلاغ اتبعت! 🛡️</string>
+    <string name="report_sent_thanks">شكراً إنك بتساعدنا\nنحافظ على أمان المجتمع.</string>
+    <string name="report_sent_review">فريقنا هيراجع البلاغ قريب</string>
+    <string name="report_closing">هيقفل لوحده...</string>
+    <string name="report_already_title">بلّغت قبل كده</string>
+    <string name="report_already_message">إنت بلّغت عن العرض ده قبل كده.\nشكراً إنك بتساعدنا نحافظ على أمان المجتمع.</string>
+    <string name="report_limit_title">وصلت للحد اليومي</string>
+    <string name="report_limit_message">وصلت لأقصى عدد بلاغات النهارده (5).\nحاول تاني بكرة.</string>
+    <string name="report_instructions">ساعدنا نفهم إيه المشكلة</string>
+    <string name="report_select_reason">اختار السبب *</string>
+    <string name="report_details_required">لازم تكتب تفاصيل</string>
+    <string name="report_additional_details">تفاصيل إضافية</string>
+    <string name="report_optional"> (اختياري)</string>
+    <string name="report_details_hint">⚠️ من فضلك اكتب تفاصيل توضّح ليه ده %1$s. اذكر أي دليل أو سياق (30 حرف على الأقل).</string>
+    <string name="report_placeholder_scam">مثال: البائع طلب الدفع برّه المنصة، أو رفض يدي رقم تتبع الشحنة، أو وصف المنتج مش حقيقي خالص...</string>
+    <string name="report_placeholder_spam">مثال: البوست متكرر، أو فيه لينكات دعاية لمواقع تانية، أو إعلان ملوش علاقة...</string>
+    <string name="report_placeholder_expired">اختياري: العرض خلص إمتى؟ فيه عرض بديل؟</string>
+    <string name="report_placeholder_other">اكتب أي تفاصيل إضافية...</string>
+    <string name="report_min_chars">لازم 30 حرف على الأقل</string>
+    <string name="report_details_ok">✓ التفاصيل مكتملة</string>
+    <string name="report_required_field">* حقل مطلوب</string>
+    <string name="report_error_select_reason">من فضلك اختار السبب</string>
+    <string name="report_error_details">في بلاغات «%1$s»، من فضلك اكتب %2$d حرف على الأقل توضّح المشكلة</string>
+    <string name="report_error_already">إنت بلّغت عن العرض ده قبل كده</string>
+    <string name="report_error_limit">وصلت للحد اليومي للبلاغات</string>
+    <string name="report_error_submit">مقدرناش نبعت البلاغ</string>
+    <string name="report_error_network">مشكلة في الاتصال. حاول تاني.</string>
+    <string name="report_error_login">من فضلك سجّل دخول علشان تبلّغ عن عرض. ده بيخلي البلاغات عادلة وبيمنع التلاعب.</string>
+</resources>

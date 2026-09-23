@@ -1,0 +1,82 @@
+name: Android CI
+
+# Builds and tests every push and pull request. The release build is the one
+# that matters most: it runs R8 and lint-vital, the two things that only fail
+# when you are about to ship.
+on:
+  push:
+    branches: [main, egypt-migration]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Secrets live in local.properties, which is never committed.
+      # Add SUPABASE_URL / SUPABASE_ANON_KEY as repository secrets.
+      - name: Write local.properties
+        run: |
+          {
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
+            echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}"
+            echo "SUPABASE_STORAGE_URL=${{ secrets.SUPABASE_STORAGE_URL }}"
+            echo "SUPABASE_PUBLIC_URL=${{ secrets.SUPABASE_PUBLIC_URL }}"
+            echo "GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}"
+          } > local.properties
+
+      # google-services.json is gitignored; store its contents in a secret.
+      - name: Write google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Assemble debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Assemble release (R8 + lint-vital)
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+          if-no-files-found: ignore
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only runs when the Supabase service key is configured as a secret.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Backend end-to-end tests
+        env:
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/backend_e2e.mjs

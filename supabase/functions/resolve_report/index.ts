@@ -1,184 +1,59 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// ============================================================================
+// resolve_report (moderator/admin)
+// action "delete_deal": remove the reported deal (+1 strike for the poster)
+// action "warn_user":   +1 strike for the poster, deal stays
+// action "ban_user":    admin only; suspends the poster's account
+// ============================================================================
+import { admin, logAction, requireRole } from "../_shared/auth.ts";
+import { ApiError, handler, isUuid, ok, readJson, str } from "../_shared/http.ts";
 
-/**
- * Resolve a report with action
- * Takes specific action on the reported content
- *
- * CREATED: 2025-11-22
- *
- * Required: report_id, user_id (moderator/admin), action
- * Optional: reason
- *
- * Actions:
- * - delete_deal: Soft delete the reported deal
- * - warn_user: Create a warning for the user (future implementation)
- * - ban_user: Ban the user who posted (future implementation)
- */
+Deno.serve(handler(async (req) => {
+  const caller = await requireRole(req, ["moderator", "admin"]);
+  const body = await readJson(req);
+  const action = body.action;
+  const reason = str(body.reason, 300) ?? "Reported by the community";
+  if (!isUuid(body.report_id)) throw new ApiError("VALIDATION", "Missing report.");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-};
+  const { data: report } = await admin().from("reports").select("id, deal_id").eq("id", body.report_id).maybeSingle();
+  if (!report) throw new ApiError("NOT_FOUND", "Report not found.");
+  const { data: deal } = await admin().from("deals").select("id, submitted_by_user_id").eq("id", report.deal_id).maybeSingle();
+  const posterId = deal?.submitted_by_user_id ?? null;
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  const addStrike = async () => {
+    if (!posterId) return;
+    const { data: u } = await admin().from("users").select("strikes, role").eq("id", posterId).single();
+    const strikes = (u?.strikes ?? 0) + 1;
+    await admin().from("users").update({
+      strikes,
+      ...(strikes >= 2 && u?.role === "user" ? { auto_approve: false, trust_level: "regular" } : {}),
+    }).eq("id", posterId);
+  };
+
+  let message: string;
+  switch (action) {
+    case "delete_deal":
+      await admin().from("deals").update({
+        deleted_at: new Date().toISOString(), deleted_by: caller.profile.id, deletion_reason: reason,
+      }).eq("id", report.deal_id);
+      await addStrike();
+      message = "Deal removed";
+      break;
+    case "warn_user":
+      await addStrike();
+      message = "Poster warned";
+      break;
+    case "ban_user":
+      if (caller.profile.role !== "admin") throw new ApiError("FORBIDDEN", "Only admins can suspend accounts.");
+      if (posterId) await admin().from("users").update({ banned_at: new Date().toISOString(), auto_approve: false }).eq("id", posterId);
+      await admin().from("deals").update({ deleted_at: new Date().toISOString(), deleted_by: caller.profile.id, deletion_reason: reason })
+        .eq("id", report.deal_id);
+      message = "Account suspended";
+      break;
+    default:
+      throw new ApiError("VALIDATION", "Unknown action.");
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    const { report_id, user_id, action, reason } = await req.json();
-
-    if (!report_id || !user_id || !action) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing required fields: report_id, user_id, action"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Check permissions (moderator or admin only)
-    const { data: hasPermission } = await supabase.rpc('check_permission', {
-      p_user_id: user_id,
-      p_permission: 'manage_reports'
-    });
-
-    if (!hasPermission) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Unauthorized: Only moderators/admins can resolve reports"
-        }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Fetch the report to get the deal_id
-    const { data: report, error: fetchError } = await supabase
-      .from("reports")
-      .select("id, deal_id")
-      .eq("id", report_id)
-      .single();
-
-    if (fetchError || !report) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Report not found"
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Perform the action
-    let actionMessage = "";
-
-    switch (action) {
-      case "delete_deal":
-        // Soft delete the deal
-        const { error: deleteError } = await supabase
-          .from("deals")
-          .update({
-            deleted_at: new Date().toISOString(),
-            deleted_by: user_id,
-            deletion_reason: reason || "Reported by user"
-          })
-          .eq("id", report.deal_id);
-
-        if (deleteError) {
-          console.error("Error deleting deal:", deleteError);
-          throw deleteError;
-        }
-        actionMessage = "Deal deleted successfully";
-        break;
-
-      case "warn_user":
-        // Future implementation: Create warning record
-        // For now, just acknowledge the action
-        actionMessage = "User warning created (future implementation)";
-        break;
-
-      case "ban_user":
-        // Future implementation: Ban the user
-        // For now, just acknowledge the action
-        actionMessage = "User ban created (future implementation)";
-        break;
-
-      default:
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Unknown action: ${action}`
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-    }
-
-    // Delete the report after resolving
-    const { error: deleteReportError } = await supabase
-      .from("reports")
-      .delete()
-      .eq("id", report_id);
-
-    if (deleteReportError) {
-      console.error("Error deleting report:", deleteReportError);
-      // Don't fail the request if we can't delete the report
-      // The action was already performed
-    }
-
-    // Optionally log the resolution action in an audit log
-    // (This would be a separate audit_log table if you have one)
-    // await supabase.from("audit_log").insert({
-    //   action: "resolve_report",
-    //   report_id,
-    //   deal_id: report.deal_id,
-    //   user_id,
-    //   resolution_action: action,
-    //   reason,
-    //   timestamp: new Date().toISOString()
-    // });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Report resolved: ${actionMessage}`
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200
-      }
-    );
-  } catch (error) {
-    console.error("Server error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "Server error"
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500
-      }
-    );
-  }
-});
+  await admin().from("reports").delete().eq("deal_id", report.deal_id);
+  await logAction(`report_${action}`, caller.profile.id, { dealId: report.deal_id, targetUserId: posterId, reason });
+  return ok({ message: `Report resolved: ${message}` });
+}));

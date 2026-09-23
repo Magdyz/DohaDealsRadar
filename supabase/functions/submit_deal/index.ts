@@ -1,226 +1,158 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
-serve(async (req)=>{
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
+// ============================================================================
+// submit_deal
+// Requires a logged-in user. Everything is validated server-side:
+//   * identity + username come from the session (never from the body)
+//   * rate limits by trust level
+//   * link safety (https, no shorteners, optional Safe Browsing)
+//   * price sanity, field lengths, category/governorate
+//   * photo must be the caller's own upload
+//   * duplicates: same link/photo -> DUPLICATE_DEAL; similar title ->
+//     POSSIBLE_DUPLICATE unless the user confirms (confirm_not_duplicate)
+// Approval: staff -> live; trusted users -> live unless something looks risky
+// (unknown store, big discount, integrity failure, 10% spot check).
+// ============================================================================
+import { admin, isStaff, requireUser } from "../_shared/auth.ts";
+import { ApiError, handler, ok, readJson, str } from "../_shared/http.ts";
+import {
+  assertOwnImageUrl, CATEGORIES, canonicalizeUrl, GOVERNORATES, hostOf, isUnsafeUrl, normalizeTitle,
+  parsePrice, PUBLIC_DEAL_COLUMNS, storeForHost, validateLink,
+} from "../_shared/deals.ts";
+import { DAY, HOUR, rateLimit } from "../_shared/ratelimit.ts";
+import { checkIntegrity } from "../_shared/integrity.ts";
+import { notifyNewDeal } from "../_shared/fcm.ts";
+
+Deno.serve(handler(async (req) => {
+  const caller = await requireUser(req);
+  const p = caller.profile;
+  const staff = isStaff(caller);
+  const body = await readJson(req);
+
+  // ---- attempt limit (stops brute-forcing the validators) ----------------
+  await rateLimit(`post-attempt:${p.id}`, staff ? 500 : 40, HOUR, "Too many attempts. Please wait a bit and try again.");
+
+  // ---- fields ------------------------------------------------------------
+  const title = str(body.title, 300);
+  if (!title || title.length < 5) throw new ApiError("VALIDATION", "Please enter a title (at least 5 characters).", { field: "title" });
+  if (title.length > 150) throw new ApiError("VALIDATION", "The title is too long (max 150 characters).", { field: "title" });
+  if (/https?:\/\/|www\./i.test(title)) throw new ApiError("VALIDATION", "Please don't put links in the title.", { field: "title" });
+
+  const description = str(body.description, 2500);
+  if (description && description.length > 2000) throw new ApiError("VALIDATION", "The description is too long (max 2000 characters).", { field: "description" });
+
+  const category = CATEGORIES.includes(body.category) ? body.category : "other";
+  const rawLink = str(body.link, 2100);
+  const location = str(body.location, 300);
+  if (!rawLink && !location) throw new ApiError("VALIDATION", "Add a link for online deals or a location for in-store deals.", { field: "link" });
+  if (location && (location.length < 3 || location.length > 200)) throw new ApiError("VALIDATION", "Please enter a valid location.", { field: "location" });
+
+  const governorate = GOVERNORATES.includes(body.governorate) ? body.governorate : "all_egypt";
+  const promoCode = str(body.promo_code, 60);
+  if (promoCode && promoCode.length > 50) throw new ApiError("VALIDATION", "Promo code is too long.", { field: "promo_code" });
+
+  const expiresInDays = Math.max(1, Math.min(30, Number(body.expires_in_days) || 10));
+
+  const originalPrice = parsePrice(body.original_price, "original_price");
+  const discountedPrice = parsePrice(body.discounted_price, "discounted_price");
+  if (originalPrice && discountedPrice && discountedPrice >= originalPrice) {
+    throw new ApiError("VALIDATION", "The discounted price must be lower than the original price.", { field: "discounted_price" });
   }
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-    const { title, description, link, image_url, location, category = 'other', promo_code = null, posted_by = 'Anonymous',expires_in_days = 10, user_id = null, device_id = null, original_price = null, discounted_price = null } = await req.json();
-    // Validate required fields
-    if (!title || !image_url) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Missing required fields: title, image_url'
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    // Must have either link OR location
-    if (!link && !location) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Must provide either link or location'
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    // Validate category
-    const validCategories = [
-      'food_dining',
-      'shopping_fashion',
-      'entertainment',
-      'home_services',
-      'other'
-    ];
-    const finalCategory = validCategories.includes(category) ? category : 'other';
+  const bigDiscount = !!(originalPrice && discountedPrice && discountedPrice / originalPrice < 0.1);
 
-    // ✨ NEW: Calculate expiration date
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expires_in_days);
-console.log(`✅ Deal will expire at: ${expiresAt.toISOString()} (in ${expires_in_days} days)`);
+  const imageUrl = str(body.image_url, 500);
+  if (!imageUrl) throw new ApiError("VALIDATION", "Please add a photo of the deal.", { field: "image" });
+  assertOwnImageUrl(imageUrl, caller.authUserId);
+  const imageHash = typeof body.image_hash === "string" && /^-?\d{1,20}$/.test(body.image_hash) ? body.image_hash : null;
 
-    // AUTO-APPROVAL LOGIC
-    let dealStatus = 'pending';
-    let autoApproved = false;
-    let requiresReview = true;
-    let userRole = 'user';
-    let userAutoApprove = false;
-    // If userId provided, check user's role and auto_approve privilege
-    if (user_id) {
-      const { data: user, error: userError } = await supabase.from('users').select('role, auto_approve').eq('id', user_id).single();
-      if (user && !userError) {
-        userRole = user.role;
-        userAutoApprove = user.auto_approve;
-        console.log(`User: ${posted_by} | Role: ${userRole} | Auto-approve: ${userAutoApprove}`);
-
-        // RULE 1: ADMINS ALWAYS AUTO-APPROVE
-        if (userRole === 'admin') {
-          dealStatus = 'approved';
-          autoApproved = true;
-          requiresReview = false;
-          console.log('ADMIN: Deal auto-approved');
-        } else if (userRole === 'moderator') {
-          dealStatus = 'approved';
-          autoApproved = true;
-          requiresReview = false;
-          console.log('MODERATOR: Deal auto-approved');
-        } else if (userAutoApprove === true) {
-          const randomReviewChance = Math.random();
-          if (randomReviewChance < 0.15) {
-            // 15% chance: Send to review even for trusted users
-            dealStatus = 'pending';
-            autoApproved = false;
-            requiresReview = true;
-            console.log('TRUSTED USER: Random review triggered (15% chance)');
-          } else {
-            // 85% chance: Auto-approve
-            dealStatus = 'approved';
-            autoApproved = true;
-            requiresReview = false;
-            console.log('TRUSTED USER: Deal auto-approved');
-          }
-        } else {
-          dealStatus = 'pending';
-          autoApproved = false;
-          requiresReview = true;
-          console.log('NEW USER: Deal requires review');
-        }
-      } else {
-        console.warn('User not found, defaulting to pending');
-      }
-    } else {
-      console.log('No user_id provided, defaulting to pending');
-    }
-    // INSERT DEAL WITH PROPER STATUS
-    const dealData = {
-      title,
-      description,
-      link: link || null,
-      image_url,
-      location: location || null,
-      category: finalCategory,
-      promo_code: promo_code || null,
-      posted_by: posted_by || 'Anonymous',
-      expires_at: expiresAt.toISOString(),  // ✨ NEW: Added this line
-      original_price: original_price || null,      // ✨ NEW: Price fields (2025-11-16)
-      discounted_price: discounted_price || null,  // ✨ NEW: Price fields (2025-11-16)
-      status: dealStatus,
-      auto_approved: autoApproved,
-      requires_review: requiresReview,
-      hot_count: 0,
-      cold_count: 0
-    };
-    // Add user tracking if userId provided
-    if (user_id) {
-      dealData.submitted_by_user_id = user_id;
-    }
-    if (device_id) {
-      dealData.submitted_by_device = device_id;
-    }
-    // If auto-approved, set approved_at timestamp
-    if (autoApproved) {
-      dealData.approved_at = new Date().toISOString();
-      if (user_id) {
-        dealData.approved_by = user_id;
-      }
-    }
-    const { data, error } = await supabase.from('deals').insert(dealData).select();
-    if (error) {
-      console.error('Database error:', error);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Failed to submit deal',
-        details: error.message
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    console.log(`Deal submitted: "${title}" | Status: ${dealStatus} | Category: ${finalCategory}`);
-
-    // ✅ NEW: Send push notification if deal was auto-approved (2025-11-25)
-    if (autoApproved && data && data.length > 0) {
-      try {
-        const dealId = data[0].id;
-        console.log('📨 Sending notification for auto-approved deal:', dealId);
-
-        const notificationUrl = `${supabaseUrl}/functions/v1/send_notification`;
-        const notificationResponse = await fetch(notificationUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`
-          },
-          body: JSON.stringify({
-            dealId: dealId,
-            title: title,
-            category: finalCategory,
-            imageUrl: image_url,
-            type: 'new_deal'
-          })
-        });
-
-        if (!notificationResponse.ok) {
-          const notifError = await notificationResponse.text();
-          console.error('❌ Failed to send notification:', notifError);
-          // Don't fail the deal submission if notification fails
-        } else {
-          console.log('✅ Push notification sent successfully');
-        }
-      } catch (notifError) {
-        console.error('❌ Error sending notification:', notifError);
-        // Don't fail the deal submission if notification fails
-      }
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: autoApproved ? 'Deal submitted and approved!' : 'Deal submitted for review',
-      data
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Server error',
-      details: error.message
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+  // ---- link safety -------------------------------------------------------
+  let link: string | null = null;
+  let canonicalUrl: string | null = null;
+  let store: string | null = str(body.store, 60);
+  let knownStore = false;
+  if (rawLink) {
+    const url = validateLink(rawLink);
+    if (await isUnsafeUrl(url.toString())) throw new ApiError("LINK_BLOCKED", "This link can't be posted for safety reasons.", { reason: "unsafe" });
+    link = url.toString();
+    canonicalUrl = canonicalizeUrl(url);
+    const known = storeForHost(hostOf(url));
+    knownStore = !!known;
+    store = known ?? store;
   }
-});
+
+  // ---- duplicates --------------------------------------------------------
+  const titleNorm = normalizeTitle(title);
+  const { data: similar, error: simError } = await admin().rpc("find_similar_deals", {
+    p_canonical_url: canonicalUrl,
+    p_title_norm: titleNorm,
+    p_image_hash: imageHash,
+    p_exclude_id: null,
+  });
+  if (simError) throw simError;
+  const matches = (similar ?? []) as Array<{ id: string; title: string; image_url: string; match_type: string; score: number }>;
+  const hard = matches.find((m) => m.match_type === "url" || m.match_type === "image");
+  if (hard) {
+    throw new ApiError("DUPLICATE_DEAL", "This deal is already posted. You can vote on it instead.", { existing: hard });
+  }
+  if (matches.length && body.confirm_not_duplicate !== true) {
+    throw new ApiError("POSSIBLE_DUPLICATE", "Similar deals are already posted. Is yours different?", { similar: matches });
+  }
+
+  // ---- daily post limit (only valid posts count) -------------------------
+  const accountAgeHours = (Date.now() - new Date(p.created_at).getTime()) / 3_600_000;
+  const dailyLimit = staff ? 200 : p.auto_approve ? 20 : accountAgeHours < 24 ? 3 : 5;
+  await rateLimit(`post:${p.id}`, dailyLimit, DAY, `You can post up to ${dailyLimit} deals per day. Please try again tomorrow.`, { limit: dailyLimit });
+
+  // ---- integrity & approval ---------------------------------------------
+  const integrity = await checkIntegrity(req, "submit_deal");
+  let status: "approved" | "pending" = "pending";
+  if (staff) status = "approved";
+  else if (p.auto_approve && integrity !== "risky" && !bigDiscount && (knownStore || !rawLink) && Math.random() >= 0.1) {
+    status = "approved";
+  }
+
+  const expiresAt = new Date(Date.now() + expiresInDays * 86400_000).toISOString();
+  const now = new Date().toISOString();
+  const deviceId = str(req.headers.get("x-device-id") ?? body.device_id, 100);
+
+  const { data, error } = await admin().from("deals").insert({
+    title,
+    title_norm: titleNorm,
+    description,
+    link,
+    canonical_url: canonicalUrl,
+    image_url: imageUrl,
+    image_hash: imageHash,
+    location,
+    governorate,
+    store,
+    category,
+    promo_code: promoCode,
+    posted_by: p.username,
+    expires_at: expiresAt,
+    original_price: originalPrice,
+    discounted_price: discountedPrice,
+    status,
+    auto_approved: status === "approved",
+    requires_review: status !== "approved",
+    hot_count: 0,
+    cold_count: 0,
+    submitted_by_user_id: p.id,
+    submitted_by_device: deviceId,
+    ...(status === "approved" ? { approved_at: now, approved_by: p.id } : {}),
+  }).select(PUBLIC_DEAL_COLUMNS);
+
+  if (error) {
+    console.error("insert deal failed:", error.message);
+    throw new ApiError("SERVER_ERROR", "We couldn't post your deal. Please try again.");
+  }
+
+  const deal = (data as any[])[0];
+  if (status === "approved") {
+    await notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url });
+  }
+
+  return ok({
+    message: status === "approved" ? "Deal posted" : "Deal submitted for review",
+    status,
+    data,
+  });
+}));
