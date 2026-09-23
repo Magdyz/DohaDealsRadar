@@ -8,7 +8,7 @@ export const PUBLIC_DEAL_COLUMNS = [
   "id", "title", "description", "image_url", "link", "posted_by", "created_at", "expires_at",
   "status", "hot_count", "cold_count", "location", "category", "promo_code", "is_archived",
   "original_price", "discounted_price", "governorate", "store", "report_count", "expired_votes",
-  "auto_approved", "deleted_at", "deletion_reason",
+  "auto_approved", "deleted_at", "deletion_reason", "thumbnail_url",
 ].join(", ");
 
 /** Staff also see who submitted/approved (still no device ids). */

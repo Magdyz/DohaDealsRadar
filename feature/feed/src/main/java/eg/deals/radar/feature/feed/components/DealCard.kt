@@ -34,9 +34,12 @@ import androidx.compose.ui.graphics.Color
 import eg.deals.radar.design.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
-import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
-import coil3.size.Scale
+import coil3.request.crossfade
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -154,7 +157,7 @@ fun DealCard(
             // ========================================
             // Image with vote buttons overlay at bottom center
             // ========================================
-            deal.imageUrl?.let { imageUrl ->
+            (deal.thumbnailUrl ?: deal.imageUrl)?.let { imageUrl ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,48 +171,70 @@ fun DealCard(
                         .background(Color.White)
                 ) {
 // ========================================
-                    // ✅ FIX (3.2): Replaced Image + placeholder
-                    // with SubcomposeAsyncImage.
-                    // This uses the superior pattern from DetailsScreen
-                    // and implements the ImageSkeleton for loading.
+                    // ✅ FIX: Replaced SubcomposeAsyncImage with AsyncImage.
+                    // Subcomposition per grid item is slow in lazy grids; AsyncImage
+                    // avoids that overhead. Loading/error looks are preserved via
+                    // a lightweight placeholder painter + an onState-driven overlay.
+                    // ✅ Smart fit: default to Fit until the image loads, then use
+                    // Crop only when the photo's aspect ratio is close to square
+                    // (±12%) so we never zoom into non-square photos.
                     // ========================================
-                    SubcomposeAsyncImage(
+                    var contentScale by remember(imageUrl) { mutableStateOf(ContentScale.Fit) }
+                    var isImageError by remember(imageUrl) { mutableStateOf(false) }
+
+                    AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("$imageUrl?width=400&quality=80&format=webp")
-                            .scale(Scale.FIT)
-                            .memoryCacheKey("grid_w400_$imageUrl")
-                            .diskCacheKey("grid_w400_$imageUrl")
-                            .listener(
-                                onStart = { Log.d(TAG, "🖼️ Loading image: $imageUrl") },
-                                onSuccess = { _, _ -> Log.d(TAG, "✅ Image loaded: $imageUrl") },
-                                onError = { _, result ->
-                                    Log.e(TAG, "❌ Image failed: $imageUrl", result.throwable)
-                                }
-                            )
+                            // Cache keys: data = chosen URL WITHOUT the ignored query suffix
+                            // (Supabase ignores ?width=&quality=&format= on public object URLs)
+                            .data(imageUrl)
+                            .memoryCacheKey("grid_$imageUrl")
+                            .diskCacheKey("grid_$imageUrl")
+                            .crossfade(150)
                             .build(),
                         contentDescription = deal.title,
-                        contentScale = ContentScale.Fit,
+                        contentScale = contentScale,
+                        placeholder = ColorPainter(Color(0xFFF5F5F5)),
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
                                 // ✅ 2025: Hardware-accelerate the image itself
                             },
-                        loading = { ImageSkeleton() },
-                        error = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "📷",
-                                    style = MaterialTheme.typography.displayMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                )
+                        onLoading = {
+                            isImageError = false
+                        },
+                        onSuccess = { state ->
+                            isImageError = false
+                            val intrinsic = state.painter.intrinsicSize
+                            if (intrinsic.isSpecified && intrinsic.width > 0f && intrinsic.height > 0f) {
+                                val ratio = intrinsic.width / intrinsic.height
+                                contentScale = if (ratio in 0.88f..1.12f) {
+                                    ContentScale.Crop
+                                } else {
+                                    ContentScale.Fit
+                                }
                             }
+                            Log.d(TAG, "✅ Image loaded: $imageUrl")
+                        },
+                        onError = { state ->
+                            isImageError = true
+                            Log.e(TAG, "❌ Image failed: $imageUrl", state.result.throwable)
                         }
                     )
+
+                    if (isImageError) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "📷",
+                                style = MaterialTheme.typography.displayMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
 // ========================================
 // 🆕 NEW: "New" Badge (Top-Right Corner)
 // Only shows for deals posted within 48 hours

@@ -212,14 +212,14 @@ object ImageCompressor {
         Log.d(TAG, "   → MIME type: ${options.outMimeType}")
 
         // ========================================
-        // STAGE 1: TINY THUMBNAIL (320px, ~15KB)
+        // STAGE 1: TINY THUMBNAIL (480px, ~15KB)
         // ========================================
         val thumb1Start = System.currentTimeMillis()
         Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         Log.d(TAG, "🔸 STAGE 1: Creating THUMBNAIL...")
 
-        val thumbnailSampleSize = (largest / 320).roundToInt().coerceAtLeast(4)
-        Log.d(TAG, "   → Target size: 320px")
+        val thumbnailSampleSize = (largest / 480).roundToInt().coerceAtLeast(2)
+        Log.d(TAG, "   → Target size: 480px")
         Log.d(TAG, "   → Sample size: ${thumbnailSampleSize}x downsampling")
 
         val thumbOptions = BitmapFactory.Options().apply {
@@ -246,10 +246,10 @@ object ImageCompressor {
             Log.d(TAG, "      Rotated size: ${thumbBitmap.width}x${thumbBitmap.height}px")
         }
 
-        // Scale to exact 320px
+        // Scale to exact 480px
         val thumbScaleStart = System.currentTimeMillis()
-        val thumbScaled = if (max(thumbBitmap.width, thumbBitmap.height) > 320) {
-            val scale = 320f / max(thumbBitmap.width, thumbBitmap.height)
+        val thumbScaled = if (max(thumbBitmap.width, thumbBitmap.height) > 480) {
+            val scale = 480f / max(thumbBitmap.width, thumbBitmap.height)
             val newWidth = (thumbBitmap.width * scale).roundToInt()
             val newHeight = (thumbBitmap.height * scale).roundToInt()
 
@@ -271,18 +271,18 @@ object ImageCompressor {
             Log.d(TAG, "   ✓ Scaled (${thumbScaleTime}ms)")
         }
 
-        // Compress thumbnail - ULTRA aggressive
+        // Compress thumbnail - sharper for 2-column grid display
         val thumbCompressStart = System.currentTimeMillis()
         val thumbStream = ByteArrayOutputStream()
-        // ✅ CHANGED: Format is now WebP. Quality 60 is very small.
-        thumbScaled.compress(Bitmap.CompressFormat.WEBP, 60, thumbStream)
+        // ✅ CHANGED: Format is now WebP. Quality 70 keeps it sharp in the grid.
+        thumbScaled.compress(Bitmap.CompressFormat.WEBP, 70, thumbStream)
         thumbScaled.recycle()
 
         val thumbBytes = thumbStream.toByteArray()
         val thumbCompressTime = System.currentTimeMillis() - thumbCompressStart
 
         Log.d(TAG, "   ✓ Compressed WebP (${thumbCompressTime}ms)")
-        Log.d(TAG, "      Quality: 60")
+        Log.d(TAG, "      Quality: 70")
         Log.d(TAG, "      Size: ${thumbBytes.size / 1024}KB (${thumbBytes.size} bytes)")
 
         // ✅ CHANGED: File extension is now .webp

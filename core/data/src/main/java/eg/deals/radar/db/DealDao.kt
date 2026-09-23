@@ -22,41 +22,98 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface DealDao {
-    /**
-     * Page 1 of the feed: replace the feed (deals + order) in one transaction.
-     * Only the previous feed's deals are removed; deals cached by other screens
-     * (account, moderation, archive, details) are left alone.
-     */
-    @Transaction
-    suspend fun replaceFeed(deals: List<DealEntity>) {
-        deleteFeedDeals()
-        clearFeedEntries()
-        insertAll(deals)
-        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(d.id, i) })
+    companion object {
+        /** How many feed tabs (filter combinations) keep a cached list. */
+        const val MAX_CACHED_FEEDS = 16
     }
 
-    /** "Load more": add a page after the current feed (deals already listed keep their place). */
+    // ========================================
+    // 🗂️ Feed tabs (each filter combination keeps its own cached list)
+    // ========================================
+
+    /** Deals of one feed tab, in the backend's order. */
+    @Query(
+        """SELECT d.* FROM feed_entries f INNER JOIN deals d ON d.id = f.dealId
+           WHERE f.feedKey = :feedKey AND d.status = 'approved' AND d.isArchived = 0 AND d.deletedAt IS NULL
+           ORDER BY f.position ASC"""
+    )
+    fun getFeed(feedKey: String): Flow<List<DealEntity>>
+
+    @Query("SELECT * FROM feed_meta WHERE feedKey = :feedKey")
+    suspend fun getFeedMeta(feedKey: String): FeedMetaEntity?
+
+    /**
+     * Page 1 of a tab: replace that tab's list in one transaction.
+     * Removes only deals that no other tab (and no other screen's cache user) lists;
+     * keeps at most [MAX_CACHED_FEEDS] tabs.
+     */
     @Transaction
-    suspend fun appendFeed(deals: List<DealEntity>) {
-        val start = (getMaxFeedPosition() ?: -1) + 1
+    suspend fun replaceFeed(feedKey: String, deals: List<DealEntity>, meta: FeedMetaEntity) {
+        deleteDealsOnlyIn(feedKey)
+        clearFeedEntries(feedKey)
         insertAll(deals)
-        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(d.id, start + i) })
+        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(feedKey, d.id, i) })
+        upsertFeedMeta(meta)
+        for (old in getFeedKeysOldestFirst().dropLast(MAX_CACHED_FEEDS)) {
+            deleteDealsOnlyIn(old)
+            clearFeedEntries(old)
+            deleteFeedMeta(old)
+        }
+    }
+
+    /**
+     * A prefetched page 1 (category bundle): written only if the tab has no newer data,
+     * so it never overwrites what the user just loaded.
+     */
+    @Transaction
+    suspend fun replaceFeedIfOlder(feedKey: String, deals: List<DealEntity>, meta: FeedMetaEntity) {
+        val current = getFeedMeta(feedKey)
+        if (current == null || current.updatedAt < meta.updatedAt) replaceFeed(feedKey, deals, meta)
+    }
+
+    /**
+     * "Load more": add a page after the tab's current list. Skipped if the tab was
+     * reloaded meanwhile (its cursor changed), so pages never mix. Returns true if written.
+     */
+    @Transaction
+    suspend fun appendFeed(feedKey: String, usedCursor: String?, deals: List<DealEntity>, meta: FeedMetaEntity): Boolean {
+        val current = getFeedMeta(feedKey) ?: return false
+        if (current.nextCursor != usedCursor) return false
+        val start = (getMaxFeedPosition(feedKey) ?: -1) + 1
+        insertAll(deals)
+        insertFeedEntries(deals.mapIndexed { i, d -> FeedEntryEntity(feedKey, d.id, start + i) })
+        upsertFeedMeta(meta.copy(pagesLoaded = current.pagesLoaded + 1))
+        return true
     }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertFeedEntries(entries: List<FeedEntryEntity>)
 
-    @Query("DELETE FROM feed_entries")
-    suspend fun clearFeedEntries()
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFeedMeta(meta: FeedMetaEntity)
 
-    @Query("DELETE FROM deals WHERE id IN (SELECT dealId FROM feed_entries)")
-    suspend fun deleteFeedDeals()
+    @Query("DELETE FROM feed_entries WHERE feedKey = :feedKey")
+    suspend fun clearFeedEntries(feedKey: String)
+
+    @Query("DELETE FROM feed_meta WHERE feedKey = :feedKey")
+    suspend fun deleteFeedMeta(feedKey: String)
+
+    @Query("SELECT feedKey FROM feed_meta ORDER BY updatedAt ASC")
+    suspend fun getFeedKeysOldestFirst(): List<String>
+
+    @Query("SELECT MAX(position) FROM feed_entries WHERE feedKey = :feedKey")
+    suspend fun getMaxFeedPosition(feedKey: String): Int?
+
+    /** Deals listed by this tab and by no other tab (deals cached by other screens are never listed). */
+    @Query(
+        """DELETE FROM deals WHERE id IN (SELECT dealId FROM feed_entries WHERE feedKey = :feedKey)
+           AND id NOT IN (SELECT dealId FROM feed_entries WHERE feedKey != :feedKey)"""
+    )
+    suspend fun deleteDealsOnlyIn(feedKey: String)
 
     @Query("UPDATE deals SET isArchived = 1 WHERE id = :dealId")
     suspend fun markArchived(dealId: String)
 
-    @Query("SELECT MAX(position) FROM feed_entries")
-    suspend fun getMaxFeedPosition(): Int?
 
     @Transaction
     suspend fun replaceArchivedDeals(deals: List<DealEntity>) {
@@ -100,6 +157,12 @@ interface DealDao {
     // ========================================
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateDeal(deal: DealEntity)
+
+    // ========================================
+    // ✅ NEW: Read a single deal by id (used to skip no-op writes/invalidations)
+    // ========================================
+    @Query("SELECT * FROM deals WHERE id = :id")
+    suspend fun getDealById(id: String): DealEntity?
 
     // ========================================
     // ✅ NEW: Instant local vote count update (Zero-Lag UI)
@@ -155,15 +218,6 @@ interface DealDao {
     // Approve a deal and record who approved it
     @Query("UPDATE deals SET status = 'approved', approvedBy = :approvedBy, approvedAt = :approvedAt WHERE id = :dealId")
     suspend fun approveDeal(dealId: String, approvedBy: String?, approvedAt: String)
-
-    // Main feed: only deals the backend returned for the current filters (feed_entries),
-    // in the backend's order. Deals cached by other screens never leak in.
-    @Query(
-        """SELECT d.* FROM feed_entries f INNER JOIN deals d ON d.id = f.dealId
-           WHERE d.status = 'approved' AND d.isArchived = 0 AND d.deletedAt IS NULL
-           ORDER BY f.position ASC"""
-    )
-    fun getApprovedActiveDeals(): Flow<List<DealEntity>>
 
     // Permanently delete a deal from database (admin only)
     @Query("DELETE FROM deals WHERE id = :dealId")

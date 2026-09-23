@@ -103,7 +103,9 @@ data class StatsDto(
     @SerializedName("open_reports") val openReports: Int = 0,
     @SerializedName("top_categories_7d") val topCategories7d: List<NamedCountDto> = emptyList(),
     @SerializedName("top_governorates_7d") val topGovernorates7d: List<NamedCountDto> = emptyList(),
-    @SerializedName("generated_at") val generatedAt: String? = null
+    @SerializedName("generated_at") val generatedAt: String? = null,
+    // Admins only (null for moderators): anonymous crash / error counts
+    @SerializedName("app_health") val appHealth: AppHealthDto? = null
 )
 
 /**
@@ -135,6 +137,15 @@ interface SupabaseApiService {
         @Query("q") query: String? = null,
         @Query("cursor") cursor: String? = null
     ): ApiEnvelope<List<DealDto>>
+
+    /** Page 1 of every category (hottest) in one call, prefetched so category tabs open instantly. */
+    @GET("get_deals")
+    suspend fun getDealsBundle(
+        @Query("bundle") bundle: String = "categories",
+        @Query("sort_by") sortBy: String = "hottest",
+        @Query("governorate") governorate: String? = null,
+        @Query("limit") limit: Int = 10
+    ): FeedBundleResponse
 
     // ========================================
     // ✨ Egypt 2.0 endpoints
@@ -442,4 +453,47 @@ interface SupabaseApiService {
     suspend fun submitFeedback(
         @Body request: SubmitFeedbackRequest
     ): ApiEnvelope<FeedbackData>
+
+    // ========================================
+    // 🛡️ ADMIN-ONLY ENDPOINTS
+    // Feedback inbox, user management, role changes and audit log.
+    // Caller identity comes from the auth token (no user_id in body).
+    // CREATED: 2025-11-27
+    // ========================================
+
+    /** List submitted feedback (admin only). */
+    @POST("admin_feedback")
+    suspend fun adminFeedbackList(
+        @Body request: AdminFeedbackListRequest
+    ): ApiEnvelope<List<FeedbackAdminDto>>
+
+    /** Update a feedback item's status/notes (admin only). */
+    @POST("admin_feedback")
+    suspend fun adminFeedbackUpdate(
+        @Body request: AdminFeedbackUpdateRequest
+    ): ApiEnvelope<FeedbackAdminDto>
+
+    /** Search/list/filter users (admin only). */
+    @POST("admin_users")
+    suspend fun adminUsersList(
+        @Body request: AdminUsersListRequest
+    ): ApiEnvelope<List<AdminUserDto>>
+
+    /** ban / unban / set_auto_approve / reset_strikes (admin only). */
+    @POST("admin_users")
+    suspend fun adminUserAction(
+        @Body request: AdminUserActionRequest
+    ): ApiEnvelope<AdminUserDto>
+
+    /** Change a user's role: user / moderator / admin (admin only). */
+    @POST("update_user_role")
+    suspend fun updateUserRole(
+        @Body request: UpdateUserRoleRequest
+    ): UpdateUserRoleResponse
+
+    /** Moderation history: security / deals / reports categories (admin only). */
+    @POST("admin_audit_log")
+    suspend fun adminAuditLog(
+        @Body request: AdminAuditLogRequest
+    ): ApiEnvelope<List<AdminAuditLogEntryDto>>
 }

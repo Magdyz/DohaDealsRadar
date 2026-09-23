@@ -15,7 +15,7 @@ import eg.deals.radar.db.DealEntity
 import eg.deals.radar.network.ApiErrors
 import eg.deals.radar.repository.DealRepository
 import eg.deals.radar.repository.PreloadRepository
-import eg.deals.radar.repository.StaleFeedPageException
+import eg.deals.radar.db.feedKey
 import eg.deals.radar.repository.UserRepository
 import eg.deals.radar.util.AppLanguage
 import kotlinx.coroutines.Job
@@ -24,13 +24,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 /** Feed sort order (backend sorts). */
@@ -109,9 +109,17 @@ class FeedViewModel(
         .map { id -> id != null && userRepo.isAdmin(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    /** Cached, backend-filtered deals (Room is the source for the UI). */
-    val deals: StateFlow<List<DealEntity>> = repo.getCachedApprovedActiveDeals()
+    /** Cache key of the tab on screen (filters + search); every tab keeps its own cached list. */
+    private val _feedKey = MutableStateFlow(currentKey())
+
+    /** Cached deals of the current tab (Room is the source for the UI). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val deals: StateFlow<List<DealEntity>> = _feedKey
+        .flatMapLatest { repo.observeFeed(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Governorate the category tabs were prefetched for ("" = everywhere); null = not yet. */
+    private var prefetchedFor: String? = null
 
     var uiState by mutableStateOf(FeedUiState())
         private set
@@ -123,7 +131,15 @@ class FeedViewModel(
     private var loadMoreJob: Job? = null
 
     init {
-        refreshDeals()
+        // Deals preloaded during onboarding go into the default tab first
+        viewModelScope.launch {
+            val preloaded = preloadRepo.getCachedDeals()
+            if (!preloaded.isNullOrEmpty() && isDefaultFilter()) {
+                runCatching { repo.insertPreloadedDeals(preloaded) }
+                preloadRepo.clearCache()
+            }
+            openTab()
+        }
 
         // Vote state comes from the server (deal.userVote) - the same on every device
         viewModelScope.launch {
@@ -159,35 +175,35 @@ class FeedViewModel(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(if (query.isBlank()) 0 else 400)
-            refreshDeals(showFilteringSpinner = false)
+            openTab()
         }
     }
 
     fun toggleCategory(category: DealCategory?) {
         _selectedCategory.value = if (_selectedCategory.value == category) null else category
-        refreshDeals(showFilteringSpinner = true)
+        openTab()
     }
 
     fun setGovernorate(governorate: Governorate?) {
         if (_governorate.value == governorate) return
         _governorate.value = governorate
-        refreshDeals(showFilteringSpinner = true)
+        openTab()
     }
 
     fun toggleSortToNewest() {
         _sortOption.value = if (_sortOption.value == SortOption.NEWEST) SortOption.HOTTEST else SortOption.NEWEST
-        refreshDeals(showFilteringSpinner = true)
+        openTab()
     }
 
     fun toggleSortToTopWeek() {
         _sortOption.value = if (_sortOption.value == SortOption.TOP_WEEK) SortOption.HOTTEST else SortOption.TOP_WEEK
-        refreshDeals(showFilteringSpinner = true)
+        openTab()
     }
 
     fun setSortToAll() {
         if (_sortOption.value != SortOption.HOTTEST) {
             _sortOption.value = SortOption.HOTTEST
-            refreshDeals(showFilteringSpinner = true)
+            openTab()
         }
     }
 
@@ -199,63 +215,108 @@ class FeedViewModel(
     // 🔄 Loading
     // ========================================
 
-    fun refreshDeals(showFilteringSpinner: Boolean = false) {
-        refreshJob?.cancel()
-        // A "load more" for the previous filters must not land in the new feed
-        loadMoreJob?.cancel()
-        uiState = uiState.copy(isLoadingMore = false)
-        refreshJob = viewModelScope.launch {
-            // Deals preloaded during onboarding: show them instantly (default filters only)
-            val preloaded = preloadRepo.getCachedDeals()
-            if (!preloaded.isNullOrEmpty() && isDefaultFilter()) {
-                runCatching { repo.insertPreloadedDeals(preloaded) }
-                preloadRepo.clearCache()
-            }
+    /** The filters of one request, captured so a slow answer can't mix tabs. */
+    private data class Filters(val sortBy: String, val category: String?, val governorate: String?, val query: String?) {
+        val key get() = feedKey(sortBy, category, governorate, query)
+    }
 
-            uiState = uiState.copy(loading = true, isFilteringSorting = showFilteringSpinner, error = null, currentPage = 1)
-            val before = deals.value
-            val result = repo.refreshDeals(
-                page = 1,
-                append = false,
-                sortBy = _sortOption.value.apiValue,
-                category = _selectedCategory.value?.id,
-                governorate = _governorate.value?.id,
-                query = _searchQuery.value.trim().takeIf { it.isNotEmpty() }
-            )
-            if (result.exceptionOrNull() is StaleFeedPageException) return@launch
-            if (showFilteringSpinner && result.isSuccess) {
-                // Keep the spinner until the new list reached the screen (no flash of the old tab)
-                withTimeoutOrNull(700) { deals.first { it != before } }
-            }
-            result.onSuccess { pagination ->
-                uiState = uiState.copy(
-                    loading = false, isFilteringSorting = false, isOffline = false, loadedOnce = true,
-                    currentPage = 1, hasMorePages = pagination?.hasMore ?: false
-                )
-            }.onFailure { error ->
-                val offline = (error.cause as? java.io.IOException) != null
+    private fun currentFilters() = Filters(
+        _sortOption.value.apiValue,
+        _selectedCategory.value?.id,
+        _governorate.value?.id,
+        _searchQuery.value.trim().takeIf { it.isNotEmpty() }
+    )
+
+    private fun currentKey() = currentFilters().key
+
+    /**
+     * Shows the current tab: its cached list appears at once. The network is only
+     * used when the tab was never loaded or its data is older than [FRESH_MS]; a
+     * cached tab refreshes silently in the background.
+     */
+    private fun openTab() {
+        val filters = currentFilters()
+        _feedKey.value = filters.key
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
+        uiState = uiState.copy(isLoadingMore = false, error = null)
+        refreshJob = viewModelScope.launch {
+            val meta = repo.getFeedMeta(filters.key)
+            if (meta != null) {
                 uiState = uiState.copy(
                     loading = false, isFilteringSorting = false, loadedOnce = true,
-                    isOffline = offline,
-                    error = if (offline && deals.value.isNotEmpty()) null else error.message
+                    currentPage = meta.pagesLoaded, hasMorePages = meta.hasMore
                 )
+                if (System.currentTimeMillis() - meta.updatedAt < FRESH_MS) return@launch
             }
+            load(filters, spinner = meta == null && uiState.loadedOnce, silent = meta != null)
+        }
+    }
+
+    /** Pull-to-refresh / retry: always reloads the current tab from the network. */
+    fun refreshDeals(showFilteringSpinner: Boolean = false) {
+        val filters = currentFilters()
+        _feedKey.value = filters.key
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
+        uiState = uiState.copy(isLoadingMore = false)
+        refreshJob = viewModelScope.launch { load(filters, spinner = showFilteringSpinner, silent = false) }
+    }
+
+    private suspend fun load(filters: Filters, spinner: Boolean, silent: Boolean) {
+        uiState = uiState.copy(loading = !silent, isFilteringSorting = spinner, error = null)
+        val result = repo.refreshDeals(
+            page = 1, append = false,
+            sortBy = filters.sortBy, category = filters.category,
+            governorate = filters.governorate, query = filters.query
+        )
+        // The answer is cached for its tab either way; only update the screen if it's still showing it
+        if (_feedKey.value != filters.key) return
+        result.onSuccess { pagination ->
+            uiState = uiState.copy(
+                loading = false, isFilteringSorting = false, isOffline = false, loadedOnce = true,
+                currentPage = 1, hasMorePages = pagination?.hasMore ?: false
+            )
+            maybePrefetchCategoryTabs(filters)
+        }.onFailure { error ->
+            val offline = (error.cause as? java.io.IOException) != null
+            uiState = uiState.copy(
+                loading = false, isFilteringSorting = false, loadedOnce = true,
+                isOffline = offline,
+                // A cached tab stays on screen; only an empty tab shows the error
+                error = if (deals.value.isNotEmpty() && (offline || silent)) null else error.message
+            )
+        }
+    }
+
+    /**
+     * After the main feed loads, fetch page 1 of every category in ONE request
+     * (once per governorate per session) so the first tap on any category is instant.
+     */
+    private fun maybePrefetchCategoryTabs(filters: Filters) {
+        if (filters.sortBy != SortOption.HOTTEST.apiValue || filters.query != null) return
+        val gov = filters.governorate ?: ""
+        if (prefetchedFor == gov) return
+        prefetchedFor = gov
+        viewModelScope.launch {
+            delay(800) // let the visible page's images load first
+            repo.prefetchCategoryTabs(filters.governorate)
         }
     }
 
     fun loadMoreDeals() {
         if (uiState.isLoadingMore || !uiState.hasMorePages || uiState.loading) return
+        val filters = currentFilters()
         loadMoreJob = viewModelScope.launch {
             val nextPage = uiState.currentPage + 1
             uiState = uiState.copy(isLoadingMore = true)
-            repo.refreshDeals(
-                page = nextPage,
-                append = true,
-                sortBy = _sortOption.value.apiValue,
-                category = _selectedCategory.value?.id,
-                governorate = _governorate.value?.id,
-                query = _searchQuery.value.trim().takeIf { it.isNotEmpty() }
-            ).onSuccess { pagination ->
+            val result = repo.refreshDeals(
+                page = nextPage, append = true,
+                sortBy = filters.sortBy, category = filters.category,
+                governorate = filters.governorate, query = filters.query
+            )
+            if (_feedKey.value != filters.key) return@launch
+            result.onSuccess { pagination ->
                 uiState = uiState.copy(isLoadingMore = false, currentPage = nextPage, hasMorePages = pagination?.hasMore ?: false)
             }.onFailure {
                 uiState = uiState.copy(isLoadingMore = false)
@@ -349,6 +410,11 @@ class FeedViewModel(
                 .onSuccess { refreshDeals() }
                 .onFailure { uiState = uiState.copy(message = it.message ?: AppLanguage.string(eg.deals.radar.core.data.R.string.err_server)) }
         }
+    }
+
+    companion object {
+        /** A cached tab younger than this is shown without asking the server again. */
+        private const val FRESH_MS = 60_000L
     }
 
     override fun onCleared() {

@@ -43,6 +43,8 @@ object StorageUploader {
         val request = Request.Builder()
             .url(uploadUrl)
             .put(file.asRequestBody((ticket.contentType ?: contentType).toMediaType()))
+            // Every upload gets a new random path, so the file never changes: let phones/CDN cache it for a year
+            .header("cache-control", "max-age=31536000")
             .build()
         try {
             uploadClient.newCall(request).execute().use { res ->

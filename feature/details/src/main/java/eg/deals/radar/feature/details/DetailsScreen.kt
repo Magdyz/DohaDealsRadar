@@ -2,6 +2,7 @@ package eg.deals.radar.feature.details
 
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import eg.deals.core.design.theme.EgyptTypography
 import eg.deals.core.design.theme.isArabicUi
 import eg.deals.domain.DealCategory
 import eg.deals.domain.Money
@@ -46,11 +47,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 // ✨ NEW: Advanced Coil imports for 2025 performance
 import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
-import coil3.size.Scale
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.filled.Close
 
 /**
  * Details Screen - Modern 2025 Design
@@ -405,27 +415,52 @@ private fun DealDetailsContent(
                 .padding(bottom = if (hasLink) 88.dp else 0.dp)  // ✅ Extra padding if floating button
         ) {
             // ========================================
-            // ✅ Hero Image (unchanged)
+            // ✅ Hero Image
+            // - Container aspect ratio follows the photo's real aspect ratio
+            //   (clamped between 3:4 and 16:9; 1:1 until known) so wide/tall
+            //   photos are never cropped.
+            // - ContentScale.Fit, centered, neutral background.
+            // - Tap opens a full-screen pinch-to-zoom viewer.
             // ========================================
             deal.imageUrl?.let { imageUrl ->
+                var heroAspectRatio by remember(deal.id) { mutableFloatStateOf(1f) }
+                var showFullScreenImage by remember(deal.id) { mutableStateOf(false) }
+                val heroBackgroundColor = if (isSystemInDarkTheme()) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    Color(0xFFF5F5F5)
+                }
+                // ✅ Drop the ignored ?width=1200&quality=80&format=webp suffix — Supabase
+                // ignores this query string on public object URLs anyway.
+                // placeholderMemoryCacheKey matches the grid's memory key exactly so the
+                // already-cached thumbnail shows instantly while the full image loads.
+                val gridMemoryCacheKey = "grid_${deal.thumbnailUrl ?: imageUrl}"
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .aspectRatio(heroAspectRatio)
                         .clip(MaterialTheme.shapes.medium)
-                        .background(Color(0xFFF5F5F5)) // <-- 1. FIX: Add stable background
+                        .background(heroBackgroundColor)
+                        .clickable { showFullScreenImage = true }
                 ) {
                     SubcomposeAsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("$imageUrl?width=1200&quality=80&format=webp")
-                            .scale(Scale.FIT)
-                            .memoryCacheKey("detail_w1200_$imageUrl")
-                            .diskCacheKey("detail_w1200_$imageUrl")
-                            .placeholderMemoryCacheKey("grid_w400_$imageUrl") // ✅ Use our new grid image as placeholder
+                            .data(imageUrl)
+                            .memoryCacheKey("detail_$imageUrl")
+                            .diskCacheKey("detail_$imageUrl")
+                            .placeholderMemoryCacheKey(gridMemoryCacheKey)
                             .build(),
                         contentDescription = deal.title,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
+                        onSuccess = { state ->
+                            val intrinsic = state.painter.intrinsicSize
+                            if (intrinsic.isSpecified && intrinsic.width > 0f && intrinsic.height > 0f) {
+                                val ratio = intrinsic.width / intrinsic.height
+                                heroAspectRatio = ratio.coerceIn(0.75f, 16f / 9f)
+                            }
+                        },
                         error = {
                             Box(
                                 modifier = Modifier
@@ -447,6 +482,80 @@ private fun DealDetailsContent(
                             }
                         }
                     )
+                }
+
+                // ========================================
+                // ✅ NEW: Full-screen pinch-to-zoom viewer
+                // ========================================
+                if (showFullScreenImage) {
+                    Dialog(
+                        onDismissRequest = { showFullScreenImage = false },
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        var scale by remember { mutableFloatStateOf(1f) }
+                        var offset by remember { mutableStateOf(Offset.Zero) }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(
+                                    model = ImageRequest.Builder(context)
+                                        .data(imageUrl)
+                                        .memoryCacheKey("detail_$imageUrl")
+                                        .diskCacheKey("detail_$imageUrl")
+                                        .placeholderMemoryCacheKey(gridMemoryCacheKey)
+                                        .build()
+                                ),
+                                contentDescription = deal.title,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationX = offset.x
+                                        translationY = offset.y
+                                    }
+                                    .pointerInput(Unit) {
+                                        detectTransformGestures { _, pan, zoom, _ ->
+                                            val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                            scale = newScale
+                                            offset = if (newScale <= 1f) Offset.Zero else offset + pan
+                                        }
+                                    }
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onDoubleTap = {
+                                                if (scale > 1f) {
+                                                    scale = 1f
+                                                    offset = Offset.Zero
+                                                } else {
+                                                    scale = 2.5f
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
+
+                            IconButton(
+                                onClick = { showFullScreenImage = false },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .size(40.dp)
+                                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -528,11 +637,11 @@ private fun DealDetailsContent(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Text(text = "🔥", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 20.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)))
+                                    Text(text = "🔥", style = EgyptTypography.titleMedium.copy(fontSize = 18.sp, lineHeight = 20.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)))
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
                                         text = formatVoteCount(deal.hotCount ?: 0),
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = EgyptTypography.labelSmall.copy( // same font in EN and AR so the circle content stays centered
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp,
                                             lineHeight = 12.sp, // fixed so the taller Arabic font fits the 52dp circle
@@ -585,11 +694,11 @@ private fun DealDetailsContent(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Text(text = "❄️", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 20.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)))
+                                    Text(text = "❄️", style = EgyptTypography.titleMedium.copy(fontSize = 18.sp, lineHeight = 20.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)))
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
                                         text = formatVoteCount(deal.coldCount ?: 0),
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = EgyptTypography.labelSmall.copy( // same font in EN and AR so the circle content stays centered
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp,
                                             lineHeight = 12.sp, // fixed so the taller Arabic font fits the 52dp circle

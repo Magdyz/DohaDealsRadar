@@ -9,10 +9,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [DealEntity::class,
         FeedEntryEntity::class,
+        FeedMetaEntity::class,
         UserEntity::class
     ],
 
-    version = 16,  // feed_entries: feed membership + order (cache: destructive migration)
+    version = 17,  // per-tab feed cache (feed_entries.feedKey + feed_meta), deals.thumbnailUrl (cache: destructive migration)
     exportSchema = false
 )
 

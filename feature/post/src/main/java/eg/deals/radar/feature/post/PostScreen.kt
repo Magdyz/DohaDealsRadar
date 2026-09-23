@@ -49,7 +49,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.imeNestedScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
@@ -354,7 +353,8 @@ fun PostScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imeNestedScroll()  // ✅ Modern 2025: Auto-scroll to keep focused field visible
+                    // No imeNestedScroll(): it opened the keyboard when scrolling past the end. Focused
+                    // fields are still scrolled into view automatically.
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -892,8 +892,8 @@ fun PostScreen(
                 }
 
                 // ✅ CRITICAL: Large bottom spacer ensures text fields scroll high enough above floating button
-                // This creates actual scrollable content (not just padding) so imeNestedScroll()
-                // can scroll fields into a visible position above the 56dp button
+                // This creates actual scrollable content (not just padding) so focused fields
+                // scroll into a visible position above the 56dp button
                 Spacer(Modifier.height(100.dp))
             }
         }

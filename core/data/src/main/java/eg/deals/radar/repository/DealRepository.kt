@@ -5,12 +5,12 @@ import eg.deals.radar.util.AppLanguage
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import eg.deals.radar.db.DatabaseModule
 import eg.deals.radar.db.DealDao
 import eg.deals.radar.db.DealEntity
+import eg.deals.radar.db.FeedMetaEntity
+import eg.deals.radar.db.feedKey
 import eg.deals.radar.network.*
 import eg.deals.radar.network.PaginationMeta
 import eg.deals.radar.util.AppContext
@@ -120,8 +120,9 @@ class DealRepository {
     suspend fun insertPreloadedDeals(deals: List<DealEntity>) = withContext(Dispatchers.IO) {
         try {
             Log.d("Repository", "📥 Inserting ${deals.size} preloaded deals into cache...")
-            // Replace cache atomically (same as normal refresh)
-            dealDao.replaceFeed(deals)
+            // Default tab (hottest, everything). Marked old so the feed still refreshes it in the background.
+            val key = feedKey("hottest", null, null, null)
+            dealDao.replaceFeed(key, deals, FeedMetaEntity(key, updatedAt = 1L, nextCursor = null, hasMore = true, pagesLoaded = 1))
             Log.d("Repository", "✅ Preloaded deals inserted successfully")
         } catch (e: Exception) {
             Log.e("Repository", "💥 Failed to insert preloaded deals", e)
@@ -129,16 +130,23 @@ class DealRepository {
         }
     }
 
+    // ========================================
+    // 🗂️ Feed tabs: every filter combination has its own cached list
+    // ========================================
+
+    /** Cached deals of one feed tab (see [feedKey]), in the backend's order. */
+    fun observeFeed(key: String): Flow<List<DealEntity>> = dealDao.getFeed(key)
+
+    /** When the tab was loaded and whether it has more pages (null = never loaded). */
+    suspend fun getFeedMeta(key: String): FeedMetaEntity? = withContext(Dispatchers.IO) {
+        runCatching { dealDao.getFeedMeta(key) }.getOrNull()
+    }
+
     /**
-     * ✅ UPDATED: Refresh deals from network and update cache
-     *
-     * @param page Page number to fetch (default: 1)
-     * @param append If true, appends to existing cache. If false, replaces cache.
-     * @param sortBy Sort option: "hottest" or "newest" (default: "hottest")
-     * @param category Category filter (optional): "food_dining", "shopping_fashion", etc.
-     *                 - If null → returns all categories (backend filters)
-     *                 - If specific category → filters to that category only (backend filters)
-     * @return Result with PaginationMeta or error
+     * Loads page 1 (replaces the tab's list) or the next page (append) of a feed tab.
+     * Each tab keeps its own cursor, so a late answer for a tab the user already left
+     * simply lands in that tab's cache. A "load more" whose tab was reloaded meanwhile
+     * is dropped ([StaleFeedPageException]) so pages never mix.
      */
     suspend fun refreshDeals(
         page: Int = 1,
@@ -149,54 +157,72 @@ class DealRepository {
         query: String? = null
     ): Result<PaginationMeta?> = withContext(Dispatchers.IO) {
         try {
-            // Keyset (cursor) pagination: page 1 starts fresh, "load more" continues
-            // from the cursor of the previous page of the SAME filters.
-            val filterKey = "$sortBy|$category|$governorate|$query"
-            // The newest page-1 request defines the filters the feed is showing
-            if (!append) activeFilterKey = filterKey
-            val cursor = if (append && filterKey == lastFilterKey) nextCursor else null
-            if (append && cursor == null && page > 1 && filterKey == lastFilterKey && !lastHasMore) {
-                return@withContext Result.success(PaginationMeta(page = page, hasMore = false))
+            val q = query?.takeIf { it.isNotBlank() }
+            val key = feedKey(sortBy, category, governorate, q)
+            val meta = if (append) dealDao.getFeedMeta(key) else null
+            if (append) {
+                if (meta == null) return@withContext Result.failure(StaleFeedPageException())
+                if (!meta.hasMore) return@withContext Result.success(PaginationMeta(page = page, hasMore = false))
             }
+            // Keyset cursor when we have one; otherwise the legacy page offset
+            val cursor = meta?.nextCursor
             val response = api.getDeals(
-                page = page, limit = 20, sortBy = sortBy, category = category,
-                governorate = governorate, query = query?.takeIf { it.isNotBlank() }, cursor = cursor
+                page = if (append) (meta?.pagesLoaded ?: 1) + 1 else 1, limit = 20, sortBy = sortBy, category = category,
+                governorate = governorate, query = q, cursor = cursor
             )
 
             if (response.success == true && response.data != null) {
                 val entities = response.data.map { it.toEntity() }
-                val written = feedWriteMutex.withLock {
-                    // A late answer for filters the user already left (e.g. "load more" of
-                    // All arriving after tapping Food) must not touch the feed.
-                    if (filterKey != activeFilterKey) return@withLock false
-                    lastFilterKey = filterKey
-                    nextCursor = response.pagination?.nextCursor
-                    lastHasMore = response.pagination?.hasMore == true
-                    if (append) dealDao.appendFeed(entities) else dealDao.replaceFeed(entities)
-                    true
+                val newMeta = FeedMetaEntity(
+                    feedKey = key,
+                    updatedAt = System.currentTimeMillis(),
+                    nextCursor = response.pagination?.nextCursor,
+                    hasMore = response.pagination?.hasMore == true,
+                    pagesLoaded = 1
+                )
+                if (append) {
+                    if (!dealDao.appendFeed(key, cursor, entities, newMeta)) {
+                        Log.d("Repository", "⏭️ Dropped stale page for $key")
+                        return@withContext Result.failure(StaleFeedPageException())
+                    }
+                } else {
+                    dealDao.replaceFeed(key, entities, newMeta)
                 }
-                if (!written) {
-                    Log.d("Repository", "⏭️ Dropped stale feed page for $filterKey")
-                    return@withContext Result.failure(StaleFeedPageException())
-                }
-                Log.d("Repository", "🔄 Feed ${if (append) "appended" else "replaced"}: ${entities.size} deals")
-
+                Log.d("Repository", "🔄 Feed $key ${if (append) "appended" else "replaced"}: ${entities.size} deals")
                 Result.success(response.pagination)
             } else {
+                eg.deals.radar.util.ErrorReporter.serverError("feed_load", response.code)
                 Result.failure(Exception(ApiErrors.message(response)))
             }
         } catch (e: Exception) {
             Log.w("Repository", "Error refreshing deals: ${e.javaClass.simpleName}")
+            eg.deals.radar.util.ErrorReporter.nonFatal("feed_load", e)
             Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
-    // Cursor state for the feed (see refreshDeals)
-    @Volatile private var nextCursor: String? = null
-    @Volatile private var lastFilterKey: String? = null
-    @Volatile private var lastHasMore: Boolean = true
-    @Volatile private var activeFilterKey: String? = null
-    private val feedWriteMutex = Mutex()
+    /**
+     * Prefetches page 1 of every category (hottest) in ONE request, so the first
+     * tap on any category tab is instant. Never overwrites a tab loaded meanwhile.
+     * Best effort: failures are ignored (tabs then load normally).
+     */
+    suspend fun prefetchCategoryTabs(governorate: String?) = withContext(Dispatchers.IO) {
+        runCatching {
+            val startedAt = System.currentTimeMillis()
+            val response = api.getDealsBundle(governorate = governorate)
+            if (response.success != true) return@runCatching
+            for (page in response.bundle.orEmpty()) {
+                val key = feedKey("hottest", page.category, governorate, null)
+                dealDao.replaceFeedIfOlder(
+                    key,
+                    page.data.orEmpty().map { it.toEntity() },
+                    FeedMetaEntity(key, startedAt, page.pagination?.nextCursor, page.pagination?.hasMore == true, 1)
+                )
+            }
+            Log.d("Repository", "📦 Prefetched ${response.bundle?.size ?: 0} category tabs")
+        }.onFailure { Log.w("Repository", "Category prefetch skipped: ${it.javaClass.simpleName}") }
+        Unit
+    }
 
     // ========================================
     // ✅ PRESERVED: Submit Deal (No Changes)
@@ -249,7 +275,12 @@ class DealRepository {
             confirmNotDuplicate = confirmNotDuplicate
         )
 
-        api.submitDeal(request)
+        try {
+            api.submitDeal(request)
+        } catch (e: Exception) {
+            eg.deals.radar.util.ErrorReporter.nonFatal("post_submit", e)
+            throw e
+        }
     }
 
     // ========================================
@@ -312,6 +343,7 @@ class DealRepository {
             Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
+
 
     /** Log out locally (the session is also dropped from secure storage). */
     fun logout() {
@@ -388,6 +420,7 @@ class DealRepository {
             Log.d("Repository", "✅ Vote cast successfully (cache NOT updated to prevent race condition)")
         } else {
             Log.w("Repository", "❌ Vote failed: ${response.error}")
+            eg.deals.radar.util.ErrorReporter.serverError("vote", response.code)
         }
 
         response
@@ -412,8 +445,13 @@ class DealRepository {
         withContext(Dispatchers.IO) {
             try {
                 val entity = dealDto.toEntity()
-                dealDao.updateDeal(entity)
-                Log.d("Repository", "✅ Cache manually updated for deal: ${dealDto.id}")
+                val existing = dealDao.getDealById(entity.id)
+                if (existing == entity) {
+                    Log.d("Repository", "⏭️ Cache already up to date for deal: ${dealDto.id}, skipping write")
+                } else {
+                    dealDao.updateDeal(entity)
+                    Log.d("Repository", "✅ Cache manually updated for deal: ${dealDto.id}")
+                }
             } catch (e: Exception) {
                 Log.e("Repository", "❌ Failed to update local cache", e)
             }
@@ -502,7 +540,12 @@ class DealRepository {
      * Upload image to Supabase Storage
      */
     suspend fun uploadImage(file: File, contentType: String = "image/jpeg"): String = withContext(Dispatchers.IO) {
-        StorageUploader.uploadImage(file, contentType)
+        try {
+            StorageUploader.uploadImage(file, contentType)
+        } catch (e: Exception) {
+            eg.deals.radar.util.ErrorReporter.nonFatal("photo_upload", e)
+            throw e
+        }
     }
 
     // ========================================
@@ -585,11 +628,11 @@ class DealRepository {
                 Result.success(response.pagination)
             } else {
                 Log.e("Repository", "❌ Failed to fetch pending deals: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to fetch pending deals"))
+                Result.failure(Exception(ApiErrors.message(response)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error fetching pending deals", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -636,11 +679,11 @@ class DealRepository {
                 Result.success(UserDealsPage(pagination = response.pagination, stats = response.stats))
             } else {
                 Log.e("Repository", "❌ Failed to fetch user deals: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to fetch user deals"))
+                Result.failure(Exception(ApiErrors.message(response)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error fetching user deals", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -682,11 +725,11 @@ class DealRepository {
                 Result.success(response.data)
             } else {
                 Log.e("Repository", "❌ Failed to approve deal: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to approve deal"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error approving deal", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -722,11 +765,11 @@ class DealRepository {
                 Result.success(response.data)
             } else {
                 Log.e("Repository", "❌ Failed to delete deal: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to delete deal"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error deleting deal", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -762,11 +805,11 @@ class DealRepository {
                 Result.success(response.data)
             } else {
                 Log.e("Repository", "❌ Failed to reject deal: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to reject deal"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error rejecting deal", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -775,9 +818,6 @@ class DealRepository {
      * This is a more restrictive filter than getActiveDeals()
      * @return Flow of approved, active, non-deleted deals
      */
-    fun getCachedApprovedActiveDeals(): Flow<List<DealEntity>> {
-        return dealDao.getApprovedActiveDeals()
-    }
 
     /**
      * Return an archived deal back to feed (admin only)
@@ -816,11 +856,11 @@ class DealRepository {
                 Result.success(response.data)
             } else {
                 Log.e("Repository", "❌ Failed to return deal to feed: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to return deal to feed"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error returning deal to feed", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -857,11 +897,11 @@ class DealRepository {
                 Result.success(Unit)
             } else {
                 Log.e("Repository", "❌ Failed to permanently delete deal: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to permanently delete deal"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error permanently deleting deal", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -900,11 +940,11 @@ class DealRepository {
                 Result.success(response.data)
             } else {
                 Log.e("Repository", "❌ Failed to fetch reports: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to fetch reports"))
+                Result.failure(Exception(ApiErrors.message(response)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error fetching reports", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -938,11 +978,11 @@ class DealRepository {
                 Result.success(Unit)
             } else {
                 Log.e("Repository", "❌ Failed to dismiss report: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to dismiss report"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error dismissing report", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -979,11 +1019,11 @@ class DealRepository {
                 Result.success(Unit)
             } else {
                 Log.e("Repository", "❌ Failed to resolve report: ${response.error}")
-                Result.failure(Exception(response.error ?: "Failed to resolve report"))
+                Result.failure(Exception(ApiErrors.message(response.code, response.error)))
             }
         } catch (e: Exception) {
             Log.e("Repository", "💥 Error resolving report", e)
-            Result.failure(e)
+            Result.failure(Exception(ApiErrors.message(e), e))
         }
     }
 
@@ -1027,7 +1067,7 @@ class DealRepository {
         }
     }
 }
-/** A feed page that arrived after the user switched filters; it was not written. */
+/** A "load more" page for a tab that was reloaded meanwhile; it was not written. */
 class StaleFeedPageException : Exception("Stale feed page")
 
 /** Result of [DealRepository.getDealsByUser]: pagination info, plus stats when the server includes them (page 1). */

@@ -2,7 +2,7 @@ package eg.deals.radar.preload
 
 import android.content.Context
 import android.util.Log
-import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import kotlinx.coroutines.Dispatchers
@@ -58,8 +58,9 @@ object ImagePreloader {
 
         try {
             // Limit to first 8 images (visible on screen)
+            // must match DealCard: same URL choice (thumbnail falls back to full image)
             val imagesToPreload = deals.take(MAX_IMAGES_TO_PRELOAD)
-                .mapNotNull { it.imageUrl }
+                .mapNotNull { it.thumbnailUrl ?: it.imageUrl }
 
             if (imagesToPreload.isEmpty()) {
                 Log.d(TAG, "⏭️ No images to preload")
@@ -68,8 +69,9 @@ object ImagePreloader {
 
             Log.d(TAG, "🖼️ Starting preload of ${imagesToPreload.size} images...")
 
-            val imageLoader = ImageLoader.Builder(context)
-                .build()
+            // ✅ Use the app-wide singleton ImageLoader (see EgyptDealsApp.newImageLoader)
+            // so preloaded images land in the same memory/disk cache the feed reads from.
+            val imageLoader = SingletonImageLoader.get(context)
 
             imagesToPreload.forEachIndexed { index, imageUrl ->
                 if (!job.isActive) {
@@ -78,10 +80,14 @@ object ImagePreloader {
                 }
 
                 try {
-                    // Build preload request with optimized settings
+                    // must match DealCard: same data URL (no ignored query suffix) and
+                    // same cache keys so this preload is a cache hit when the grid
+                    // requests the image.
+                    val cacheKey = "grid_$imageUrl"
                     val request = ImageRequest.Builder(context)
                         .data(imageUrl)
-                        .size(400, 400) // Match feed image size
+                        .memoryCacheKey(cacheKey)
+                        .diskCacheKey(cacheKey)
                         .allowHardware(false) // Prevent hardware bitmap issues
                         .build()
 
