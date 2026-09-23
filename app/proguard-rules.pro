@@ -1,45 +1,51 @@
-# Retrofit
+# ============================================================================
+# R8 rules for release builds.
+# Libraries (Compose, OkHttp, Retrofit 2.11, Gson, Coil 3, Room, Firebase)
+# ship their own consumer rules: do NOT add blanket "-keep class lib.** { *; }"
+# rules here - they stop obfuscation of most of the app (Play Console flagged
+# "Obfuscation 17%"). Only keep what our own code needs by name.
+# ============================================================================
+
+# Generic signatures + annotations: Retrofit reads suspend return types
+# (ApiEnvelope<List<DealDto>>) and Gson reads @SerializedName.
 -keepattributes Signature, InnerClasses, EnclosingMethod
--keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, AnnotationDefault
+-keepattributes *Annotation*, Exceptions
+
+# Retrofit service interfaces (Retrofit's own rules cover the rest)
 -keepclassmembers,allowshrinking,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
 }
 -dontwarn retrofit2.**
--keep class retrofit2.** { *; }
-
-# OkHttp
 -dontwarn okhttp3.**
--keep class okhttp3.** { *; }
 -dontwarn okio.**
 
-# Gson - CRITICAL for JSON parsing
--keepattributes Signature
--keepattributes *Annotation*
--keep class com.google.gson.** { *; }
--keep class * implements com.google.gson.TypeAdapter
--keep class * implements com.google.gson.TypeAdapterFactory
--keep class * implements com.google.gson.JsonSerializer
--keep class * implements com.google.gson.JsonDeserializer
+# Gson: official rules for TypeToken with R8 full mode
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
-# DATA CLASSES - Only keep what's needed for serialization
--keep class eg.deals.radar.network.** { *; }  # API DTOs (needed by Retrofit/Gson)
--keep class eg.deals.radar.db.** { *; }       # Database entities (needed by Room)
--keep class eg.deals.domain.** { *; }        # Domain models (small, safe to keep)
-
-# ViewModels - Keep class names (used by reflection in ViewModelProvider.Factory)
--keep class * extends androidx.lifecycle.ViewModel {
-    <init>(...);
-}
--keep class **.*ViewModel { *; }
--keep class **.*ViewModelFactory { *; }
-
-# BuildConfig - Keep class name (used by Class.forName in ImageLoaderConfig)
--keep class **.BuildConfig { *; }
-
-# Obfuscate everything else for security
+# API DTOs are read/written by Gson through reflection: keep their field
+# names and constructors (small package; everything else stays obfuscated).
+-keep class eg.deals.radar.network.** { *; }
+# Room entities / domain models (small, also used by Gson in exports)
+-keep class eg.deals.radar.db.** { *; }
+-keep class eg.deals.domain.** { *; }
+# Any other class of ours with @SerializedName fields
 -keepclassmembers class eg.deals.radar.** {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+
+# ViewModels: only the constructors (default ViewModelProvider factories use them)
+-keep class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+
+# BuildConfig (read by name)
+-keep class **.BuildConfig { *; }
+
+# Room: generated DealDatabase_Impl is looked up by name (Room also ships this rule)
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+-dontwarn androidx.room.paging.**
 
 # Remove ALL logging in release builds (including errors and warnings)
 -assumenosideeffects class android.util.Log {
@@ -62,17 +68,7 @@
     public static *** network(...);
 }
 
-# Room Database
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--dontwarn androidx.room.paging.**
-
-# Coil image loading
--keep class coil.** { *; }
--dontwarn coil.**
-
-# Compose
--keep class androidx.compose.** { *; }
--dontwarn androidx.compose.**
-
--keepattributes *Annotation*,Signature,Exception
+# Crash reports: keep file names + line numbers readable in Crashlytics
+# (the mapping file uploaded at build time restores class/method names)
+-keepattributes SourceFile, LineNumberTable
+-renamesourcefileattribute SourceFile

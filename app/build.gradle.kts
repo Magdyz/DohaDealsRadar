@@ -95,6 +95,18 @@ android {
             // applicationIdSuffix = ".debug"  // ✅ Disabled for Firebase compatibility (2025-11-25)
             versionNameSuffix = "-DEBUG"
         }
+
+        // Same R8 shrinking/obfuscation as release, signed with the debug key so it can be
+        // installed and tested locally before uploading to Play. Never uploaded to Play.
+        create("releaseTest") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            versionNameSuffix = "-RTEST"
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
+        }
     }
 
     kotlinOptions {
