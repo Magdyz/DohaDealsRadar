@@ -79,6 +79,9 @@
     <li>Your votes, reports and "deal ended" confirmations.</li>
     <li>A random ID for your app install, used only to stop spam and abuse.</li>
     <li>A notification token, if you turn notifications on.</li>
+    <li>Crash and error reports: if the app crashes or hits an unexpected error, it sends a technical report
+    (app version, phone model and Android version, and where in the app it happened) so we can fix it. These
+    reports contain no name, email, username, deals or messages.</li>
   </ul>
 
   <h2>What we do not collect</h2>
@@ -87,7 +90,8 @@
     <li>No location tracking — you choose a governorate yourself.</li>
     <li>No contacts, no files, no call or message data.</li>
     <li>No access to your Google account beyond confirming who you are — no Gmail, Drive or contacts.</li>
-    <li>No third-party analytics and no session recording.</li>
+    <li>No advertising or marketing analytics and no session recording. The only third-party tool is crash
+    reporting (see above).</li>
   </ul>
 
   <h2>Why we use it</h2>
@@ -97,7 +101,8 @@
   <h2>Where it is stored</h2>
   <p>On secure cloud servers provided by Supabase. Sign-in runs through Google and Supabase Auth,
   which holds the account identity; our own database keeps only your username and an internal id.
-  Push notifications are delivered by Google Firebase Cloud Messaging. Your login session is stored
+  Push notifications are delivered by Google Firebase Cloud Messaging, and crash reports are processed by
+  Google Firebase Crashlytics. Your login session is stored
   encrypted on your own phone. Data is encrypted in transit.</p>
 
   <h2>How long we keep it</h2>
@@ -106,6 +111,7 @@
     <li>Rejected deals: deleted after 30 days.</li>
     <li>Reports: deleted after 90 days.</li>
     <li>Feedback messages: deleted after 1 year.</li>
+    <li>Crash and error reports: kept up to 90 days.</li>
     <li>Your account data: removed as soon as you delete your account.</li>
   </ul>
 
@@ -148,6 +154,9 @@
       <li>تصويتاتك وبلاغاتك وتأكيدك إن العرض خلص.</li>
       <li>رقم عشوائي للنسخة المثبتة على موبايلك، بنستخدمه بس لمنع السبام وإساءة الاستخدام.</li>
       <li>رمز الإشعارات، لو فعّلت الإشعارات.</li>
+      <li>تقارير الأعطال والأخطاء: لو التطبيق وقع أو حصل فيه خطأ مش متوقع، بيبعت تقرير تقني (نسخة التطبيق، نوع
+      الموبايل ونسخة أندرويد، والمكان اللي حصل فيه الخطأ جوه التطبيق) عشان نقدر نصلّحه. التقارير دي ما فيهاش اسمك
+      ولا إيميلك ولا اسم المستخدم ولا عروضك ولا رسايلك.</li>
     </ul>
 
     <h2>البيانات اللي ما بنجمعهاش</h2>
@@ -156,7 +165,8 @@
       <li>مفيش تتبّع لموقعك — انت اللي بتختار المحافظة.</li>
       <li>مفيش جهات اتصال ولا ملفات ولا رسايل ولا مكالمات.</li>
       <li>مفيش أي وصول لحساب جوجل بتاعك غير التأكد من شخصيتك — لا Gmail ولا Drive ولا جهات اتصال.</li>
-      <li>مفيش تحليلات من طرف تالت ولا تسجيل لاستخدامك.</li>
+      <li>مفيش تحليلات إعلانية أو تسويقية ولا تسجيل لاستخدامك. الأداة الوحيدة من طرف تالت هي تقارير الأعطال
+      (موضحة فوق).</li>
     </ul>
 
     <h2>ليه بنستخدمها</h2>
@@ -166,7 +176,8 @@
     <h2>مكان تخزين البيانات</h2>
     <p>على خوادم سحابية آمنة من Supabase. تسجيل الدخول بيتم عن طريق جوجل و Supabase Auth اللي بيحتفظ
     بهوية الحساب، وقاعدة بياناتنا نفسها مفيهاش غير اسم المستخدم ورقم داخلي. والإشعارات بتتبعت عن طريق
-    Google Firebase. جلسة دخولك محفوظة مشفّرة على موبايلك، والبيانات بتتنقل مشفّرة.</p>
+    Google Firebase، وتقارير الأعطال بتتعالج عن طريق Google Firebase Crashlytics. جلسة دخولك محفوظة مشفّرة
+    على موبايلك، والبيانات بتتنقل مشفّرة.</p>
 
     <h2>مدة الاحتفاظ</h2>
     <ul>
@@ -174,6 +185,7 @@
       <li>العروض المرفوضة: بتتمسح بعد ٣٠ يوم.</li>
       <li>البلاغات: بتتمسح بعد ٩٠ يوم.</li>
       <li>رسائل الملاحظات: بتتمسح بعد سنة.</li>
+      <li>تقارير الأعطال والأخطاء: بتتحفظ لحد ٩٠ يوم.</li>
       <li>بيانات حسابك: بتتمسح فورًا لما تمسح حسابك.</li>
     </ul>
 
