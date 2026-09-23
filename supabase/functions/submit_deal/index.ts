@@ -6,7 +6,7 @@
 //   * link safety (https, no shorteners, optional Safe Browsing)
 //   * price sanity, field lengths, category/governorate
 //   * photo must be the caller's own upload
-//   * duplicates: same link/photo -> DUPLICATE_DEAL; similar title ->
+//   * duplicates: same link -> DUPLICATE_DEAL; similar title ->
 //     POSSIBLE_DUPLICATE unless the user confirms (confirm_not_duplicate)
 // Approval: staff -> live; trusted users -> live unless something looks risky
 // (unknown store, big discount, integrity failure, 10% spot check).
@@ -88,7 +88,7 @@ Deno.serve(handler(async (req) => {
   });
   if (simError) throw simError;
   const matches = (similar ?? []) as Array<{ id: string; title: string; image_url: string; match_type: string; score: number }>;
-  const hard = matches.find((m) => m.match_type === "url" || m.match_type === "image");
+  const hard = matches.find((m) => m.match_type === "url");
   if (hard) {
     throw new ApiError("DUPLICATE_DEAL", "This deal is already posted. You can vote on it instead.", { existing: hard });
   }

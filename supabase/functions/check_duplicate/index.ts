@@ -2,7 +2,7 @@
 // check_duplicate
 // Called while posting (before submit) to warn early:
 //   { link?, title?, image_hash? }  ->  { duplicates: [...], blocking: bool }
-// `blocking` = an active deal with the same link or photo already exists.
+// `blocking` = an active deal with the same link already exists.
 // ============================================================================
 import { admin, requireUser } from "../_shared/auth.ts";
 import { handler, ok, readJson, str } from "../_shared/http.ts";
@@ -33,6 +33,6 @@ Deno.serve(handler(async (req) => {
   const duplicates = (data ?? []) as Array<{ id: string; title: string; image_url: string; match_type: string; score: number }>;
   return ok({
     duplicates,
-    blocking: duplicates.some((d) => d.match_type === "url" || d.match_type === "image"),
+    blocking: duplicates.some((d) => d.match_type === "url"),
   });
 }));
