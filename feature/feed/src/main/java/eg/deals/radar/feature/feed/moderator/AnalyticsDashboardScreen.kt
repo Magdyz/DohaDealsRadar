@@ -1,5 +1,9 @@
 package eg.deals.radar.feature.feed.moderator
 
+import eg.deals.radar.feature.feed.R
+
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,11 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eg.deals.domain.DealCategory
 import eg.deals.domain.Governorate
+import eg.deals.radar.network.AppHealthDto
 import eg.deals.radar.network.StatsDto
 import eg.deals.radar.repository.DealRepository
 import kotlinx.coroutines.launch
@@ -28,7 +35,7 @@ import kotlinx.coroutines.launch
  * 📈 COMMUNITY STATS (moderators/admins, English-only)
  * ========================================
  * Anonymous aggregate numbers computed on our own backend (get_stats).
- * No third-party analytics, no per-user tracking.
+ * No analytics SDK, no per-user tracking (crash reports: Crashlytics, no user ids).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +46,7 @@ fun AnalyticsDashboardScreen(
     val repo = remember { DealRepository() }
     val scope = rememberCoroutineScope()
     var stats by remember { mutableStateOf<StatsDto?>(null) }
+    var appHealth by remember { mutableStateOf<AppHealthDto?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
 
@@ -47,7 +55,7 @@ fun AnalyticsDashboardScreen(
             loading = true
             error = null
             repo.getStats()
-                .onSuccess { stats = it }
+                .onSuccess { stats = it; appHealth = it.appHealth } // app_health: admins only
                 .onFailure { error = it.message }
             loading = false
         }
@@ -58,7 +66,7 @@ fun AnalyticsDashboardScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Community Stats", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.moderator_stats_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -85,16 +93,16 @@ fun AnalyticsDashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(error ?: "", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { load() }) { Text("Retry") }
+                    Button(onClick = { load() }) { Text(stringResource(R.string.common_retry)) }
                 }
-                else -> stats?.let { s -> StatsContent(s) }
+                else -> stats?.let { s -> StatsContent(s, appHealth) }
             }
         }
     }
 }
 
 @Composable
-private fun StatsContent(s: StatsDto) {
+private fun StatsContent(s: StatsDto, appHealth: AppHealthDto?) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -138,6 +146,41 @@ private fun StatsContent(s: StatsDto) {
         }
         s.generatedAt?.let {
             Text("Updated $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Admins only: the backend omits app_health entirely for moderators.
+        appHealth?.let { health -> AppHealthSection(health) }
+    }
+}
+
+@Composable
+private fun AppHealthSection(health: AppHealthDto) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("App health")
+        TileRow(
+            "Crashes 24h" to health.crashes24h,
+            "Crashes 7 days" to health.crashes7d
+        )
+        TileRow(
+            "Errors 24h" to health.errors24h,
+            "Errors 7 days" to health.errors7d
+        )
+        if (health.topErrorAreas7d.isNotEmpty()) {
+            Text("Top error areas (7 days)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            BarList(health.topErrorAreas7d.map { it.name to it.count })
+        }
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://console.firebase.google.com/project/dohadeals-3d6b1/crashlytics")
+                )
+                runCatching { context.startActivity(intent) }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Open crash reports")
         }
     }
 }

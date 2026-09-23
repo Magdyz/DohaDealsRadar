@@ -153,4 +153,9 @@ object NetworkModule {
         .build()
 
     val api: SupabaseApiService = retrofit.create(SupabaseApiService::class.java)
+
+    /** Same base URL / OkHttpClient as [api]; used by ErrorReporter's fire-and-forget beacon. */
+    val clientErrorApi: ClientErrorApi = retrofit.create(ClientErrorApi::class.java)
+
+    /** Same base URL / OkHttpClient as [api]; used to read the admin-only app_health block. */
 }

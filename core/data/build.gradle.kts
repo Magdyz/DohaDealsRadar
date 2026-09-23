@@ -141,6 +141,9 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
 
+    // Crashlytics: used by ErrorReporter (crash-on-previous-execution check + recordException)
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+
     // Kotlin Coroutines (for Firebase Tasks.await())
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 }

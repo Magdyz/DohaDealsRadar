@@ -1,5 +1,7 @@
 package eg.deals.radar.feature.feed.moderator
 
+import eg.deals.radar.feature.feed.R
+
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -311,10 +314,10 @@ private fun TakeActionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Take Action on Report") },
+        title = { Text(stringResource(R.string.feed_report_action_title)) },
         text = {
             Column {
-                Text("What action would you like to take?")
+                Text(stringResource(R.string.feed_report_action_message))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Action selection
@@ -328,7 +331,7 @@ private fun TakeActionDialog(
                             onClick = { selectedAction = "delete_deal" }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete the reported deal", fontSize = 14.sp)
+                        Text(stringResource(R.string.feed_report_action_delete_deal), fontSize = 14.sp)
                     }
 
                     Row(
@@ -340,7 +343,7 @@ private fun TakeActionDialog(
                             onClick = { selectedAction = "warn_user" }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Warn the user who posted", fontSize = 14.sp)
+                        Text(stringResource(R.string.feed_report_action_warn_user), fontSize = 14.sp)
                     }
 
                     Row(
@@ -352,7 +355,7 @@ private fun TakeActionDialog(
                             onClick = { selectedAction = "ban_user" }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Ban the user who posted", fontSize = 14.sp)
+                        Text(stringResource(R.string.feed_report_action_ban_user), fontSize = 14.sp)
                     }
                 }
 
@@ -362,10 +365,10 @@ private fun TakeActionDialog(
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
-                    label = { Text("Reason (optional)") },
+                    label = { Text(stringResource(R.string.feed_deal_reason_optional_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
-                    placeholder = { Text("E.g., Violates community guidelines") }
+                    placeholder = { Text(stringResource(R.string.feed_report_action_placeholder)) }
                 )
             }
         },
@@ -376,12 +379,12 @@ private fun TakeActionDialog(
                     containerColor = Color(0xFFEF4444)
                 )
             ) {
-                Text("Confirm")
+                Text(stringResource(R.string.common_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )

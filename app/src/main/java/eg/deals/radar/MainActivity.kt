@@ -31,6 +31,7 @@ import eg.deals.radar.datastore.DeviceIdManager
 // ✅ 2. ADD THIS IMPORT
 import eg.deals.radar.navigation.Routes
 import eg.deals.radar.util.AppLanguage
+import eg.deals.radar.BuildConfig
 
 /**
  * Main activity - Entry point of the app.
@@ -71,15 +72,18 @@ class MainActivity : ComponentActivity() {
         // ========================================
 
         // ✅ NEW: Get and log FCM token for testing (2025-11-25)
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                Log.d("FCM_TOKEN", "📱 FCM REGISTRATION TOKEN (Copy this for Firebase Console):")
-                Log.d("FCM_TOKEN", token)
-                Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            } else {
-                Log.e("FCM_TOKEN", "❌ Failed to get token", task.exception)
+        // ✅ FIX: Debug-only — this only ever logged the token, never used it
+        if (BuildConfig.DEBUG) {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    Log.d("FCM_TOKEN", "📱 FCM REGISTRATION TOKEN (Copy this for Firebase Console):")
+                    Log.d("FCM_TOKEN", token)
+                    Log.d("FCM_TOKEN", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                } else {
+                    Log.e("FCM_TOKEN", "❌ Failed to get token", task.exception)
+                }
             }
         }
 

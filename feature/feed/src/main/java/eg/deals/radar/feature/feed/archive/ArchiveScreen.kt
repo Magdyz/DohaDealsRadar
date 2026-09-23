@@ -1,5 +1,7 @@
 package eg.deals.radar.feature.archive
 
+import eg.deals.radar.feature.feed.R
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -22,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -432,6 +435,16 @@ fun ArchiveScreen(
                                 items = archivedDeals,
                                 key = { it.id }
                             ) { deal ->
+                              Column(modifier = Modifier.animateItem()) {
+                                // Why it left the feed: users (or the poster / staff) marked it ended
+                                if (deal.expiredVotes > 0) {
+                                    Text(
+                                        text = "⌛ Marked ended (" + deal.expiredVotes + ")",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                                    )
+                                }
                                 DealCard(
                                     deal = deal,
                                     onClick = { onDealClick(deal.id) },
@@ -449,9 +462,9 @@ fun ArchiveScreen(
 
                                     // ✅ NEW: Admin-only delete button
                                     showDeleteButton = isAdmin,
-                                    onDelete = { dealToDelete = deal.id },
-                                    modifier = Modifier.animateItem()
+                                    onDelete = { dealToDelete = deal.id }
                                 )
+                              }
                             }
 
                             // ✅ Loading indicator at bottom when loading more
@@ -482,7 +495,7 @@ fun ArchiveScreen(
             if (state.showReturnToFeedDialog) {
                 AlertDialog(
                     onDismissRequest = { viewModel.hideReturnToFeedDialog() },
-                    title = { Text("Return Deal to Feed") },
+                    title = { Text(stringResource(R.string.feed_deal_archive_return_title)) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(
@@ -491,11 +504,14 @@ fun ArchiveScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "Expires in",
+                                    stringResource(R.string.feed_deal_archive_expires_in),
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Text(
-                                    "${state.expiresInDays} day${if (state.expiresInDays > 1) "s" else ""}",
+                                    stringResource(
+                                        if (state.expiresInDays > 1) R.string.feed_deal_archive_expires_in_days_plural else R.string.feed_deal_archive_expires_in_days_single,
+                                        state.expiresInDays
+                                    ),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
@@ -523,12 +539,12 @@ fun ArchiveScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    "1 day",
+                                    stringResource(R.string.feed_deal_archive_one_day),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "30 days",
+                                    stringResource(R.string.feed_deal_archive_thirty_days),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -537,12 +553,12 @@ fun ArchiveScreen(
                     },
                     confirmButton = {
                         Button(onClick = { viewModel.returnDealToFeed() }) {
-                            Text("Confirm")
+                            Text(stringResource(R.string.common_confirm))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { viewModel.hideReturnToFeedDialog() }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.common_cancel))
                         }
                     }
                 )
@@ -574,7 +590,7 @@ fun ArchiveScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                "Returning...",
+                                stringResource(R.string.feed_deal_archive_returning),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -592,12 +608,9 @@ fun ArchiveScreen(
     dealToDelete?.let { dealId ->
         AlertDialog(
             onDismissRequest = { dealToDelete = null },
-            title = { Text("Delete Deal Permanently") },
+            title = { Text(stringResource(R.string.feed_deal_delete_permanently_title)) },
             text = {
-                Text(
-                    "This will permanently delete the deal and its image from the database. " +
-                            "This action cannot be undone. Are you sure?"
-                )
+                Text(stringResource(R.string.feed_deal_delete_message))
             },
             confirmButton = {
                 Button(
@@ -609,12 +622,12 @@ fun ArchiveScreen(
                         containerColor = Color(0xFFDC2626)  // Red
                     )
                 ) {
-                    Text("Delete Permanently")
+                    Text(stringResource(R.string.feed_deal_delete_permanently_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { dealToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )

@@ -26,6 +26,11 @@ object Routes {
     const val ANALYTICS_DASHBOARD = "moderator/analytics"  // ✅ NEW: Analytics dashboard route (2025-11-24)
     const val USER_PROFILE = "profile/{userId}"
 
+    // Admin-only routes (2025-11-27)
+    const val USER_MANAGEMENT = "moderator/users"
+    const val AUDIT_LOG = "moderator/audit-log"
+    const val ADMIN_FEEDBACK = "moderator/feedback"
+
     /**
      * Helper function to create details route with dealId
      */

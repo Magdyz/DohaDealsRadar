@@ -9,9 +9,11 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import coil3.util.DebugLogger
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import okio.Path.Companion.toOkioPath
 import kotlinx.coroutines.launch
 import eg.deals.radar.util.AppContext
+import eg.deals.radar.util.ErrorReporter
 import eg.deals.radar.fcm.EgyptDealsFirebaseMessagingService
 import eg.deals.radar.BuildConfig
 
@@ -58,13 +60,18 @@ class EgyptDealsApp : Application(), SingletonImageLoader.Factory {
         // 🔔 Create the deals notification channel up front (used by background FCM notifications)
         EgyptDealsFirebaseMessagingService.ensureNotificationChannel(this)
 
+        // 🩺 Crash + error reporting (privacy-first: no user ids, no custom keys with user data).
+        // Collection is disabled in debug builds so local crashes never leave the device.
+        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+        ErrorReporter.onAppStart(this, BuildConfig.VERSION_NAME)
+
         // 🔔 New-deal alerts on by default (opt-out lives in notification settings)
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             eg.deals.radar.manager.NotificationManager.getInstance(this@EgyptDealsApp)
                 .applyDefaultSubscriptions(this@EgyptDealsApp)
         }
 
-        // Privacy-first: no third-party analytics SDKs (stats come from our own database)
+        // Privacy-first: no analytics SDKs (stats come from our own database); only Crashlytics crash reports, no user ids
     }
 
     /**

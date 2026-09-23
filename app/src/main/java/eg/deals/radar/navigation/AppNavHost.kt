@@ -22,6 +22,9 @@ import eg.deals.radar.feature.feed.moderator.ModeratorDashboardScreen
 import eg.deals.radar.feature.feed.moderator.PendingDealsScreen
 import eg.deals.radar.feature.feed.moderator.ReportsScreen  // ✅ NEW: Reports screen (2025-11-22)
 import eg.deals.radar.feature.feed.moderator.AnalyticsDashboardScreen  // ✅ NEW: Analytics dashboard (2025-11-24)
+import eg.deals.radar.feature.feed.admin.UserManagementScreen  // ✅ NEW: Admin user management (2025-11-27)
+import eg.deals.radar.feature.feed.admin.AuditLogScreen  // ✅ NEW: Admin audit log (2025-11-27)
+import eg.deals.radar.feature.feed.admin.FeedbackAdminScreen  // ✅ NEW: Admin feedback inbox (2025-11-27)
 import eg.deals.radar.feature.feed.profile.UserProfileScreen
 // SPRINT 5: Import authentication and account screens
 import eg.deals.radar.feature.post.LoginScreen
@@ -335,12 +338,13 @@ fun AppNavHost(
                         navController.navigate(Routes.ANALYTICS_DASHBOARD)
                     },
                     onUserManagementClick = {
-                        // TODO: Sprint 6 - User management screen
-                        // This will navigate to admin panel in future sprint
+                        navController.navigate(Routes.USER_MANAGEMENT)
                     },
                     onAuditLogClick = {
-                        // TODO: Sprint 9 - Audit log screen
-                        // This will show moderation history in future sprint
+                        navController.navigate(Routes.AUDIT_LOG)
+                    },
+                    onFeedbackClick = {
+                        navController.navigate(Routes.ADMIN_FEEDBACK)
                     },
                     onLogout = {
                         // Return to feed after logout
@@ -380,6 +384,36 @@ fun AppNavHost(
         composable(Routes.ANALYTICS_DASHBOARD) {
             EnglishOnlyLayout {
                 AnalyticsDashboardScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        // ✅ NEW: User Management - Admin-only role/ban/trust management (2025-11-27)
+        composable(Routes.USER_MANAGEMENT) {
+            EnglishOnlyLayout {
+                UserManagementScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onViewUserClick = { userId ->
+                        navController.navigate(Routes.userProfile(userId))
+                    }
+                )
+            }
+        }
+
+        // ✅ NEW: Audit Log - Admin-only moderation history (2025-11-27)
+        composable(Routes.AUDIT_LOG) {
+            EnglishOnlyLayout {
+                AuditLogScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        // ✅ NEW: Admin Feedback Inbox (2025-11-27)
+        composable(Routes.ADMIN_FEEDBACK) {
+            EnglishOnlyLayout {
+                FeedbackAdminScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }

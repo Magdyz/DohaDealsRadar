@@ -80,6 +80,9 @@ class LoginViewModel(
                             isLoading = false
                         )
                     } else {
+                        // Backend-confirmed failure only (NETWORK/validation codes are filtered out
+                        // inside ErrorReporter); user cancellation never reaches this branch.
+                        eg.deals.radar.util.ErrorReporter.serverError("login", response.code)
                         fail(response.error ?: AppLanguage.string(R.string.signin_failed))
                     }
                 }

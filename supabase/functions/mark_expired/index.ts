@@ -3,7 +3,7 @@
 // "Is this deal expired?" - logged-in users confirm a deal has ended.
 // After 3 different users confirm, the deal is archived automatically.
 // ============================================================================
-import { admin, requireUser } from "../_shared/auth.ts";
+import { admin, logAction, requireUser } from "../_shared/auth.ts";
 import { ApiError, handler, isUuid, ok, readJson } from "../_shared/http.ts";
 import { DAY, rateLimit } from "../_shared/ratelimit.ts";
 
@@ -28,6 +28,16 @@ Deno.serve(handler(async (req) => {
   const final = (count ?? 0) >= ARCHIVE_AT || deal.submitted_by_user_id === caller.profile.id ||
     caller.profile.role === "admin" || caller.profile.role === "moderator";
   await admin().from("deals").update({ expired_votes: count ?? 0, ...(final ? { is_archived: true } : {}) }).eq("id", dealId);
+
+  // Admin oversight: record why the deal left the feed (shows in the Audit Log)
+  if (final) {
+    const by = deal.submitted_by_user_id === caller.profile.id ? "poster"
+      : caller.profile.role === "admin" || caller.profile.role === "moderator" ? "staff"
+      : `${count ?? 0} users`;
+    await logAction("deal_marked_ended", caller.profile.id, {
+      dealId, targetUserId: deal.submitted_by_user_id, reason: `Marked ended by ${by}`, newValue: String(count ?? 0),
+    });
+  }
 
   return ok({ archived: final, expired_votes: count ?? 0 });
 }));

@@ -1,5 +1,7 @@
 package eg.deals.radar.feature.feed.moderator
 
+import eg.deals.radar.feature.feed.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -421,18 +424,18 @@ private fun DismissReportDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Dismiss Report") },
+        title = { Text(stringResource(R.string.feed_report_dismiss_title)) },
         text = {
             Column {
-                Text("Mark this report as reviewed with no action needed?")
+                Text(stringResource(R.string.feed_report_dismiss_confirm_message))
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
-                    label = { Text("Reason (optional)") },
+                    label = { Text(stringResource(R.string.feed_deal_reason_optional_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
-                    placeholder = { Text("E.g., Not a violation, user error, etc.") }
+                    placeholder = { Text(stringResource(R.string.feed_report_dismiss_placeholder)) }
                 )
             }
         },
@@ -443,12 +446,12 @@ private fun DismissReportDialog(
                     containerColor = Color(0xFF6B7280)
                 )
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.feed_report_dismiss_button))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )

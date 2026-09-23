@@ -34,6 +34,7 @@ fun ModeratorDashboardScreen(
     onAnalyticsClick: () -> Unit = {},  // ✅ NEW: Navigate to analytics dashboard (2025-11-24)
     onUserManagementClick: () -> Unit = {},
     onAuditLogClick: () -> Unit = {},
+    onFeedbackClick: () -> Unit = {},
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -175,6 +176,19 @@ fun ModeratorDashboardScreen(
                     icon = Icons.Default.List,
                     iconColor = Color(0xFF6B7280),
                     onClick = onAuditLogClick
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Feedback (Admin only)
+            if (uiState.isAdmin) {
+                DashboardCard(
+                    title = "Feedback",
+                    subtitle = "Review user-submitted feedback",
+                    icon = Icons.Default.Feedback,
+                    iconColor = Color(0xFF10B981),
+                    onClick = onFeedbackClick
                 )
             }
         }

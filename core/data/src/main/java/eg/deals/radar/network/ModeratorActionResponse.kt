@@ -15,6 +15,12 @@ data class ModeratorActionResponse(
     @SerializedName("error")
     val error: String? = null,
 
+    // ✅ NEW: machine-readable error code (see ApiErrors). The server already
+    // sends this on every failure envelope; capturing it lets callers build a
+    // translated message instead of showing the raw `error` text.
+    @SerializedName("code")
+    val code: String? = null,
+
     @SerializedName("data")
     val data: DealDto? = null
 )

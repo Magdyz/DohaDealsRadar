@@ -1,5 +1,7 @@
 package eg.deals.radar.feature.feed.moderator
 
+import eg.deals.radar.feature.feed.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -295,10 +298,10 @@ private fun RejectDealDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reject Deal") },
+        title = { Text(stringResource(R.string.feed_deal_reject_title)) },
         text = {
             Column {
-                Text("Are you sure you want to reject this deal?")
+                Text(stringResource(R.string.feed_deal_reject_confirm_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = dealTitle,
@@ -309,7 +312,7 @@ private fun RejectDealDialog(
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
-                    label = { Text("Reason (optional)") },
+                    label = { Text(stringResource(R.string.feed_deal_reason_optional_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3
                 )
@@ -322,12 +325,12 @@ private fun RejectDealDialog(
                     containerColor = Color(0xFFEF4444)
                 )
             ) {
-                Text("Reject")
+                Text(stringResource(R.string.feed_deal_reject_button))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
@@ -346,10 +349,10 @@ private fun DeleteDealDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Deal") },
+        title = { Text(stringResource(R.string.feed_deal_delete_title)) },
         text = {
             Column {
-                Text("This will permanently delete the deal. Are you sure?")
+                Text(stringResource(R.string.feed_deal_delete_confirm_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = dealTitle,
@@ -360,7 +363,7 @@ private fun DeleteDealDialog(
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
-                    label = { Text("Reason (optional)") },
+                    label = { Text(stringResource(R.string.feed_deal_reason_optional_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3
                 )
@@ -373,12 +376,12 @@ private fun DeleteDealDialog(
                     containerColor = Color(0xFFDC2626)
                 )
             ) {
-                Text("Delete")
+                Text(stringResource(R.string.feed_deal_delete_button))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )

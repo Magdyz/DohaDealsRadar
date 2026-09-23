@@ -24,6 +24,15 @@ Deno.serve(handler(async (req) => {
   const { data: archived, error: archiveError } = await db.rpc("archive_expired_deals");
   if (archiveError) console.error("archive failed:", archiveError.message);
 
+  // Safety net for the +1/-1 vote counters
+  const { data: reconciled, error: reconcileError } = await db.rpc("reconcile_vote_counts");
+  if (reconcileError) console.error("vote reconcile failed:", reconcileError.message);
+
+  // Anonymous app error reports: keep 30 days
+  const { error: errPurgeError } = await db.from("client_errors").delete()
+    .lt("created_at", new Date(Date.now() - 30 * 86400_000).toISOString());
+  if (errPurgeError) console.error("client_errors purge failed:", errPurgeError.message);
+
   const { data: purged, error: purgeError } = await db.rpc("purge_old_data");
   if (purgeError) throw purgeError;
   const row = (purged as any[])?.[0] ?? {};
@@ -38,6 +47,7 @@ Deno.serve(handler(async (req) => {
 
   const result = {
     archived: (archived as any[])?.[0]?.archived_count ?? 0,
+    vote_counts_fixed: typeof reconciled === "number" ? reconciled : 0,
     deals_deleted: row.deals_deleted ?? 0,
     reports_deleted: row.reports_deleted ?? 0,
     feedback_deleted: row.feedback_deleted ?? 0,

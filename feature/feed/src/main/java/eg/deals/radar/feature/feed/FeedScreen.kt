@@ -910,12 +910,9 @@ fun FeedScreen(
     dealToDelete?.let { dealId ->
         AlertDialog(
             onDismissRequest = { dealToDelete = null },
-            title = { Text("Delete Deal Permanently") },
+            title = { Text(stringResource(R.string.feed_deal_delete_permanently_title)) },
             text = {
-                Text(
-                    "This will permanently delete the deal and its image from the database. " +
-                            "This action cannot be undone. Are you sure?"
-                )
+                Text(stringResource(R.string.feed_deal_delete_message))
             },
             confirmButton = {
                 Button(
@@ -927,12 +924,12 @@ fun FeedScreen(
                         containerColor = Color(0xFFDC2626)  // Red
                     )
                 ) {
-                    Text("Delete Permanently")
+                    Text(stringResource(R.string.feed_deal_delete_permanently_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { dealToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )

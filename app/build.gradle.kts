@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.google.services)  // ✅ NEW: Firebase support (2025-11-25)
+    alias(libs.plugins.crashlytics)      // Crash + non-fatal error reporting
 }
 
 // ============================================================================
@@ -41,8 +42,8 @@ android {
         applicationId = "qa.deals.doha"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25 // 25 = EgyptDealRadar 2.0 (last Doha release was 24)
-        versionName = "2.0.0"
+        versionCode = 26 // 26 = 2.1.0: feed tabs, account stats, duplicate check, scale tier 1, admin oversight
+        versionName = "2.1.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -165,6 +166,9 @@ dependencies {
     // ✅ NEW: Firebase Cloud Messaging (FCM) for push notifications (2025-11-25)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Crashlytics: crash + non-fatal error reporting (privacy-first: no user ids, no custom keys)
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
 
     // No Firebase Analytics: push notifications only (privacy-first)
 }

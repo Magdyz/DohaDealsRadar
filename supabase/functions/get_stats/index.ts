@@ -13,7 +13,7 @@ async function count(table: string, build: (q: any) => any): Promise<number> {
 }
 
 Deno.serve(handler(async (req) => {
-  await requireRole(req, ["moderator", "admin"]);
+  const caller = await requireRole(req, ["moderator", "admin"]);
   const day = new Date(Date.now() - 86400_000).toISOString();
   const week = new Date(Date.now() - 7 * 86400_000).toISOString();
   const now = new Date().toISOString();
@@ -48,6 +48,25 @@ Deno.serve(handler(async (req) => {
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
   };
 
+  // App health (admins only): anonymous error / crash counts reported by the app
+  let appHealth: Record<string, unknown> | undefined;
+  if (caller.profile.role === "admin") {
+    const [crashes24h, crashes7d, errors24h, errors7d] = await Promise.all([
+      count("client_errors", (q) => q.eq("kind", "crash").gte("created_at", day)),
+      count("client_errors", (q) => q.eq("kind", "crash").gte("created_at", week)),
+      count("client_errors", (q) => q.eq("kind", "error").gte("created_at", day)),
+      count("client_errors", (q) => q.eq("kind", "error").gte("created_at", week)),
+    ]);
+    const { data: recentErrors } = await admin().from("client_errors")
+      .select("area").gte("created_at", week).limit(5000);
+    const areas = new Map<string, number>();
+    for (const r of recentErrors ?? []) areas.set((r as any).area, (areas.get((r as any).area) ?? 0) + 1);
+    appHealth = {
+      crashes_24h: crashes24h, crashes_7d: crashes7d, errors_24h: errors24h, errors_7d: errors7d,
+      top_error_areas_7d: [...areas.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count })),
+    };
+  }
+
   return ok({
     data: {
       live_deals: liveDeals,
@@ -64,6 +83,7 @@ Deno.serve(handler(async (req) => {
       top_categories_7d: tally("category"),
       top_governorates_7d: tally("governorate"),
       generated_at: now,
+      app_health: appHealth,
     },
   });
 }));
