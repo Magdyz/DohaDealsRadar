@@ -11,12 +11,14 @@ Deno.serve(handler(async (req) => {
   const { deal_id: dealId } = await readJson(req);
   if (!isUuid(dealId)) throw new ApiError("VALIDATION", "Missing deal.");
 
-  const { data: deal } = await admin().from("deals").select("id, title, image_url, submitted_by_user_id").eq("id", dealId).maybeSingle();
+  // "*" works both before and after the thumbnail_url column exists
+  const { data: deal } = await admin().from("deals").select("*").eq("id", dealId).maybeSingle();
   if (!deal) throw new ApiError("NOT_FOUND", "Deal not found.");
 
-  const path = storagePathFromPublicUrl(deal.image_url);
-  if (path) {
-    const { error } = await admin().storage.from("deals").remove([path]);
+  // Full photo + preview (thumbnail_url)
+  const paths = [deal.image_url, deal.thumbnail_url].map(storagePathFromPublicUrl).filter(Boolean) as string[];
+  if (paths.length) {
+    const { error } = await admin().storage.from("deals").remove(paths);
     if (error) console.error("image delete failed:", error.message);
   }
 

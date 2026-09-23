@@ -5,7 +5,7 @@
 // Broadcasts new deals; tells the poster their deal is live.
 // ============================================================================
 import { admin, logAction, requireRole } from "../_shared/auth.ts";
-import { ApiError, handler, isUuid, ok, readJson } from "../_shared/http.ts";
+import { ApiError, background, handler, isUuid, ok, readJson } from "../_shared/http.ts";
 import { STAFF_DEAL_COLUMNS } from "../_shared/deals.ts";
 import { notifyDealStatus, notifyNewDeal } from "../_shared/fcm.ts";
 
@@ -44,8 +44,8 @@ Deno.serve(handler(async (req) => {
   });
 
   if (!wasHidden) {
-    await notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url });
-    if (deal.submitted_by_user_id) await notifyDealStatus(deal.submitted_by_user_id, deal, "approved");
+    background(notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url }));
+    if (deal.submitted_by_user_id) background(notifyDealStatus(deal.submitted_by_user_id, deal, "approved"));
   }
 
   return ok({ message: wasHidden ? "Deal restored" : "Deal approved", data: updated });

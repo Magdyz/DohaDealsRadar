@@ -4,7 +4,7 @@
 // trigger adds a strike to the poster (2 strikes remove auto-approval).
 // ============================================================================
 import { admin, logAction, requireRole } from "../_shared/auth.ts";
-import { ApiError, handler, isUuid, ok, readJson, str } from "../_shared/http.ts";
+import { ApiError, background, handler, isUuid, ok, readJson, str } from "../_shared/http.ts";
 import { STAFF_DEAL_COLUMNS } from "../_shared/deals.ts";
 import { notifyDealStatus } from "../_shared/fcm.ts";
 
@@ -27,7 +27,7 @@ Deno.serve(handler(async (req) => {
   if (error) throw error;
 
   await logAction("deal_rejected", caller.profile.id, { dealId, targetUserId: deal.submitted_by_user_id, reason });
-  if (deal.submitted_by_user_id) await notifyDealStatus(deal.submitted_by_user_id, deal, "rejected", reason);
+  if (deal.submitted_by_user_id) background(notifyDealStatus(deal.submitted_by_user_id, deal, "rejected", reason));
 
   return ok({ message: "Deal rejected", data: updated });
 }));

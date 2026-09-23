@@ -5,6 +5,7 @@
 import { admin, isStaff, logAction, requireUser } from "../_shared/auth.ts";
 import { ApiError, handler, isUuid, ok, readJson, str } from "../_shared/http.ts";
 import { STAFF_DEAL_COLUMNS } from "../_shared/deals.ts";
+import { HOUR, rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(handler(async (req) => {
   const caller = await requireUser(req);
@@ -16,6 +17,7 @@ Deno.serve(handler(async (req) => {
   if (!deal) throw new ApiError("NOT_FOUND", "Deal not found.");
   const isOwner = deal.submitted_by_user_id === caller.profile.id;
   if (!isOwner && !isStaff(caller)) throw new ApiError("FORBIDDEN", "You can only delete your own deals.");
+  if (!isStaff(caller)) await rateLimit(`delete:${caller.profile.id}`, 30, HOUR, "Please slow down a little.");
 
   const reason = str(body.reason, 300) ?? (isOwner ? "Deleted by owner" : "Removed by moderator");
   const { data: updated, error } = await admin().from("deals").update({

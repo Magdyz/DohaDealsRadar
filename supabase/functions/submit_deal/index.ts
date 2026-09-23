@@ -12,7 +12,7 @@
 // (unknown store, big discount, integrity failure, 10% spot check).
 // ============================================================================
 import { admin, isStaff, requireUser } from "../_shared/auth.ts";
-import { ApiError, handler, ok, readJson, str } from "../_shared/http.ts";
+import { ApiError, background, handler, ok, readJson, str } from "../_shared/http.ts";
 import {
   assertOwnImageUrl, CATEGORIES, canonicalizeUrl, GOVERNORATES, hostOf, isUnsafeUrl, normalizeTitle,
   parsePrice, PUBLIC_DEAL_COLUMNS, storeForHost, validateLink,
@@ -147,7 +147,7 @@ Deno.serve(handler(async (req) => {
 
   const deal = (data as any[])[0];
   if (status === "approved") {
-    await notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url });
+    background(notifyNewDeal({ id: deal.id, title: deal.title, category: deal.category, image_url: deal.image_url }));
   }
 
   return ok({

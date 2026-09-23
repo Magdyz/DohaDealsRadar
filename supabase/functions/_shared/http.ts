@@ -114,3 +114,14 @@ export function str(v: unknown, max = 10_000): string | null {
 export function isUuid(v: unknown): v is string {
   return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
+
+/**
+ * Finish work after the response is sent (e.g. push notifications), so it can
+ * never slow down or fail the user's request. Errors are logged, not thrown.
+ */
+export function background(task: Promise<unknown>) {
+  const safe = task.catch((e) => console.error("background task failed:", e));
+  // deno-lint-ignore no-explicit-any
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(safe);
+}
